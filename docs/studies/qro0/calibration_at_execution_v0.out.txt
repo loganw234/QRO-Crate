@@ -1,0 +1,103 @@
+== 1. the snapshot IBM's history returned for each job's first shot, and what each bundle was frozen against
+  ibm_kingston: morning bundle frozen against 2026-10-05T06:57:43Z; its prediction built from 2026-10-05T06:57:43Z, which differs from that freeze in 0 of 6211 values
+    8 sheet bundles frozen against 2026-10-05T11:05:15Z: no record carries that snapshot
+    returned for 3 first shots (coherence, known-answer, law): 2026-10-05T09:02:46Z, the earliest of those shots 84 min after the stamp
+    returned for 10 first shots (known-answer, law): 2026-10-05T11:28:27Z, the earliest of those shots 54 min after the stamp
+    returned for 6 first shots (known-answer, law): 2026-10-05T12:21:18Z, the earliest of those shots 9 min after the stamp
+  ibm_marrakesh: morning bundle frozen against 2026-10-05T07:35:49Z; its prediction built from 2026-10-05T08:32:46Z, which differs from that freeze in 0 of 6230 values
+    10 sheet bundles frozen against 2026-10-05T09:51:18Z: carried by the 2026-10-14 read
+    returned for 3 first shots (coherence, known-answer, law): 2026-10-05T09:51:18Z, the earliest of those shots 42 min after the stamp
+    returned for 20 first shots (known-answer, law): 2026-10-05T11:21:28Z, the earliest of those shots 81 min after the stamp
+  ibm_fez: morning bundle frozen against 2026-10-05T08:16:22Z; its prediction built from 2026-10-05T08:38:44Z, which differs from that freeze in 0 of 6203 values
+    10 sheet bundles frozen against 2026-10-05T10:08:31Z: carried by the 2026-10-14 read
+    returned for 3 first shots (coherence, known-answer, law): 2026-10-05T10:08:31Z, the earliest of those shots 25 min after the stamp
+    returned for 20 first shots (known-answer, law): 2026-10-05T11:44:47Z, the earliest of those shots 66 min after the stamp
+
+== 2. execution-time snapshots against the morning bundle's freeze (and the sheet bundles' freeze where carried)
+  ibm_kingston 2026-10-05T09:02:46Z against the morning freeze 2026-10-05T06:57:43Z: 0 of 6211 values differ; 1956 carry a different measurement date; the newest measurement date inside it is 2026-10-05T09:06:29.899353+00:00, 3.73 min after its stamp
+    chain readout_error: mean change +0, largest |change| 0 (freeze mean 0.007004)
+    chain prob_meas1_prep0: mean change +0, largest |change| 0 (freeze mean 0.004242)
+    chain prob_meas0_prep1: mean change +0, largest |change| 0 (freeze mean 0.009766)
+    chain T1: mean change +0, largest |change| 0 (freeze mean 240)
+    chain T2: mean change +0, largest |change| 0 (freeze mean 176.2)
+    chain CZ gate_error over 15 couplers: mean change +0, largest |change| 0 (freeze mean 0.001826)
+  ibm_kingston 2026-10-05T11:28:27Z against the morning freeze 2026-10-05T06:57:43Z: 342 of 6211 values differ; 2640 carry a different measurement date; the newest measurement date inside it is 2026-10-05T11:30:40.396507+00:00, 2.22 min after its stamp
+    chain readout_error: mean change +0, largest |change| 0 (freeze mean 0.007004)
+    chain prob_meas1_prep0: mean change +0, largest |change| 0 (freeze mean 0.004242)
+    chain prob_meas0_prep1: mean change +0, largest |change| 0 (freeze mean 0.009766)
+    chain T1: mean change +0, largest |change| 0 (freeze mean 240)
+    chain T2: mean change +0, largest |change| 0 (freeze mean 176.2)
+    chain CZ gate_error over 15 couplers: mean change +0.000308, largest |change| 0.002352 (freeze mean 0.001826)
+  ibm_kingston 2026-10-05T12:21:18Z against the morning freeze 2026-10-05T06:57:43Z: 680 of 6211 values differ; 3316 carry a different measurement date; the newest measurement date inside it is 2026-10-05T12:24:06.734584+00:00, 2.81 min after its stamp
+    chain readout_error: mean change +0, largest |change| 0 (freeze mean 0.007004)
+    chain prob_meas1_prep0: mean change +0, largest |change| 0 (freeze mean 0.004242)
+    chain prob_meas0_prep1: mean change +0, largest |change| 0 (freeze mean 0.009766)
+    chain T1: mean change +0, largest |change| 0 (freeze mean 240)
+    chain T2: mean change +0, largest |change| 0 (freeze mean 176.2)
+    chain CZ gate_error over 15 couplers: mean change +0.000308, largest |change| 0.002352 (freeze mean 0.001826)
+  ibm_marrakesh 2026-10-05T09:51:18Z against the morning freeze 2026-10-05T07:35:49Z: 2 of 6230 values differ; 1984 carry a different measurement date; the newest measurement date inside it is 2026-10-05T09:54:16.035898+00:00, 2.97 min after its stamp
+    changed: ('gate', 'rzz', (65, 66), 'gate_error'), 0.0028724086389527725 -> 1; not on the chain 0..15
+    changed: ('gate', 'rzz', (66, 65), 'gate_error'), 0.0028724086389527725 -> 1; not on the chain 0..15
+    chain readout_error: mean change +0, largest |change| 0 (freeze mean 0.007835)
+    chain prob_meas1_prep0: mean change +0, largest |change| 0 (freeze mean 0.005463)
+    chain prob_meas0_prep1: mean change +0, largest |change| 0 (freeze mean 0.01021)
+    chain T1: mean change +0, largest |change| 0 (freeze mean 217.1)
+    chain T2: mean change +0, largest |change| 0 (freeze mean 136)
+    chain CZ gate_error over 15 couplers: mean change +0, largest |change| 0 (freeze mean 0.001959)
+  ibm_marrakesh 2026-10-05T11:21:28Z against the morning freeze 2026-10-05T07:35:49Z: 2 of 6230 values differ; 1984 carry a different measurement date; the newest measurement date inside it is 2026-10-05T11:24:00.444376+00:00, 2.54 min after its stamp
+    changed: ('gate', 'rzz', (65, 66), 'gate_error'), 0.0028724086389527725 -> 1; not on the chain 0..15
+    changed: ('gate', 'rzz', (66, 65), 'gate_error'), 0.0028724086389527725 -> 1; not on the chain 0..15
+    against the sheet bundles' freeze 2026-10-05T09:51:18Z: 0 of 6230 values differ
+    chain readout_error: mean change +0, largest |change| 0 (freeze mean 0.007835)
+    chain prob_meas1_prep0: mean change +0, largest |change| 0 (freeze mean 0.005463)
+    chain prob_meas0_prep1: mean change +0, largest |change| 0 (freeze mean 0.01021)
+    chain T1: mean change +0, largest |change| 0 (freeze mean 217.1)
+    chain T2: mean change +0, largest |change| 0 (freeze mean 136)
+    chain CZ gate_error over 15 couplers: mean change +0, largest |change| 0 (freeze mean 0.001959)
+  ibm_fez 2026-10-05T10:08:31Z against the morning freeze 2026-10-05T08:16:22Z: 0 of 6203 values differ; 1922 carry a different measurement date; the newest measurement date inside it is 2026-10-05T10:12:33.137650+00:00, 4.04 min after its stamp
+    chain readout_error: mean change +0, largest |change| 0 (freeze mean 0.009377)
+    chain prob_meas1_prep0: mean change +0, largest |change| 0 (freeze mean 0.006073)
+    chain prob_meas0_prep1: mean change +0, largest |change| 0 (freeze mean 0.01268)
+    chain T1: mean change +0, largest |change| 0 (freeze mean 134.7)
+    chain T2: mean change +0, largest |change| 0 (freeze mean 116.3)
+    chain CZ gate_error over 15 couplers: mean change +0, largest |change| 0 (freeze mean 0.002369)
+  ibm_fez 2026-10-05T11:44:47Z against the morning freeze 2026-10-05T08:16:22Z: 0 of 6203 values differ; 1922 carry a different measurement date; the newest measurement date inside it is 2026-10-05T11:46:59.669546+00:00, 2.21 min after its stamp
+    against the sheet bundles' freeze 2026-10-05T10:08:31Z: 0 of 6203 values differ
+    chain readout_error: mean change +0, largest |change| 0 (freeze mean 0.009377)
+    chain prob_meas1_prep0: mean change +0, largest |change| 0 (freeze mean 0.006073)
+    chain prob_meas0_prep1: mean change +0, largest |change| 0 (freeze mean 0.01268)
+    chain T1: mean change +0, largest |change| 0 (freeze mean 134.7)
+    chain T2: mean change +0, largest |change| 0 (freeze mean 116.3)
+    chain CZ gate_error over 15 couplers: mean change +0, largest |change| 0 (freeze mean 0.002369)
+
+== 3. the readout model of section 6.1, on the snapshot each coherence job ran under (conditional, REPORTED inputs)
+  ibm_kingston: the pair's readout values were measured 7.1 to 7.1 h before the job was created
+  ibm_kingston: coherence job db1noheegvvc73bhtif0 ran under 2026-10-05T09:02:46Z; pair [20, 21]; attenuation 0.9728; the law's +0.375 would read +0.3648 (measured +0.3315)
+  ibm_marrakesh: the pair's readout values were measured 7.8 to 7.8 h before the job was created
+  ibm_marrakesh: coherence job db1npvavog1s73fidkvg ran under 2026-10-05T09:51:18Z; pair [0, 1]; attenuation 0.9707; the law's +0.375 would read +0.3640 (measured +0.3135)
+  ibm_fez: the pair's readout values were measured 10.5 to 10.5 h before the job was created
+  ibm_fez: coherence job db1nqg9b694s73dsihmg ran under 2026-10-05T10:08:31Z; pair [140, 141]; attenuation 0.9637; the law's +0.375 would read +0.3614 (measured +0.2690)
+  kingston minus fez from readout alone: +0.0034, against the measured +0.0625
+
+== 4. jobs whose `running` time and first shot fall under different returned snapshots
+  ibm_kingston known-answer db1pgmjid5ic73erg1u0: running 2026-10-05T12:30:20.624794Z under 2026-10-05T11:28:27Z; first shot 2026-10-05T12:30:44.631372Z under 2026-10-05T12:21:18Z
+  1 of 65
+
+== 5. when each snapshot first appears in IBM's history, bounded by the read's own queries; and the jobs whose
+   first shot falls after a newer snapshot's stamp and newest value date but before the history returned it
+  ibm_kingston 2026-10-05T09:02:46Z: first returned 84.2 min after its stamp at the latest; no earlier query bounds it
+  ibm_kingston 2026-10-05T11:28:27Z: first returned 53.5 min after its stamp at the latest; no earlier query bounds it
+  ibm_kingston 2026-10-05T12:21:18Z: first returned 9.4 min after its stamp at the latest; not yet returned 9.0 min after it
+  ibm_marrakesh 2026-10-05T09:51:18Z: first returned 41.4 min after its stamp at the latest; no earlier query bounds it
+  ibm_marrakesh 2026-10-05T11:21:28Z: first returned 78.8 min after its stamp at the latest; no earlier query bounds it
+  ibm_fez 2026-10-05T10:08:31Z: first returned 25.4 min after its stamp at the latest; no earlier query bounds it
+  ibm_fez 2026-10-05T11:44:47Z: first returned 65.6 min after its stamp at the latest; no earlier query bounds it
+  ibm_kingston known-answer db1pd9ivog1s73fifp5g: first shot 2026-10-05T12:26:17.034663Z; the history returned 2026-10-05T11:28:27Z; 2026-10-05T12:21:18Z was already stamped and measured
+  ibm_kingston law db1peuivog1s73fifr1g: first shot 2026-10-05T12:26:55.696834Z; the history returned 2026-10-05T11:28:27Z; 2026-10-05T12:21:18Z was already stamped and measured
+  ibm_kingston known-answer db1pfabid5ic73erg000: first shot 2026-10-05T12:27:41.894193Z; the history returned 2026-10-05T11:28:27Z; 2026-10-05T12:21:18Z was already stamped and measured
+  ibm_kingston law db1pfjivog1s73fifrr0: first shot 2026-10-05T12:28:08.530657Z; the history returned 2026-10-05T11:28:27Z; 2026-10-05T12:21:18Z was already stamped and measured
+  ibm_kingston known-answer db1pfrrid5ic73erg0og: first shot 2026-10-05T12:28:40.351793Z; the history returned 2026-10-05T11:28:27Z; 2026-10-05T12:21:18Z was already stamped and measured
+  ibm_kingston law db1pg26egvvc73bhvrig: first shot 2026-10-05T12:29:00.542269Z; the history returned 2026-10-05T11:28:27Z; 2026-10-05T12:21:18Z was already stamped and measured
+  ibm_kingston known-answer db1pg9avog1s73fifspg: first shot 2026-10-05T12:29:31.479042Z; the history returned 2026-10-05T11:28:27Z; 2026-10-05T12:21:18Z was already stamped and measured
+  ibm_kingston law db1pgf3id5ic73erg1l0: first shot 2026-10-05T12:29:52.827925Z; the history returned 2026-10-05T11:28:27Z; 2026-10-05T12:21:18Z was already stamped and measured
+  8 of 65 jobs

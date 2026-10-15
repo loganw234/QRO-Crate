@@ -1,0 +1,108 @@
+{
+ "calibration": {
+  "before_first_shot": {
+   "file": "ibm_fez/properties-20261005T114447Z.json",
+   "queried_at": "2026-10-05T12:55:58.712604Z",
+   "seconds_before_query": 4271.712604,
+   "stamp": "2026-10-05T11:44:47Z"
+  },
+  "before_running": {
+   "file": "ibm_fez/properties-20261005T114447Z.json",
+   "queried_at": "2026-10-05T12:55:49.227406Z",
+   "seconds_before_query": 4262.227406,
+   "stamp": "2026-10-05T11:44:47Z"
+  },
+  "first_shot": "2026-10-05T12:55:58.712604Z",
+  "freeze_stamp_in_manifest": "2026-10-05T10:08:31Z",
+  "running": "2026-10-05T12:55:49.227406Z"
+ },
+ "device": "ibm_fez",
+ "fetched_at": {
+  "clock": "local",
+  "value": "2026-10-14T15:42:26.793546Z"
+ },
+ "format": "qro-crate/ibm-refetch/v0",
+ "holds": {
+  "commitments_equal": true,
+  "created_equal_to_line": true,
+  "created_ibm": "2026-10-05T12:55:47.737224Z",
+  "options_equal_to_manifest": true,
+  "pubs": [
+   {
+    "commitment_in_ibm_copy": "6120c6949be9f0864d17e371a11ce26e0dc1362f69d8ec5c274c2d4ef5eca854",
+    "commitment_in_line": "6120c6949be9f0864d17e371a11ce26e0dc1362f69d8ec5c274c2d4ef5eca854",
+    "gate_list_equal": true,
+    "gate_list_note": "compared with layout",
+    "gates_equal": true,
+    "name": "law",
+    "pub": 0,
+    "shots_in_ibm_copy": 24576,
+    "shots_in_manifest": 24576
+   }
+  ],
+  "pubs_in_ibm_copy": 1,
+  "pubs_in_line": 1,
+  "submitted_at_line": "2026-10-05T12:55:47.737224Z"
+ },
+ "ibm_job": {
+  "backend": "ibm_fez",
+  "created": "2026-10-05T12:55:47.737224Z",
+  "id": "db1pskuegvvc73bi0fqg",
+  "program": {
+   "id": "sampler"
+  },
+  "state": {
+   "status": "Completed"
+  },
+  "status": "Completed"
+ },
+ "ibm_job_omitted_keys": [
+  "cost",
+  "estimated_running_time_seconds",
+  "user_id"
+ ],
+ "ibm_metrics": {
+  "qiskit_version": "qiskit",
+  "timestamps": {
+   "created": "2026-10-05T12:55:47.737224Z",
+   "finished": "2026-10-05T12:56:08.379521Z",
+   "running": "2026-10-05T12:55:49.227406Z"
+  },
+  "usage": {
+   "details": [
+    {
+     "metric": {
+      "id": "caffe3ca-729c-5750-8777-df63bbf8bfd9",
+      "value": 9
+     },
+     "unit": "resource_units",
+     "value": 0.1355
+    }
+   ],
+   "qpu_charge_time_seconds": 9,
+   "status": "complete",
+   "unit": "resource_units",
+   "value": 0.1355
+  }
+ },
+ "ibm_metrics_omitted_keys": [
+  "circuits_execution_time_ns"
+ ],
+ "ibm_options": {
+  "dynamical_decoupling": {
+   "enable": false
+  },
+  "twirling": {
+   "enable_gates": false,
+   "enable_measure": false
+  }
+ },
+ "ibm_params_keys": [
+  "options",
+  "pubs",
+  "support_qiskit",
+  "version"
+ ],
+ "job_id": "db1pskuegvvc73bi0fqg",
+ "role": "law"
+}

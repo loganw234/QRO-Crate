@@ -1,0 +1,119 @@
+{
+ "calibration": {
+  "before_first_shot": {
+   "file": "ibm_marrakesh/properties-20261005T095118Z.json",
+   "queried_at": "2026-10-05T10:33:36.627537Z",
+   "seconds_before_query": 2538.627537,
+   "stamp": "2026-10-05T09:51:18Z"
+  },
+  "before_running": {
+   "file": "ibm_marrakesh/properties-20261005T095118Z.json",
+   "queried_at": "2026-10-05T10:33:34.835817Z",
+   "seconds_before_query": 2536.835817,
+   "stamp": "2026-10-05T09:51:18Z"
+  },
+  "first_shot": "2026-10-05T10:33:36.627537Z",
+  "freeze_stamp_in_manifest": "2026-10-05T07:35:49Z",
+  "running": "2026-10-05T10:33:34.835817Z"
+ },
+ "device": "ibm_marrakesh",
+ "fetched_at": {
+  "clock": "local",
+  "value": "2026-10-14T15:41:11.952311Z"
+ },
+ "format": "qro-crate/ibm-refetch/v0",
+ "holds": {
+  "commitments_equal": true,
+  "created_equal_to_line": true,
+  "created_ibm": "2026-10-05T10:33:33.286581Z",
+  "options_equal_to_manifest": true,
+  "pubs": [
+   {
+    "commitment_in_ibm_copy": "cd15a0b7ee004590fddf8ae89cd260bd72d8f250586dc1df8e7ceec66f9011a2",
+    "commitment_in_line": "cd15a0b7ee004590fddf8ae89cd260bd72d8f250586dc1df8e7ceec66f9011a2",
+    "gate_list_equal": true,
+    "gate_list_note": "compared with layout",
+    "gates_equal": true,
+    "name": "coherence-xx",
+    "pub": 0,
+    "shots_in_ibm_copy": 4096,
+    "shots_in_manifest": 4096
+   },
+   {
+    "commitment_in_ibm_copy": "2e314716cda5cd138461f7a3d8b783235e163b3adba5134282bec81a84886d77",
+    "commitment_in_line": "2e314716cda5cd138461f7a3d8b783235e163b3adba5134282bec81a84886d77",
+    "gate_list_equal": true,
+    "gate_list_note": "compared with layout",
+    "gates_equal": true,
+    "name": "coherence-yy",
+    "pub": 1,
+    "shots_in_ibm_copy": 4096,
+    "shots_in_manifest": 4096
+   }
+  ],
+  "pubs_in_ibm_copy": 2,
+  "pubs_in_line": 2,
+  "submitted_at_line": "2026-10-05T10:33:33.286581Z"
+ },
+ "ibm_job": {
+  "backend": "ibm_marrakesh",
+  "created": "2026-10-05T10:33:33.286581Z",
+  "id": "db1npvavog1s73fidkvg",
+  "program": {
+   "id": "sampler"
+  },
+  "state": {
+   "status": "Completed"
+  },
+  "status": "Completed"
+ },
+ "ibm_job_omitted_keys": [
+  "cost",
+  "estimated_running_time_seconds",
+  "user_id"
+ ],
+ "ibm_metrics": {
+  "qiskit_version": "qiskit",
+  "timestamps": {
+   "created": "2026-10-05T10:33:33.286581Z",
+   "finished": "2026-10-05T10:33:41.471691Z",
+   "running": "2026-10-05T10:33:34.835817Z"
+  },
+  "usage": {
+   "details": [
+    {
+     "metric": {
+      "id": "caffe3ca-729c-5750-8777-df63bbf8bfd9",
+      "value": 4
+     },
+     "unit": "resource_units",
+     "value": 0.0649
+    }
+   ],
+   "qpu_charge_time_seconds": 4,
+   "status": "complete",
+   "unit": "resource_units",
+   "value": 0.0649
+  }
+ },
+ "ibm_metrics_omitted_keys": [
+  "circuits_execution_time_ns"
+ ],
+ "ibm_options": {
+  "dynamical_decoupling": {
+   "enable": false
+  },
+  "twirling": {
+   "enable_gates": false,
+   "enable_measure": false
+  }
+ },
+ "ibm_params_keys": [
+  "options",
+  "pubs",
+  "support_qiskit",
+  "version"
+ ],
+ "job_id": "db1npvavog1s73fidkvg",
+ "role": "coherence"
+}

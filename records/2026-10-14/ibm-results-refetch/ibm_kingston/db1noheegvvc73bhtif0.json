@@ -1,0 +1,21 @@
+{
+ "agree_at": "bytes",
+ "bytes_equal": true,
+ "committed": {
+  "bytes": 21803,
+  "path": "docs/records/2026-10-05/ibm/ibm_kingston/run/coherence-raw.json",
+  "sha256": "d62ce3ad8b2775fb162de16ff6573a71fd904425729535e66b5f33cb718a3ba8"
+ },
+ "device": "ibm_kingston",
+ "fetched_at": {
+  "clock": "local",
+  "value": "2026-10-14T16:03:14.895515Z"
+ },
+ "format": "qro-crate/ibm-results-refetch/v0",
+ "ibm_copy": {
+  "bytes": 21803,
+  "sha256": "d62ce3ad8b2775fb162de16ff6573a71fd904425729535e66b5f33cb718a3ba8"
+ },
+ "job_id": "db1noheegvvc73bhtif0",
+ "role": "coherence"
+}

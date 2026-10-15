@@ -1,0 +1,8 @@
+# Nearly every file here is hashed somewhere: the instruments and their outputs in study QRO-0's section 15, the
+# records in their MANIFEST.json files and README, and the study itself, draft by draft, for its reviews. Their
+# bytes are the claim, so git stores every file exactly and never converts line endings, in either direction. The
+# five instruments' outputs and three of the records' logs are CRLF (written on Windows), and the rest LF; both
+# must survive a clone. Quantum-Film learned this on 2026-09-25: a CRLF vector, normalised on commit, would have
+# failed its own hash in a fresh clone, so it was re-frozen as LF before the first commit (moth-quantum,
+# .gitattributes and docs/VALIDATION.md:326-330).
+* -text

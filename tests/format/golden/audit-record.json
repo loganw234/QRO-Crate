@@ -1,0 +1,15 @@
+{
+  "auditor": "withheld",
+  "checker": "qro 0.1.0",
+  "checkerCommit": "unknown",
+  "crate": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "date": "2026-10-14",
+  "independence": "producer-build",
+  "logHead": "cd70386fea14cdcaff4d0b0ebab637653f523a6c8aeb22e417b472a559294ac2",
+  "signature": "none",
+  "stages": [
+    "crate-only"
+  ],
+  "trustedTime": "none",
+  "verdict": "accepted"
+}

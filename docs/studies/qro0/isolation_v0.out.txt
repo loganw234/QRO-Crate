@@ -1,0 +1,27 @@
+family: 70 intervals, alpha 0.05, each at alpha/M; KL budget ln(2M/alpha) = 7.9374
+
+== five-crystal share
+  ibm_kingston (9 jobs): day mean 0.5957, certified [0.5916, 0.5999]; drift bound U(D) 0.0307
+  ibm_fez (11 jobs): day mean 0.5439, certified [0.5401, 0.5478]; drift bound U(D) 0.0323
+  difference (ibm_kingston - ibm_fez): certified [+0.0438, +0.0598]; so the day means differ by at least 0.0438
+  strong form L(|diff|) - U(D_A) - U(D_B) = -0.0193: unresolved: the drift bounds are wider than the certified difference
+
+== forbidden share
+  ibm_kingston (9 jobs): day mean 0.0428, certified [0.0406, 0.0451]; drift bound U(D) 0.0123
+  ibm_fez (11 jobs): day mean 0.0514, certified [0.0491, 0.0537]; drift bound U(D) 0.0138
+  difference (ibm_kingston - ibm_fez): certified [-0.0130, -0.0040]; so the day means differ by at least 0.0040
+  strong form L(|diff|) - U(D_A) - U(D_B) = -0.0220: unresolved: the drift bounds are wider than the certified difference
+
+== linear XEB
+  ibm_kingston (9 jobs): day mean 0.8567, certified [0.8246, 0.8891]; drift bound U(D) 0.1575
+  ibm_fez (11 jobs): day mean 0.8411, certified [0.8108, 0.8717]; drift bound U(D) 0.1650
+  difference (ibm_kingston - ibm_fez): certified [-0.0471, +0.0783]; so the day means differ by at least 0.0000
+  strong form L(|diff|) - U(D_A) - U(D_B) = -0.3225: unresolved: the drift bounds are wider than the certified difference
+
+== coherence: one job a device, so drift is UNMEASURED and the strong form is not available
+  <X0X1> ibm_kingston: +0.3315, certified [+0.2720, +0.3894]
+  <X0X1> ibm_fez: +0.2690, certified [+0.2084, +0.3283]
+  <X0X1> difference: certified [-0.0562, +0.1809] (includes 0: unresolved even before drift)
+  <Y0Y1> ibm_kingston: +0.3296, certified [+0.2700, +0.3875]
+  <Y0Y1> ibm_fez: +0.3047, certified [+0.2447, +0.3631]
+  <Y0Y1> difference: certified [-0.0931, +0.1428] (includes 0: unresolved even before drift)

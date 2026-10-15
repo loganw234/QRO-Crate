@@ -1,0 +1,5 @@
+# The runner's per-run state (verify/run.sh): local, and never part of the record.
+.gate-state/
+__pycache__/
+.pytest_cache/
+.ruff_cache/

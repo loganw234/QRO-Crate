@@ -1,0 +1,52 @@
+{
+ "at": {
+  "clock": "local",
+  "value": "2026-10-14T21:09:01.291270Z"
+ },
+ "backends": [
+  "ibm_fez",
+  "ibm_kingston",
+  "ibm_marrakesh"
+ ],
+ "format": "qro-crate/ibm-dryrun-probe/v1",
+ "mock_backends": [],
+ "mock_by_name": {
+  "ibm_fez": {
+   "error_class": "QiskitBackendNotFoundError",
+   "resolved": false
+  },
+  "ibm_kingston": {
+   "error_class": "QiskitBackendNotFoundError",
+   "resolved": false
+  },
+  "ibm_marrakesh": {
+   "error_class": "QiskitBackendNotFoundError",
+   "resolved": false
+  }
+ },
+ "mock_for": {
+  "ibm_fez": false,
+  "ibm_kingston": false,
+  "ibm_marrakesh": false
+ },
+ "plan": "open",
+ "pricing_type": "free",
+ "usage": {
+  "kept": {
+   "usage_consumed_ru": 5.448135,
+   "usage_consumed_seconds": 353,
+   "usage_limit_reached": false,
+   "usage_limit_ru": 10,
+   "usage_limit_seconds": 600,
+   "usage_period": {
+    "end_time": "2026-10-14T21:09:08.116Z",
+    "start_time": "2026-09-16T21:09:08.116Z"
+   },
+   "usage_remaining_seconds": 247
+  },
+  "other_keys": [
+   "instance_id",
+   "plan_id"
+  ]
+ }
+}

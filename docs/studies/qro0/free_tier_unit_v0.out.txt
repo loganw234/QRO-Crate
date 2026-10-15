@@ -1,0 +1,80 @@
+v0's plug-ins (MEASURED on v0's records; readout REPORTED at v0's freeze; coherence from one job a device):
+  ibm_kingston: five 0.5957 (largest job deviation 0.0140); forbidden 0.0428 (0.0028); <X0X1> +0.3315 (single-site +0.0698, +0.0596); <Y0Y1> +0.3296 (single-site -0.0137, +0.0542); pair [20, 21] readout (p01, p10) (0.0044, 0.0078), (0.0068, 0.0083)
+  ibm_marrakesh: five 0.5267 (largest job deviation 0.0241); forbidden 0.0516 (0.0105); <X0X1> +0.3135 (single-site +0.1514, +0.1348); <Y0Y1> +0.3438 (single-site -0.0254, -0.0146); pair [0, 1] readout (p01, p10) (0.0005, 0.0093), (0.0103, 0.0095)
+  ibm_fez: five 0.5439 (largest job deviation 0.0158); forbidden 0.0514 (0.0046); <X0X1> +0.2690 (single-site +0.0576, +0.0796); <Y0Y1> +0.3047 (single-site +0.0142, +0.0112); pair [140, 141] readout (p01, p10) (0.0088, 0.0132), (0.0059, 0.0088)
+  within-device Hellinger R over v0's 31 law jobs: three-way class 0.0335; crystal count 0.0346
+charge models: (a) 0.366 ms a shot; (b) 1.69 s + 0.297 ms a shot; (c) 2 s + 0.35 ms a shot; each job rounded up to a whole second. v0's 65 jobs were charged 353 s, leaving 247 of the window's 600
+
+== 1. each design: 3 devices x 3 passes, interleaved; cost against the Open Plan's 600 s per 28 days (and the 247 s left after v0)
+  design | jobs | shots | QPU s, lowest to highest model | units a window (highest) | fits the left | Hellinger planning eps, 3-way / crystal | <X0X1> K-F: certified |diff| at least; and beyond readout
+  film N=8,192, Nc=1,024 | 18 | 239,616 | 90 to 126 | 4 | yes | 0.147 / 0.213 | 0.0135; -0.0165
+  film N=8,192, Nc=2,048 | 18 | 258,048 | 99 to 135 | 4 | yes | 0.147 / 0.213 | 0.0135; -0.0113
+  film N=8,192, Nc=4,096 | 18 | 294,912 | 108 to 144 | 4 | yes | 0.147 / 0.213 | 0.0135; -0.0080
+  film N=12,288, Nc=1,024 | 18 | 350,208 | 135 to 162 | 3 | yes | 0.126 / 0.180 | 0.0225; -0.0068
+  film N=12,288, Nc=2,048 | 18 | 368,640 | 144 to 171 | 3 | yes | 0.126 / 0.180 | 0.0225; -0.0017
+  film N=12,288, Nc=4,096 | 18 | 405,504 | 153 to 180 | 3 | yes | 0.126 / 0.180 | 0.0225; +0.0015
+  film N=16,384, Nc=1,024 | 18 | 460,800 | 171 to 207 | 2 | yes | 0.114 / 0.161 | 0.0278; -0.0010
+  film N=16,384, Nc=2,048 | 18 | 479,232 | 180 to 216 | 2 | yes | 0.114 / 0.161 | 0.0278; +0.0040
+  film N=16,384, Nc=4,096 | 18 | 516,096 | 189 to 225 | 2 | yes | 0.114 / 0.161 | 0.0278; +0.0071
+  film N=24,576, Nc=1,024 | 18 | 681,984 | 243 to 279 | 2 | no | 0.099 / 0.138 | 0.0342; +0.0058
+  film N=24,576, Nc=2,048 | 18 | 700,416 | 243 to 288 | 2 | no | 0.099 / 0.138 | 0.0342; +0.0108
+  film N=24,576, Nc=4,096 | 18 | 737,280 | 261 to 297 | 2 | no | 0.099 / 0.138 | 0.0342; +0.0139
+  split NL=24,576, NC=8,192, Nc=2,048 | 27 | 405,504 | 153 to 207 | 2 | yes | 0.099 / 0.138 | 0.0135; -0.0113
+  split NL=24,576, NC=16,384, Nc=2,048 | 27 | 552,960 | 207 to 261 | 2 | no | 0.099 / 0.138 | 0.0278; +0.0040
+  split NL=16,384, NC=16,384, Nc=2,048 | 27 | 479,232 | 180 to 234 | 2 | yes | 0.114 / 0.161 | 0.0278; +0.0040
+
+== 2. one unit of film N=16,384, Nc=2,048: its own family of 84 intervals at alpha 0.05 (budget 8.120)
+  ibm_kingston: five-crystal share pool +-0.0089, job +-0.0154; forbidden share pool +-0.0048, job +-0.0083; linear XEB pool +-0.0692, job +-0.1198; <X0X1> pool +-0.0171, job +-0.0297; <Y0Y1> pool +-0.0172, job +-0.0297
+    the pair's readout on <X0X1>: the parity shrinks by a factor of at least 0.9528; the offset is at most 0.002432
+  ibm_marrakesh: five-crystal share pool +-0.0091, job +-0.0157; forbidden share pool +-0.0055, job +-0.0096; linear XEB pool +-0.0734, job +-0.1270; <X0X1> pool +-0.0173, job +-0.0299; <Y0Y1> pool +-0.0171, job +-0.0296
+    the pair's readout on <X0X1>: the parity shrinks by a factor of at least 0.9511; the offset is at most 0.005317
+  ibm_fez: five-crystal share pool +-0.0091, job +-0.0157; forbidden share pool +-0.0054, job +-0.0094; linear XEB pool +-0.0722, job +-0.1250; <X0X1> pool +-0.0175, job +-0.0303; <Y0Y1> pool +-0.0173, job +-0.0300
+    the pair's readout on <X0X1>: the parity shrinks by a factor of at least 0.9413; the offset is at most 0.003333
+  K-M, projected at eps = 0: five-crystal share differ (0.0510), strong form -0.0363; forbidden share unresolved (0.0000), strong form -0.0415; linear XEB unresolved (0.0000), strong form -0.4597; <X0X1> unresolved (0.0000), beyond readout not certified; <Y0Y1> unresolved (0.0000), beyond readout not certified
+  K-F, projected at eps = 0: five-crystal share differ (0.0338), strong form -0.0451; forbidden share unresolved (0.0000), strong form -0.0353; linear XEB unresolved (0.0000), strong form -0.4502; <X0X1> differ (0.0278), beyond readout +0.0040 [readout bound 0.0238: the lower device's shrinkage 0.0181 plus both offsets 0.0058; both devices' shrinkage would sum to 0.0355]; <Y0Y1> unresolved (0.0000), beyond readout not certified
+  M-F, projected at eps = 0: five-crystal share unresolved (0.0000), strong form -0.0895; forbidden share unresolved (0.0000), strong form -0.0451; linear XEB unresolved (0.0000), strong form -0.4731; <X0X1> differ (0.0097), beyond readout -0.0171 [readout bound 0.0267: the lower device's shrinkage 0.0181 plus both offsets 0.0087; both devices' shrinkage would sum to 0.0354]; <Y0Y1> differ (0.0047), beyond readout -0.0183 [readout bound 0.0230: the lower device's shrinkage 0.0202 plus both offsets 0.0028; both devices' shrinkage would sum to 0.0388]
+
+== 2. one unit of film N=24,576, Nc=2,048: its own family of 84 intervals at alpha 0.05 (budget 8.120)
+  ibm_kingston: five-crystal share pool +-0.0073, job +-0.0126; forbidden share pool +-0.0039, job +-0.0067; linear XEB pool +-0.0565, job +-0.0979; <X0X1> pool +-0.0140, job +-0.0242; <Y0Y1> pool +-0.0140, job +-0.0243
+    the pair's readout on <X0X1>: the parity shrinks by a factor of at least 0.9528; the offset is at most 0.002342
+  ibm_marrakesh: five-crystal share pool +-0.0074, job +-0.0128; forbidden share pool +-0.0045, job +-0.0078; linear XEB pool +-0.0599, job +-0.1037; <X0X1> pool +-0.0141, job +-0.0244; <Y0Y1> pool +-0.0139, job +-0.0241
+    the pair's readout on <X0X1>: the parity shrinks by a factor of at least 0.9511; the offset is at most 0.005214
+  ibm_fez: five-crystal share pool +-0.0074, job +-0.0128; forbidden share pool +-0.0044, job +-0.0077; linear XEB pool +-0.0589, job +-0.1021; <X0X1> pool +-0.0143, job +-0.0248; <Y0Y1> pool +-0.0141, job +-0.0245
+    the pair's readout on <X0X1>: the parity shrinks by a factor of at least 0.9413; the offset is at most 0.003219
+  K-M, projected at eps = 0: five-crystal share differ (0.0543), strong form -0.0239; forbidden share differ (0.0003), strong form -0.0360; linear XEB unresolved (0.0000), strong form -0.3882; <X0X1> unresolved (0.0000), beyond readout not certified; <Y0Y1> unresolved (0.0000), beyond readout not certified
+  K-F, projected at eps = 0: five-crystal share differ (0.0371), strong form -0.0328; forbidden share differ (0.0002), strong form -0.0299; linear XEB unresolved (0.0000), strong form -0.3794; <X0X1> differ (0.0342), beyond readout +0.0108 [readout bound 0.0234: the lower device's shrinkage 0.0179 plus both offsets 0.0056; both devices' shrinkage would sum to 0.0351]; <Y0Y1> unresolved (0.0000), beyond readout not certified
+  M-F, projected at eps = 0: five-crystal share differ (0.0025), strong form -0.0779; forbidden share unresolved (0.0000), strong form -0.0396; linear XEB unresolved (0.0000), strong form -0.4002; <X0X1> differ (0.0160), beyond readout -0.0103 [readout bound 0.0263: the lower device's shrinkage 0.0179 plus both offsets 0.0084; both devices' shrinkage would sum to 0.0350]; <Y0Y1> differ (0.0110), beyond readout -0.0116 [readout bound 0.0225: the lower device's shrinkage 0.0200 plus both offsets 0.0026; both devices' shrinkage would sum to 0.0384]
+
+== 2. one unit of split NL=24,576, NC=8,192, Nc=2,048: its own family of 84 intervals at alpha 0.05 (budget 8.120)
+  ibm_kingston: five-crystal share pool +-0.0073, job +-0.0126; forbidden share pool +-0.0039, job +-0.0067; linear XEB pool +-0.0565, job +-0.0979; <X0X1> pool +-0.0242, job +-0.0420; <Y0Y1> pool +-0.0243, job +-0.0420
+    the pair's readout on <X0X1>: the parity shrinks by a factor of at least 0.9528; the offset is at most 0.002635
+  ibm_marrakesh: five-crystal share pool +-0.0074, job +-0.0128; forbidden share pool +-0.0045, job +-0.0078; linear XEB pool +-0.0599, job +-0.1037; <X0X1> pool +-0.0244, job +-0.0423; <Y0Y1> pool +-0.0241, job +-0.0418
+    the pair's readout on <X0X1>: the parity shrinks by a factor of at least 0.9511; the offset is at most 0.005550
+  ibm_fez: five-crystal share pool +-0.0074, job +-0.0128; forbidden share pool +-0.0044, job +-0.0077; linear XEB pool +-0.0589, job +-0.1021; <X0X1> pool +-0.0248, job +-0.0429; <Y0Y1> pool +-0.0245, job +-0.0424
+    the pair's readout on <X0X1>: the parity shrinks by a factor of at least 0.9413; the offset is at most 0.003591
+  K-M, projected at eps = 0: five-crystal share differ (0.0543), strong form -0.0239; forbidden share differ (0.0003), strong form -0.0360; linear XEB unresolved (0.0000), strong form -0.3882; <X0X1> unresolved (0.0000), beyond readout not certified; <Y0Y1> unresolved (0.0000), beyond readout not certified
+  K-F, projected at eps = 0: five-crystal share differ (0.0371), strong form -0.0328; forbidden share differ (0.0002), strong form -0.0299; linear XEB unresolved (0.0000), strong form -0.3794; <X0X1> differ (0.0135), beyond readout -0.0113 [readout bound 0.0248: the lower device's shrinkage 0.0185 plus both offsets 0.0062; both devices' shrinkage would sum to 0.0363]; <Y0Y1> unresolved (0.0000), beyond readout not certified
+  M-F, projected at eps = 0: five-crystal share differ (0.0025), strong form -0.0779; forbidden share unresolved (0.0000), strong form -0.0396; linear XEB unresolved (0.0000), strong form -0.4002; <X0X1> unresolved (0.0000), beyond readout not certified; <Y0Y1> unresolved (0.0000), beyond readout not certified
+
+== 3. the strong form within one unit, on the five-crystal share: the fewest shots a film PUB would need
+   (each design's other settings as film N, Nc=2,048), under v0's drift; the free tier allows about 16,384.
+   The strong form grows with N, so the least N is found by bisection on whole shots.
+  K-M: 77,380 shots; as N grows the strong form tends to +0.0309
+  K-F: 153,166 shots; as N grows the strong form tends to +0.0219
+  M-F: more than 1,048,576 shots; as N grows the strong form tends to -0.0227, so it never clears under v0's drift
+
+== 4. k units pooled, look k spending alpha/(k(k+1)) over everything the look computes: the fewest units at
+   which each projected difference is certified (eps = 0); for the coherences, also beyond the pooled readout
+   bound; '>100' if not by 100. Each unit is taken from a different contributor.
+  film N=16,384, Nc=2,048 (look 10's family: 579 intervals):
+    K-M: five-crystal share (+0.0690): 1; forbidden share (-0.0087): 2; linear XEB (+0.0142): >100; <X0X1> (+0.0181): 6, beyond readout >100; <Y0Y1> (-0.0142): 11, beyond readout >100
+    K-F: five-crystal share (+0.0518): 1; forbidden share (-0.0085): 2; linear XEB (+0.0156): >100; <X0X1> (+0.0625): 1, beyond readout 1; <Y0Y1> (+0.0249): 3, beyond readout 27
+    M-F: five-crystal share (-0.0173): 2; forbidden share (+0.0002): >100; linear XEB (+0.0014): >100; <X0X1> (+0.0444): 1, beyond readout 4; <Y0Y1> (+0.0391): 1, beyond readout 5
+  film N=16,384, Nc=4,096 (look 10's family: 579 intervals):
+    K-M: five-crystal share (+0.0690): 1; forbidden share (-0.0087): 2; linear XEB (+0.0142): >100; <X0X1> (+0.0181): 6, beyond readout >100; <Y0Y1> (-0.0142): 11, beyond readout >100
+    K-F: five-crystal share (+0.0518): 1; forbidden share (-0.0085): 2; linear XEB (+0.0156): >100; <X0X1> (+0.0625): 1, beyond readout 1; <Y0Y1> (+0.0249): 3, beyond readout 24
+    M-F: five-crystal share (-0.0173): 2; forbidden share (+0.0002): >100; linear XEB (+0.0014): >100; <X0X1> (+0.0444): 1, beyond readout 3; <Y0Y1> (+0.0391): 1, beyond readout 4
+  film N=24,576, Nc=2,048 (look 10's family: 579 intervals):
+    K-M: five-crystal share (+0.0690): 1; forbidden share (-0.0087): 2; linear XEB (+0.0142): >100; <X0X1> (+0.0181): 4, beyond readout >100; <Y0Y1> (-0.0142): 7, beyond readout >100
+    K-F: five-crystal share (+0.0518): 1; forbidden share (-0.0085): 2; linear XEB (+0.0156): >100; <X0X1> (+0.0625): 1, beyond readout 1; <Y0Y1> (+0.0249): 2, beyond readout 18
+    M-F: five-crystal share (-0.0173): 1; forbidden share (+0.0002): >100; linear XEB (+0.0014): >100; <X0X1> (+0.0444): 1, beyond readout 3; <Y0Y1> (+0.0391): 1, beyond readout 3

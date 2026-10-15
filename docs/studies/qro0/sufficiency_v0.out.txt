@@ -1,0 +1,46 @@
+jobs: 31 law jobs, 24,576 shots each; alpha = 0.05; contexts M = 31
+law support: 1,360 of 4,368 five-crystal layouts forbidden (recomputed and held)
+
+== crystal count (B=17): radius eta = 0.0267 per law; a pair's interval is H +- 0.0534
+  within ibm_kingston (9 jobs): largest job-to-job H = 0.0242
+  within ibm_marrakesh (11 jobs): largest job-to-job H = 0.0346
+  within ibm_fez (11 jobs): largest job-to-job H = 0.0236
+  across devices: H from 0.0182 to 0.0796
+  record {} (pool every job): risk 0.0796, interval [0.0263, 0.1330] -> eps 0.02: fail; eps 0.05: unresolved; eps 0.1: unresolved
+  record {device} (pool a device's jobs): risk 0.0346, interval [0.0000, 0.0880] -> eps 0.02: unresolved; eps 0.05: unresolved; eps 0.1: pass
+  shots per job for the {device} policy at 0.05, with the observed within-device risk 0.0346, each the least whole count that meets its rule: as the empirical risk (the paper's Eq. 13, the observed-risk test) 294,580; as the true risk of a new run (4 eta <= eps - R, the paper's planning rule) 1,178,344; the planning rule at zero true risk (4 eta <= eps) 112,120
+  shots per job for the {device} policy at 0.1, with the observed within-device risk 0.0346, each the least whole count that meets its rule: as the empirical risk (the paper's Eq. 13, the observed-risk test) 16,365; as the true risk of a new run (4 eta <= eps - R, the paper's planning rule) 65,483; the planning rule at zero true risk (4 eta <= eps) 28,024
+
+== three-way class (B=3): radius eta = 0.0178 per law; a pair's interval is H +- 0.0357
+  within ibm_kingston (9 jobs): largest job-to-job H = 0.0211
+  within ibm_marrakesh (11 jobs): largest job-to-job H = 0.0335
+  within ibm_fez (11 jobs): largest job-to-job H = 0.0221
+  across devices: H from 0.0003 to 0.0804
+  record {} (pool every job): risk 0.0804, interval [0.0447, 0.1161] -> eps 0.02: fail; eps 0.05: unresolved; eps 0.1: unresolved
+  record {device} (pool a device's jobs): risk 0.0335, interval [0.0000, 0.0691] -> eps 0.02: unresolved; eps 0.05: unresolved; eps 0.1: pass
+  shots per job for the {device} policy at 0.05, with the observed within-device risk 0.0335, each the least whole count that meets its rule: as the empirical risk (the paper's Eq. 13, the observed-risk test) 114,239; as the true risk of a new run (4 eta <= eps - R, the paper's planning rule) 456,967; the planning rule at zero true risk (4 eta <= eps) 50,019
+  shots per job for the {device} policy at 0.1, with the observed within-device risk 0.0335, each the least whole count that meets its rule: as the empirical risk (the paper's Eq. 13, the observed-risk test) 7,057; as the true risk of a new run (4 eta <= eps - R, the paper's planning rule) 28,239; the planning rule at zero true risk (4 eta <= eps) 12,502
+
+== the radius on finer objects, at the same 24,576 shots, M and alpha (no laws computed)
+  five-crystal layout, plus one 'not five' outcome (B=4,369): eta = 0.3408
+  raw 16-bit outcome (B=65,536): eta = 0.9179
+
+== planning the proposed campaign: three devices with three law jobs each (M = 9), v0's within-device risk taken as the true risk; the planning rule, the least whole count
+  crystal count (B=17) at 0.05: 1,095,163 shots a law job
+  crystal count (B=17) at 0.1: 60,861 shots a law job
+  three-way class (B=3) at 0.05: 384,659 shots a law job
+  three-way class (B=3) at 0.1: 23,771 shots a law job
+
+== QPU charge: IBM's qpu_charge_time_seconds for v0's 65 jobs, whole seconds, REPORTED: known-answer, 1,024 shots: 2 s (31 jobs); coherence, 8,192 shots: 4 s (3 jobs); law, 24,576 shots: 9 s (31 jobs)
+  three cost models, each an estimate from v0's job sizes:
+    (a) through the origin at the law jobs' charge: 0.366 ms a shot
+    (b) a least-squares line through all 65 jobs: 1.69 s plus 0.297 ms a shot
+    (c) moth-quantum's docs/HARDWARE.md:28, READ: about 2 s plus about 0.35 ms a shot
+  M = 31, crystal count (B=17) at 0.05: 1,178,344 shots, 432 s, 352 s, 414 s a job by (a), (b), (c)
+  M = 31, crystal count (B=17) at 0.1: 65,483 shots, 24 s, 21 s, 25 s a job by (a), (b), (c)
+  M = 31, three-way class (B=3) at 0.05: 456,967 shots, 167 s, 138 s, 162 s a job by (a), (b), (c)
+  M = 31, three-way class (B=3) at 0.1: 28,239 shots, 10 s, 10 s, 12 s a job by (a), (b), (c)
+  M = 9, crystal count (B=17) at 0.05: 1,095,163 shots, 401 s, 327 s, 385 s a job by (a), (b), (c); nine law jobs 49.1 to 60.2 min
+  M = 9, crystal count (B=17) at 0.1: 60,861 shots, 22 s, 20 s, 23 s a job by (a), (b), (c); nine law jobs 3.0 to 3.5 min
+  M = 9, three-way class (B=3) at 0.05: 384,659 shots, 141 s, 116 s, 137 s a job by (a), (b), (c); nine law jobs 17.4 to 21.1 min
+  M = 9, three-way class (B=3) at 0.1: 23,771 shots, 9 s, 9 s, 10 s a job by (a), (b), (c); nine law jobs 1.3 to 1.5 min

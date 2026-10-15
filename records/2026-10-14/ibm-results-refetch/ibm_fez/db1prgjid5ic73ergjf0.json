@@ -1,0 +1,21 @@
+{
+ "agree_at": "bytes",
+ "bytes_equal": true,
+ "committed": {
+  "bytes": 60453,
+  "path": "docs/records/2026-10-05/ibm/ibm_fez/sheet-04/run/law-raw.json",
+  "sha256": "d9d40162d0cab4a400f469a834849dc4fdc0136d6d6ee966b5353951feda3381"
+ },
+ "device": "ibm_fez",
+ "fetched_at": {
+  "clock": "local",
+  "value": "2026-10-14T16:03:32.674522Z"
+ },
+ "format": "qro-crate/ibm-results-refetch/v0",
+ "ibm_copy": {
+  "bytes": 60453,
+  "sha256": "d9d40162d0cab4a400f469a834849dc4fdc0136d6d6ee966b5353951feda3381"
+ },
+ "job_id": "db1prgjid5ic73ergjf0",
+ "role": "law"
+}

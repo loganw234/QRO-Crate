@@ -1,0 +1,16 @@
+[project]
+name = "qro-crate"
+version = "0.1.0"
+description = "QRO-Crate: an RO-Crate profile for quantum runs, and its checker"
+license = "MIT"
+requires-python = ">=3.12"
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+testpaths = ["tests"]
+addopts = "-p no:cacheprovider"
+
+[tool.ruff]
+line-length = 120
+target-version = "py312"
+extend-exclude = ["docs/studies/qro0"]

@@ -1,0 +1,38 @@
+{
+ "at": {
+  "clock": "local",
+  "value": "2026-10-14T19:37:14.437853Z"
+ },
+ "backends": [
+  "ibm_fez",
+  "ibm_kingston",
+  "ibm_marrakesh"
+ ],
+ "format": "qro-crate/ibm-dryrun-probe/v0",
+ "mock_backends": [],
+ "mock_for": {
+  "ibm_fez": false,
+  "ibm_kingston": false,
+  "ibm_marrakesh": false
+ },
+ "plan": "open",
+ "pricing_type": "free",
+ "usage": {
+  "kept": {
+   "usage_consumed_ru": 5.448135,
+   "usage_consumed_seconds": 353,
+   "usage_limit_reached": false,
+   "usage_limit_ru": 10,
+   "usage_limit_seconds": 600,
+   "usage_period": {
+    "end_time": "2026-10-14T19:37:20.261Z",
+    "start_time": "2026-09-16T19:37:20.261Z"
+   },
+   "usage_remaining_seconds": 247
+  },
+  "other_keys": [
+   "instance_id",
+   "plan_id"
+  ]
+ }
+}

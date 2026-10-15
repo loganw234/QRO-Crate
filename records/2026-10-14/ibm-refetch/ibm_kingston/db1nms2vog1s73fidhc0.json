@@ -1,0 +1,108 @@
+{
+ "calibration": {
+  "before_first_shot": {
+   "file": "ibm_kingston/properties-20261005T090246Z.json",
+   "queried_at": "2026-10-05T10:27:00.285375Z",
+   "seconds_before_query": 5054.285375,
+   "stamp": "2026-10-05T09:02:46Z"
+  },
+  "before_running": {
+   "file": "ibm_kingston/properties-20261005T090246Z.json",
+   "queried_at": "2026-10-05T10:26:58.584412Z",
+   "seconds_before_query": 5052.584412,
+   "stamp": "2026-10-05T09:02:46Z"
+  },
+  "first_shot": "2026-10-05T10:27:00.285375Z",
+  "freeze_stamp_in_manifest": "2026-10-05T06:57:43Z",
+  "running": "2026-10-05T10:26:58.584412Z"
+ },
+ "device": "ibm_kingston",
+ "fetched_at": {
+  "clock": "local",
+  "value": "2026-10-14T15:40:26.491948Z"
+ },
+ "format": "qro-crate/ibm-refetch/v0",
+ "holds": {
+  "commitments_equal": true,
+  "created_equal_to_line": true,
+  "created_ibm": "2026-10-05T10:26:56.364971Z",
+  "options_equal_to_manifest": true,
+  "pubs": [
+   {
+    "commitment_in_ibm_copy": "e0b009ec2a9548e105589b74a545e3e610b1cf5321733a7e2156c7317a4569bd",
+    "commitment_in_line": "e0b009ec2a9548e105589b74a545e3e610b1cf5321733a7e2156c7317a4569bd",
+    "gate_list_equal": true,
+    "gate_list_note": "compared with layout",
+    "gates_equal": true,
+    "name": "known-answer",
+    "pub": 0,
+    "shots_in_ibm_copy": 1024,
+    "shots_in_manifest": 1024
+   }
+  ],
+  "pubs_in_ibm_copy": 1,
+  "pubs_in_line": 1,
+  "submitted_at_line": "2026-10-05T10:26:56.364971Z"
+ },
+ "ibm_job": {
+  "backend": "ibm_kingston",
+  "created": "2026-10-05T10:26:56.364971Z",
+  "id": "db1nms2vog1s73fidhc0",
+  "program": {
+   "id": "sampler"
+  },
+  "state": {
+   "status": "Completed"
+  },
+  "status": "Completed"
+ },
+ "ibm_job_omitted_keys": [
+  "cost",
+  "estimated_running_time_seconds",
+  "user_id"
+ ],
+ "ibm_metrics": {
+  "qiskit_version": "qiskit",
+  "timestamps": {
+   "created": "2026-10-05T10:26:56.364971Z",
+   "finished": "2026-10-05T10:27:03.702386Z",
+   "running": "2026-10-05T10:26:58.584412Z"
+  },
+  "usage": {
+   "details": [
+    {
+     "metric": {
+      "id": "caffe3ca-729c-5750-8777-df63bbf8bfd9",
+      "value": 2
+     },
+     "unit": "resource_units",
+     "value": 0.0328
+    }
+   ],
+   "qpu_charge_time_seconds": 2,
+   "status": "complete",
+   "unit": "resource_units",
+   "value": 0.0328
+  }
+ },
+ "ibm_metrics_omitted_keys": [
+  "circuits_execution_time_ns"
+ ],
+ "ibm_options": {
+  "dynamical_decoupling": {
+   "enable": false
+  },
+  "twirling": {
+   "enable_gates": false,
+   "enable_measure": false
+  }
+ },
+ "ibm_params_keys": [
+  "options",
+  "pubs",
+  "support_qiskit",
+  "version"
+ ],
+ "job_id": "db1nms2vog1s73fidhc0",
+ "role": "known-answer"
+}

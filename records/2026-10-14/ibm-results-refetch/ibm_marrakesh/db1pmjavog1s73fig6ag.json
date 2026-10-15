@@ -1,0 +1,21 @@
+{
+ "agree_at": "bytes",
+ "bytes_equal": true,
+ "committed": {
+  "bytes": 1295,
+  "path": "docs/records/2026-10-05/ibm/ibm_marrakesh/sheet-02/run/known-answer-raw.json",
+  "sha256": "643f489bbac1f4a5c53791f2db1c6c867bdcb2776bb25aacf4b636967234510b"
+ },
+ "device": "ibm_marrakesh",
+ "fetched_at": {
+  "clock": "local",
+  "value": "2026-10-14T16:03:22.964490Z"
+ },
+ "format": "qro-crate/ibm-results-refetch/v0",
+ "ibm_copy": {
+  "bytes": 1295,
+  "sha256": "643f489bbac1f4a5c53791f2db1c6c867bdcb2776bb25aacf4b636967234510b"
+ },
+ "job_id": "db1pmjavog1s73fig6ag",
+ "role": "known-answer"
+}

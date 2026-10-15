@@ -1,0 +1,383 @@
+{
+ "approved": "Logan, 2026-10-14: \"go ahead with the key use\"",
+ "files": [
+  {
+   "bytes": 2589,
+   "path": "ibm_fez/db1nq4rid5ic73erdnt0.json",
+   "sha256": "39e64efb184e63de346456f1f878f215a4a56f01381eeeb556c4a0a170d12c17"
+  },
+  {
+   "bytes": 2571,
+   "path": "ibm_fez/db1nq9hb694s73dsihg0.json",
+   "sha256": "6f90d7f475d2fc9d0e1a263f3c26dba04fdf3332ac5d310274a75ba6c553e216"
+  },
+  {
+   "bytes": 2992,
+   "path": "ibm_fez/db1nqg9b694s73dsihmg.json",
+   "sha256": "3222195e1d6e591c5b3838055f456c7dc78e39811815417e1237c755ab00fcfd"
+  },
+  {
+   "bytes": 2589,
+   "path": "ibm_fez/db1pq3rid5ic73ergghg.json",
+   "sha256": "d13291c95131781e7d099e78f64907899e3e977cc7fe6d1af14c16f8a9b5c61b"
+  },
+  {
+   "bytes": 2573,
+   "path": "ibm_fez/db1pqbeegvvc73bi0bm0.json",
+   "sha256": "82db5ee9623a70a249c8e4c98dbb2eb2a41a4381051dbbdd2acd65d5a40454d6"
+  },
+  {
+   "bytes": 2589,
+   "path": "ibm_fez/db1pqibid5ic73erghg0.json",
+   "sha256": "aa7038ca38c341f113a262f7aa0e3e750c07dd4e16a614e4290df8cf42a814f9"
+  },
+  {
+   "bytes": 2573,
+   "path": "ibm_fez/db1pqnivog1s73figcrg.json",
+   "sha256": "86f200cef06eed6f3fb5b42cd6c40a0a3e9e1284bfc95a4f154bc92765ac519b"
+  },
+  {
+   "bytes": 2589,
+   "path": "ibm_fez/db1pquivog1s73figdcg.json",
+   "sha256": "3b370e2bcc895c9e265169d092e6ff95f64e578b224323392e143c228a3568b9"
+  },
+  {
+   "bytes": 2573,
+   "path": "ibm_fez/db1pr3qvog1s73figds0.json",
+   "sha256": "4cf4265ae60181b850efe717e2816913f9d70a37a21a42d4d821677695347474"
+  },
+  {
+   "bytes": 2589,
+   "path": "ibm_fez/db1prapb694s73dslaug.json",
+   "sha256": "7e86963e3b913d0552ceb9430af8b37d723f30fe2fb71378f4d8db5642aa26b5"
+  },
+  {
+   "bytes": 2573,
+   "path": "ibm_fez/db1prgjid5ic73ergjf0.json",
+   "sha256": "2de0b9997520ab88527cb3f33f105ec71b8228acd66424b8f6ae75d39c7a39b0"
+  },
+  {
+   "bytes": 2589,
+   "path": "ibm_fez/db1prn9b694s73dslbdg.json",
+   "sha256": "04255b1f7f16f2121f4150ea78d341ea43dd45f342a8ae248ca6df36d871dbea"
+  },
+  {
+   "bytes": 2573,
+   "path": "ibm_fez/db1prsbid5ic73ergk1g.json",
+   "sha256": "203d27e77c66dc65568d5e3819860fbe537e35dc5d917b8ee483e6f20c818a5a"
+  },
+  {
+   "bytes": 2589,
+   "path": "ibm_fez/db1ps3eegvvc73bi0f2g.json",
+   "sha256": "7d108b060a2eb26b4ed86f5cc3bd750277370084b7b858769eb75f5d177b39b5"
+  },
+  {
+   "bytes": 2571,
+   "path": "ibm_fez/db1ps8megvvc73bi0fa0.json",
+   "sha256": "682b8f363d9d933cd2779f649006ac8376ead5101856400a719dd973c8bea861"
+  },
+  {
+   "bytes": 2589,
+   "path": "ibm_fez/db1psfqvog1s73figfkg.json",
+   "sha256": "4ecfd9c6981605ccc37fb30e57f01de12c42dc5a4e58705235c3cd200a844ab5"
+  },
+  {
+   "bytes": 2573,
+   "path": "ibm_fez/db1pskuegvvc73bi0fqg.json",
+   "sha256": "1d2930dff78d0ef1d8945115635857e41445639f12e3d9e7347f956838aa2fe9"
+  },
+  {
+   "bytes": 2589,
+   "path": "ibm_fez/db1psthb694s73dsld2g.json",
+   "sha256": "396679ce7892fca222da4437ca18f75c46f95635d2584151edcb324be0ebbf69"
+  },
+  {
+   "bytes": 2573,
+   "path": "ibm_fez/db1pt31b694s73dsld80.json",
+   "sha256": "667a917e03a61eedf424083e55cd41a378d70da17fd65c5235c088993bf4625e"
+  },
+  {
+   "bytes": 2589,
+   "path": "ibm_fez/db1pt9pb694s73dsldfg.json",
+   "sha256": "9f4461d4652fbb4c0c8d11073294ca6d83015347b689992e97f915e01720234f"
+  },
+  {
+   "bytes": 2572,
+   "path": "ibm_fez/db1ptepb694s73dsldl0.json",
+   "sha256": "84be8cfc1a95da246c8e72a255159607eea2469a7003fa74536b092b8c5cb9f9"
+  },
+  {
+   "bytes": 2587,
+   "path": "ibm_fez/db1ptlhb694s73dsldsg.json",
+   "sha256": "a54b05df126f200d78b004cc91f68dfe7aec6be9b066a49086d76bcf87603ee0"
+  },
+  {
+   "bytes": 2573,
+   "path": "ibm_fez/db1ptr9b694s73dsle4g.json",
+   "sha256": "804d0974d613d76219980a6c62103956debbb0aaa495b1771426215d48eb9748"
+  },
+  {
+   "bytes": 1116386,
+   "path": "ibm_fez/properties-20261005T100831Z.json",
+   "sha256": "0631028c361417b44c2d0ebf67544319cad380591d1bc39f29ff0a5eac34a4b7"
+  },
+  {
+   "bytes": 1116386,
+   "path": "ibm_fez/properties-20261005T114447Z.json",
+   "sha256": "643cc8dc67c1c52a8c6a9ce4623afa493b2cb38186c1accf20d34618f8f3de40"
+  },
+  {
+   "bytes": 2609,
+   "path": "ibm_kingston/db1nms2vog1s73fidhc0.json",
+   "sha256": "b40e4df57ee26cb1fc177e143e5f3440436d8f0d391ef50ef45f2a13f5bae233"
+  },
+  {
+   "bytes": 2593,
+   "path": "ibm_kingston/db1nn11b694s73dsidjg.json",
+   "sha256": "d72274a267bdcf52a201d9a86cdd183629cd428774d2e0e11d0405877dcf2e20"
+  },
+  {
+   "bytes": 3012,
+   "path": "ibm_kingston/db1noheegvvc73bhtif0.json",
+   "sha256": "96a02cf8b7a2065b1d490226159720c25597033e77c577252bebe20adc86fdd3"
+  },
+  {
+   "bytes": 2573,
+   "path": "ibm_kingston/db1pcgeegvvc73bhvno0.json",
+   "sha256": "e3db594a50f6efe23fd426e63c3b36653fdecf9c88719e036e358e68141599c5"
+  },
+  {
+   "bytes": 2592,
+   "path": "ibm_kingston/db1pcuhb694s73dsklc0.json",
+   "sha256": "b2b7a3f3571cc397e7674add9b0f47ece3ff4e2527bac688c3a7acb973bf85a9"
+  },
+  {
+   "bytes": 2573,
+   "path": "ibm_kingston/db1pd9ivog1s73fifp5g.json",
+   "sha256": "826040581f5c8da5ac0ec32b97418bc8e4cc3c85ceb0bb068f8159b0c41b1230"
+  },
+  {
+   "bytes": 2557,
+   "path": "ibm_kingston/db1peuivog1s73fifr1g.json",
+   "sha256": "7efe20b438e6ff52997f24eea959eafae0549b6cc4b8334db6989e1da65dac1c"
+  },
+  {
+   "bytes": 2573,
+   "path": "ibm_kingston/db1pfabid5ic73erg000.json",
+   "sha256": "bfd28ec506337ce40081dc338cfe6e5ff0303593cb74dcdd85e3da80cd4d22eb"
+  },
+  {
+   "bytes": 2591,
+   "path": "ibm_kingston/db1pfjivog1s73fifrr0.json",
+   "sha256": "04d03b7e204eb9a1e57d317a50ccc7c5e8498d4fd7d26159d9d0448181bd729c"
+  },
+  {
+   "bytes": 2571,
+   "path": "ibm_kingston/db1pfrrid5ic73erg0og.json",
+   "sha256": "bcd98e53aa26daa4ffe16a5da78d6630b7328c3a2e2b3117afd97c146c596d80"
+  },
+  {
+   "bytes": 2555,
+   "path": "ibm_kingston/db1pg26egvvc73bhvrig.json",
+   "sha256": "073057a7931f851e17fcd181b6084f5f79c80d6f7c19bc0fd71d8c5bc530a0ca"
+  },
+  {
+   "bytes": 2573,
+   "path": "ibm_kingston/db1pg9avog1s73fifspg.json",
+   "sha256": "78175884cdb40400ba2f7a0c42e00cde17f07405983a93afff7996b0ab9531c8"
+  },
+  {
+   "bytes": 2557,
+   "path": "ibm_kingston/db1pgf3id5ic73erg1l0.json",
+   "sha256": "edc0132cd18d862ba7663283e4f307715e26b17917451963eedefb0c132a5c58"
+  },
+  {
+   "bytes": 2572,
+   "path": "ibm_kingston/db1pgmjid5ic73erg1u0.json",
+   "sha256": "9ac8cb36ea877d7386e188488ad536d9030314b843044a87e4ccba69a5884e68"
+  },
+  {
+   "bytes": 2555,
+   "path": "ibm_kingston/db1ph1eegvvc73bhvskg.json",
+   "sha256": "dc00a59ddd52686b3ea27c6df79048e2b4ca7a750ad5dbf45eebeb7dd2ca9947"
+  },
+  {
+   "bytes": 2602,
+   "path": "ibm_kingston/db1ph8rid5ic73erg2f0.json",
+   "sha256": "3c198812ffdd3661f7c7cb6de08ef640f68d451a9ccfa964dde3740493543c55"
+  },
+  {
+   "bytes": 2555,
+   "path": "ibm_kingston/db1phe3id5ic73erg2mg.json",
+   "sha256": "f4dd20996d222e01807325b1c40f4b66e6e525cd1b192c690fbe4f70a4258737"
+  },
+  {
+   "bytes": 2570,
+   "path": "ibm_kingston/db1phlmegvvc73bhvt9g.json",
+   "sha256": "e7b73c56e94d5fdec84210235312effe4f0bd771f28ba6f52233c14ceae9d3a7"
+  },
+  {
+   "bytes": 2588,
+   "path": "ibm_kingston/db1pk02vog1s73fig1o0.json",
+   "sha256": "1a101388ff00685e338c86a51d927de2ffaf3ffcaba622b1ebac9a1242ff9141"
+  },
+  {
+   "bytes": 1115106,
+   "path": "ibm_kingston/properties-20261005T090246Z.json",
+   "sha256": "939758d3448053e972b74b1619a86512105226b070ca0a7161597db59620b56b"
+  },
+  {
+   "bytes": 1115084,
+   "path": "ibm_kingston/properties-20261005T112827Z.json",
+   "sha256": "94ed260238d05d94fadc499ba24cbc8c1fd8ad8d288785111d9a784ea84f33c8"
+  },
+  {
+   "bytes": 1115060,
+   "path": "ibm_kingston/properties-20261005T122118Z.json",
+   "sha256": "3847a8f84ec5fbf5bf7642aa6ae6491b18fc677c24debd7d030288ddbc1cd89f"
+  },
+  {
+   "bytes": 2613,
+   "path": "ibm_marrakesh/db1npihb694s73dsigqg.json",
+   "sha256": "e242cf41a91c17c82d83dd304d30495a5d39a3263c69b9b49d3981c995409085"
+  },
+  {
+   "bytes": 2597,
+   "path": "ibm_marrakesh/db1npojid5ic73erdnfg.json",
+   "sha256": "754d93ec09b9a7d7ddfe496ae83b62a0f2df66f9ccdd8f7fd95c4f5cb608baad"
+  },
+  {
+   "bytes": 3016,
+   "path": "ibm_marrakesh/db1npvavog1s73fidkvg.json",
+   "sha256": "ece71dcfc350128002c1fbfd7cf69e58b56ef932ac069959e78463a22103a189"
+  },
+  {
+   "bytes": 2611,
+   "path": "ibm_marrakesh/db1pkc1b694s73dskuk0.json",
+   "sha256": "01a51536150548d2388b27e06f0244b11b9c3fc90b257c0bb01916b22178c0dc"
+  },
+  {
+   "bytes": 2593,
+   "path": "ibm_marrakesh/db1pmcivog1s73fig60g.json",
+   "sha256": "9a1ae693f6c52297df977e05d4b684106e62febe256079ddbe77b251fe79e7c4"
+  },
+  {
+   "bytes": 2613,
+   "path": "ibm_marrakesh/db1pmjavog1s73fig6ag.json",
+   "sha256": "b59301a6b42cb2de7a3589cb8fac0674cc400a925a2464921893a02c12559955"
+  },
+  {
+   "bytes": 2597,
+   "path": "ibm_marrakesh/db1pmqeegvvc73bi064g.json",
+   "sha256": "c8acebf94c6fe3780b640b4d3674aaa551e5a799dba56d93091a1aa5ee88b231"
+  },
+  {
+   "bytes": 2577,
+   "path": "ibm_marrakesh/db1pn12vog1s73fig6t0.json",
+   "sha256": "68e5de45aae0f4cc9bb6c1a4416720b921c130c61fb334b21a09882052c65f76"
+  },
+  {
+   "bytes": 2597,
+   "path": "ibm_marrakesh/db1pn6qvog1s73fig76g.json",
+   "sha256": "39af71312af1182ee9f01688a949be2ae04250ece28dc76b55705aa889424b24"
+  },
+  {
+   "bytes": 2613,
+   "path": "ibm_marrakesh/db1pndpb694s73dsl40g.json",
+   "sha256": "5df451ffcaf24daaa1e9bcc5db03789cbd8894dd17ba1a59ff53943919b87e87"
+  },
+  {
+   "bytes": 2595,
+   "path": "ibm_marrakesh/db1pnj3id5ic73ergcs0.json",
+   "sha256": "d17b224c799fb1fd38b51c06cd9566e591cfcb3979b4d4c0d051d7cc3ed78cae"
+  },
+  {
+   "bytes": 2613,
+   "path": "ibm_marrakesh/db1pnq1b694s73dsl4h0.json",
+   "sha256": "248e4a730845c9b62d67cd8786a3f412e274ee4c66b63419263d6826e2321a12"
+  },
+  {
+   "bytes": 2593,
+   "path": "ibm_marrakesh/db1pnv6egvvc73bi07u0.json",
+   "sha256": "f64e94860c9d2570e2489244c31ea80685bfa3e00b86e4ef7c1a01afe631bc3f"
+  },
+  {
+   "bytes": 2613,
+   "path": "ibm_marrakesh/db1po5pb694s73dsl4v0.json",
+   "sha256": "68094e66a48a54514a1b542ba7d6b6e7b8c5be2020ad0ed42dabe687612d415f"
+  },
+  {
+   "bytes": 2597,
+   "path": "ibm_marrakesh/db1pobbid5ic73ergdt0.json",
+   "sha256": "746f02cdc3e5656d1873474582458fb940861c885ea3734a34fe59640c487fab"
+  },
+  {
+   "bytes": 2613,
+   "path": "ibm_marrakesh/db1poi9b694s73dsl5hg.json",
+   "sha256": "a050dc3848eef188846395e7434b0a9335847ad6c09e133a521b085617deebd1"
+  },
+  {
+   "bytes": 2597,
+   "path": "ibm_marrakesh/db1ponavog1s73fig970.json",
+   "sha256": "bdacaa521c5a79513117ebc09589f2863fad9df7b1c02fe3b6ab4e3bf71a9c54"
+  },
+  {
+   "bytes": 2613,
+   "path": "ibm_marrakesh/db1pp03id5ic73ergen0.json",
+   "sha256": "8ed80fb0ad51061b350255827059037cd12e20d16726c08e1d52b209a21acc33"
+  },
+  {
+   "bytes": 2597,
+   "path": "ibm_marrakesh/db1pp4rid5ic73erget0.json",
+   "sha256": "01d1924709d14e43e9348d8f91855f9bb0533621f57f936150c814d676678f51"
+  },
+  {
+   "bytes": 2613,
+   "path": "ibm_marrakesh/db1ppbmegvvc73bi09p0.json",
+   "sha256": "b75073d6018fd0a3f0c70625996ee2c585ae289b03a31ca38d1a7e3e9b5bb476"
+  },
+  {
+   "bytes": 2593,
+   "path": "ibm_marrakesh/db1ppg9b694s73dsl710.json",
+   "sha256": "da3fe5b9287b0c5ba80f2dbacb625b3afe74e11ee579c0c504c18fa523c90b8e"
+  },
+  {
+   "bytes": 2612,
+   "path": "ibm_marrakesh/db1ppnmegvvc73bi0ad0.json",
+   "sha256": "00e6bc1f2d4c0e1012cf0b28ee52dd333ab0ad9ce7a021b9f2836353e383b856"
+  },
+  {
+   "bytes": 2597,
+   "path": "ibm_marrakesh/db1ppsuegvvc73bi0aqg.json",
+   "sha256": "44c43a1d7b23f68d0ceb2492351a3bcf0ffb703ebe307dd865eed4a93b1cf3dd"
+  },
+  {
+   "bytes": 1118027,
+   "path": "ibm_marrakesh/properties-20261005T095118Z.json",
+   "sha256": "47674c4a256016d2c065c86001c3e3c914ce25362ccd1e0647014d9beffd6731"
+  },
+  {
+   "bytes": 1118027,
+   "path": "ibm_marrakesh/properties-20261005T112128Z.json",
+   "sha256": "fa89c66c7bcd6235eea5761b5e3bcd77792f9cc90ba6c00848803f53d7d3f9f4"
+  }
+ ],
+ "finished": {
+  "clock": "local",
+  "value": "2026-10-14T15:42:40.349527Z"
+ },
+ "format": "qro-crate/ibm-refetch-manifest/v0",
+ "jobs": 65,
+ "moth_quantum_commit_files_read": "docs/records/2026-10-05/ibm (lines, raw spans, manifests, gate lists)",
+ "selection": "all",
+ "started": {
+  "clock": "local",
+  "value": "2026-10-14T15:40:22.266133Z"
+ },
+ "versions": {
+  "numpy": "2.5.3",
+  "python": "3.12.9",
+  "qiskit": "2.5.2",
+  "qiskit-ibm-runtime": "0.50.0"
+ }
+}

@@ -1,0 +1,3 @@
+qiskit_runtime_service._discover_account:WARNING:2026-10-14 12:37:14,441: Loading account with the given token. A saved account will not be used.
+plan open (free); 3 backends listed; mock backends: none
+usage before: {'usage_consumed_seconds': 353, 'usage_consumed_ru': 5.448135, 'usage_limit_seconds': 600, 'usage_limit_ru': 10, 'usage_limit_reached': False, 'usage_remaining_seconds': 247, 'usage_period': {'start_time': '2026-09-16T19:37:20.261Z', 'end_time': '2026-10-14T19:37:20.261Z'}}
