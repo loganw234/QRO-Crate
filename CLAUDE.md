@@ -6,8 +6,8 @@ README says what this project is; this file says what will bite you.
 ## Start here: one command answers "does it still hold?"
 
 ```
-bash verify/run.sh --budget quick   # ~20 s: all but study-plants, privacy-controls and instruments
-bash verify/run.sh                  # ~75 s, every stage; instruments skips BY NAME without QRO_MOTH_ROOT
+bash verify/run.sh --budget quick   # ~45 s: all but study-plants, privacy-controls and instruments
+bash verify/run.sh                  # ~100 s, every stage; instruments skips BY NAME without QRO_MOTH_ROOT
 bash verify/run.sh --list           # every stage, with * on what a budget selects
 ```
 
@@ -20,6 +20,11 @@ that reading cannot see.
 
 - **A test that skips inside a stage FAILS the stage**
   (verify/pytest-stage.sh). A skip happens only at stage level, by name.
+- **pytest in a stage reads pyproject.toml and nothing else:** no
+  conftest.py, no other configuration file, and a `pytest_plugins` line is
+  refused before pytest starts. It enters every directory under tests/
+  but `__pycache__` and a virtual environment's, `build/` and dot-directories
+  among them (P0.1's verifier, rounds 1 to 3).
 - **The study has its own gate.** Before every freeze of
   docs/studies/QRO-0.md, run both
   `python -I docs/studies/qro0/check_study.py docs/studies/QRO-0.md` and
@@ -38,9 +43,11 @@ that reading cannot see.
   11 states the path's.
 - **A CHECKED term names its checker step, and a crate carrying a CHECKED
   term whose step is not yet built is refused `step-unbuilt`.** Steps 4 to
-  8 are the parcels'. Register a step in
-  `qro.checker.STEPS`, a raw form in `RAW_FORMS`, a generator in
-  `GENERATORS`; never let a crate pass a check that does not exist.
+  8 are the parcels'. A parcel declares its steps, raw forms, count rules
+  and generators in its own module, `qro.register_<parcel>`, which
+  `checker.load()` merges (FORMAT.md item 20); never let a crate pass a
+  check that does not exist. Your step runs on every crate, P0's fixture
+  among them, so it must accept one that carries none of its terms.
 - **The fixture's raw form and generator are registered only by
   `--fixtures`** (`python -m qro check --fixtures DIR`). Without the flag,
   the fixture is refused `step-unbuilt`, by design.
@@ -79,3 +86,36 @@ that reading cannot see.
 4. **Real QPU work is Logan's word, and is held until the M1 prototype
    exists** (study QRO-0, section 13). Read-only use of the key is cleared.
 5. **Nothing is committed or pushed without Logan's word.**
+6. **Verifier send-backs have a loose cap** (Logan, 2026-10-15). After three
+   NOT READY verdicts whose reasons grow more menial, the next verifier is
+   told that only a defect in what the code does blocks. Prose, test gaps
+   where the shipped code is right, and other non-code findings become
+   notes the lead takes afterwards. The lead may keep sending back past the
+   cap where the findings are real, and says why in the ledger. P0 took six
+   rounds before this rule; docs/VALIDATION.md has them.
+7. **Parcels built at once keep out of each other's files** (study QRO-0,
+   section 13; P0.1, after its verifier's round 1, D3). A parcel's own:
+   - its checker code, registered in `qro.register_<parcel>` (above);
+   - its plants, in its own plants_<parcel>.py in controls/, never in
+     controls/registry.py;
+   - its tests, in tests/<parcel>/, every file named `test_<parcel>_*.py`
+     or `<parcel>_*.py`, so that no two parcels' names meet;
+   - its ledger notes, in its own file outside the worktrees, which the lead
+     merges into docs/VALIDATION.md.
+
+   The lead's, which a parcel asks for:
+   - a vocabulary row;
+   - a stage (P1's, P2's and P4's are already in verify/run.sh, each
+     skipped by name until its directory exists), and with it a tool's,
+     and a new top-level directory's place in the lint line;
+   - a command of the command line;
+   - a document directly under docs/, which the index, docs/README.md,
+     must list;
+   - the names of its modules under qro/, given in its approved design, so
+     that two parcels' never meet;
+   - any other outcome for the controls' run than refused by a name or
+     accepted: P3's and P5's rows that state or keep, and `joint-omission`,
+     refused with no name.
+
+   The generated pages never say which controls are built, so a plant
+   changes none of them.

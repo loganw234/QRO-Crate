@@ -14,9 +14,9 @@ can hold each one to the study.
 | each spelling's one form | qro/spelling.py |
 | the canonical bytes, the body and the crate's identity | qro/canonical.py, its docstring |
 | the strict reader's order of decisions (step 1) | qro/reader.py, its docstring |
-| the checker's steps 2, 3 and 9, and the seam for steps 4 to 8 | qro/checker.py |
+| the checker's steps 2, 3 and 9, the seam for steps 4 to 8, and its loading of each parcel's registrations (item 20) | qro/checker.py |
 | the custody log, the audit record and the custody check | qro/custody.py |
-| the controls of section 11, built and pending | controls/registry.py, rendered as [CONTROLS.md](CONTROLS.md) |
+| the controls of section 11 | controls/registry.py, rendered as [CONTROLS.md](CONTROLS.md); each parcel's plants in its own module beside it, merged by `plants()`; which are built, `python -m controls.run` says |
 
 ## The choices P0 made
 
@@ -64,8 +64,8 @@ can hold each one to the study.
    `qro:rawForm`. Its `qro:shots` are counted from its bytes by the form's
    reader. `qro:shots` stands only on a raw result, so a count on any other
    entity is refused at step 1 by its domain (item 13). A parcel whose
-   entities carry a count of their own registers its rule in
-   `qro.checker.COUNTS`.
+   entities carry a count of their own declares its rule in its module's
+   `COUNTS`, which the checker loads (item 20).
 10. **The root names its generator** (`qro:generator`). Step 9 runs it on the
     records and compares bodies byte for byte. The name carries no version,
     so changing a generator changes the bodies it makes: a crate written by
@@ -92,11 +92,16 @@ can hold each one to the study.
       name that is itself a scheme (`README:hidden`) reads as an IRI. It is
       then no file the crate holds: no digest may stand on it, and no step
       reads its bytes.
-    - Two files whose names differ only by case are refused, the
-      descriptor's name among them. Every listed name is held to the exact
-      name on disk.
+    - Two paths whose names differ only by case are refused, the
+      directories along each file and the descriptor's name among them; and
+      so is a path that is both a file and a directory (P0.1, after round
+      6: `data/A/x` and `data/a/y` were accepted where case is kept). Every
+      listed name is held to the exact name on disk, the metadata file's
+      among them.
 12. **A crate holds no link.** A symbolic link or a junction anywhere in it is
-    refused `file-link`, so every path stays inside the crate on every host.
+    refused `file-link`, the metadata file among them, so every path stays
+    inside the crate on every host. The walk descends in name order, so a
+    refusal names the same place on every host.
     So is any entry that is neither a regular file nor a directory, such as
     a named pipe a reader would block on.
 13. **Each term names the entities it may stand on** (its domain, in the
@@ -104,7 +109,8 @@ can hold each one to the study.
     admits, and the reader refuses it anywhere else. So no CHECKED field sits
     where no step reads it. A parcel that needs a term elsewhere asks the
     lead, and builds the check with it.
-14. **The root carries what every crate states:** `conformsTo`,
+14. **The root is a Dataset, never an action, and carries what every crate
+    states:** `conformsTo`,
     `datePublished`, `description`, `hasPart`, `license`, `name`,
     `qro:generator`, `qro:signature`, `qro:trustedTime`, `qro:writer` and
     `qro:writtenAt`.
@@ -119,8 +125,14 @@ can hold each one to the study.
       bug in a parcel's reader or generator shows as a refused crate, and
       the refusal's detail names the failure.
     - The command line exits 3 when the checker itself fails, which is never
-      a verdict: a crash, or an exit or interrupt raised inside it, a
-      parcel's code among it. It writes its one line to the descriptor
+      a verdict: a crash, or an exit or interrupt raised inside it, in a
+      parcel's step or count rule among others, and a parcel's module that
+      will not load or registers what is not its own (item 20). A
+      `PermissionError` from a step or a count rule is the exception: it is
+      misuse, exit 2 (below). A raw-form reader's or a generator's is refused
+      by its step's name, as any `Exception` they raise is (above; P0.1's
+      verifier, round 1, note 4.3.1). It writes its one line to
+      the descriptor
       itself, unbuffered, before it returns. The line is printable ASCII:
       every other character a crate's own text holds, a line feed or an
       escape among them, is written as its Python escape, so no crate can
@@ -161,6 +173,31 @@ can hold each one to the study.
     the twin's metadata and identity, a custody log and its head, and an
     audit record. The writer and the reader share qro/canonical.py, so a
     change to it would move both together; the golden bytes do not move.
+20. **A parcel registers its checker code in a module of its own,**
+    `qro.register_<parcel>`, so that parcels building at once never edit
+    P0's files (P0.1, after its verifier's round 1, D3).
+    - The module declares `STEPS`, `RAW_FORMS`, `COUNTS` and `GENERATORS`.
+      `checker.load()` merges every parcel's that is present.
+    - `load()` refuses a step whose refusals the vocabulary gives another
+      parcel, and the vocabulary's sanity check refuses a step given two. It
+      refuses a key another function holds, and a name of P0's fixture's,
+      with `--fixtures` or without it. It refuses a module that changes the
+      registries while `load()` imports it, where it should declare them;
+      one imported before that, by a parcel's own test say, it cannot see.
+      And a module that raises anything while it is imported or its
+      declarations read, a refusal or a want of permission among them, is
+      refused, not answered as a verdict (P0.1's verifier, round 2, R2-3).
+      Each is the checker's own failure, exit 3.
+    - The command line's `check` loads, and so does `python -m
+      controls.run`, each before it reads a crate. So an in-process test of
+      either loads every parcel present; P0's tests that plant into an
+      unbuilt step set the steps unbuilt themselves.
+    - A parcel's module is imported on every check, so whatever it imports
+      every check needs: a module that will not import fails every check,
+      P0's fixture's among them.
+    - A parcel's registered code runs on every crate the checker reads, P0's
+      fixture and every other parcel's crates among them: a step must
+      accept a crate that carries none of its terms.
 
 ## Stated limits of P0's format
 
@@ -179,8 +216,9 @@ can hold each one to the study.
   P1, which writes the actions, adds them.
 - **What the walk cannot see is not checked.** The checker reads what the
   host lists. A directory it cannot list is raised, never passed over
-  (round 5, note 1), and the command line answers it as misuse. These it
-  does not see:
+  (round 5, note 1). The command line answers a want of permission as
+  misuse, exit 2, and any other reason, a path too long for the host
+  say, as the checker failing, exit 3. These it does not see:
   - an NTFS stream on a listed file is invisible to it, and the file's own
     bytes are held to their digest;
   - a hard link to a file outside the crate is a file in the crate, held

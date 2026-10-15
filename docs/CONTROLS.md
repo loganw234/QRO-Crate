@@ -2,37 +2,37 @@
 
 # Controls
 
-Study QRO-0's section 11: each control one planted fault, refused by the name given or stated as the study says. `python -m controls.run` runs every built one; the rest are pending their parcel.
+Study QRO-0's section 11: each control one planted fault, refused by the name given or stated as the study says. `python -m controls.run` runs every built one, and names the rest as pending their parcel.
 
-| control | planted fault | expected | owner | built |
-|---|---|---|---|---|
-| `shot-moved` | one shot changed, its digest left | `raw-digest` | P0 | yes |
-| `job-reattributed` | one IBM job's raw result filed under another's id | `commitment`; or `count-unpaid` first, where the two jobs' shot counts differ | P1 | pending |
-| `bits-mirrored` | the decode told the mirrored order | `known-answer` | P1 | pending |
-| `compile-broken` | a gate-list change that moves a Z-basis probability, digests recomputed | `compile-uncontrolled` | P2 | pending |
-| `qpy-only` | one QPY byte changed, digests and commitment recomputed, gate list left | accepted by the crate-only checker. Refused by the QPY stage or by the anchor's re-fetch, where the provider's copy differs | P1 | pending |
-| `calibration-late` | a snapshot stamped or measured after the first shot, claimed `history-at-first-shot` | `calibration-link` | P1 | pending |
-| `calibration-gap` | a job linked `history-at-first-shot` whose first shot falls after a newer carried snapshot's stamp and newest value date | `calibration-link`: the link is `history-in-gap` | P1 | pending |
-| `calibration-restamped` | two snapshots with equal values and different stamps | not a refusal: their values-digests are EQUAL | P1 | pending |
-| `count-unpaid` | `shots` stated one higher than held | `count-unpaid` | P0 | yes |
-| `self-compare` | a run against itself | `comparison-trivial` | P3 | pending |
-| `resealed-compare` | a run against a copy with one shot moved and digests recomputed | `comparison-trivial`: the two share job ids and commitments | P3 | pending |
-| `shared-control` | two runs sharing only a known-answer job | not refused (section 8) | P3 | pending |
-| `class-declared` | a measure declared "signal" with equal law and twin values | `measure-class` | P2 | pending |
-| `float-spelt` | a value spelt as a JSON number | `spelling` | P0 | yes |
-| `kind-missing` | a field with no kind | `field-kind` | P0 | yes |
-| `adjusted-as-raw` | a non-integer corrected count in the raw slot, digest recomputed | `raw-form` | P0 | yes |
-| `single-runs` | one law job a run | "not isolated from the pipeline: drift UNMEASURED, `none`" | P3 | pending |
-| `readout-unbounded` | runs whose only readout control is one known-answer pattern | "isolated as quantum: no, readout's effect unbounded" | P3 | pending |
-| `time-confounded` | runs on two devices in disjoint time blocks | "the difference is the device's-and-its-time's" | P3 | pending |
-| `joint-omission` | per-cause tolerance checks that each pass, offered in place of the data | refused: verdicts are computed only on the runs' data | P3 | pending |
-| `shot-moved-resealed` | one shot moved, every digest recomputed | accepted by the crate-only checker, a stated limit. Refused by the raw re-fetch, where the provider's copy differs | P1 | pending |
-| `unit-known-answer` | a free-tier unit whose known answer fails on one device | refused at intake: `known-answer` | P5 | pending |
-| `unit-incomplete` | a unit missing one film job | kept as `unit-incomplete`, and left out of every pair with that device | P5 | pending |
-| `not-interleaved` | a unit whose devices ran in blocks | kept as `not-interleaved`: "the difference is the device's-and-its-time's" | P5 | pending |
-| `kit-dirty` | the kit started from a tree with uncommitted changes, or from an untagged commit | refused by the kit before any submission: `kit-dirty` | P5 | pending |
-| `simulator-in-real` | a `simulator` unit that passes its known answer, offered to a comparison declared real | refused: `kind-not-qpu` | P3 | pending |
-| `custody-chain` | a custody-log line edited or dropped after the fact, with a line after it | refused: `custody-chain`, at the first line whose predecessor hash fails | P0 | yes |
-| `withdrawal-in-place` | a withdrawal written by editing the crate's received line, with a line after it | refused: `custody-chain`, at the next line | P0 | yes |
-| `withdrawal-appended` | a withdrawal written as a later line, with its reason | accepted: the chain stays whole | P0 | yes |
-| `audit-head-mismatch` | an audit record whose log head hash matches no line of the auditor's custody log | refused: `custody-head` | P0 | yes |
+| control | planted fault | expected | owner |
+|---|---|---|---|
+| `shot-moved` | one shot changed, its digest left | `raw-digest` | P0 |
+| `job-reattributed` | one IBM job's raw result filed under another's id | `commitment`; or `count-unpaid` first, where the two jobs' shot counts differ | P1 |
+| `bits-mirrored` | the decode told the mirrored order | `known-answer` | P1 |
+| `compile-broken` | a gate-list change that moves a Z-basis probability, digests recomputed | `compile-uncontrolled` | P2 |
+| `qpy-only` | one QPY byte changed, digests and commitment recomputed, gate list left | accepted by the crate-only checker. Refused by the QPY stage or by the anchor's re-fetch, where the provider's copy differs | P1 |
+| `calibration-late` | a snapshot stamped or measured after the first shot, claimed `history-at-first-shot` | `calibration-link` | P1 |
+| `calibration-gap` | a job linked `history-at-first-shot` whose first shot falls after a newer carried snapshot's stamp and newest value date | `calibration-link`: the link is `history-in-gap` | P1 |
+| `calibration-restamped` | two snapshots with equal values and different stamps | not a refusal: their values-digests are EQUAL | P1 |
+| `count-unpaid` | `shots` stated one higher than held | `count-unpaid` | P0 |
+| `self-compare` | a run against itself | `comparison-trivial` | P3 |
+| `resealed-compare` | a run against a copy with one shot moved and digests recomputed | `comparison-trivial`: the two share job ids and commitments | P3 |
+| `shared-control` | two runs sharing only a known-answer job | not refused (section 8) | P3 |
+| `class-declared` | a measure declared "signal" with equal law and twin values | `measure-class` | P2 |
+| `float-spelt` | a value spelt as a JSON number | `spelling` | P0 |
+| `kind-missing` | a field with no kind | `field-kind` | P0 |
+| `adjusted-as-raw` | a non-integer corrected count in the raw slot, digest recomputed | `raw-form` | P0 |
+| `single-runs` | one law job a run | "not isolated from the pipeline: drift UNMEASURED, `none`" | P3 |
+| `readout-unbounded` | runs whose only readout control is one known-answer pattern | "isolated as quantum: no, readout's effect unbounded" | P3 |
+| `time-confounded` | runs on two devices in disjoint time blocks | "the difference is the device's-and-its-time's" | P3 |
+| `joint-omission` | per-cause tolerance checks that each pass, offered in place of the data | refused: verdicts are computed only on the runs' data | P3 |
+| `shot-moved-resealed` | one shot moved, every digest recomputed | accepted by the crate-only checker, a stated limit. Refused by the raw re-fetch, where the provider's copy differs | P1 |
+| `unit-known-answer` | a free-tier unit whose known answer fails on one device | refused at intake: `known-answer` | P5 |
+| `unit-incomplete` | a unit missing one film job | kept as `unit-incomplete`, and left out of every pair with that device | P5 |
+| `not-interleaved` | a unit whose devices ran in blocks | kept as `not-interleaved`: "the difference is the device's-and-its-time's" | P5 |
+| `kit-dirty` | the kit started from a tree with uncommitted changes, or from an untagged commit | refused by the kit before any submission: `kit-dirty` | P5 |
+| `simulator-in-real` | a `simulator` unit that passes its known answer, offered to a comparison declared real | refused: `kind-not-qpu` | P3 |
+| `custody-chain` | a custody-log line edited or dropped after the fact, with a line after it | refused: `custody-chain`, at the first line whose predecessor hash fails | P0 |
+| `withdrawal-in-place` | a withdrawal written by editing the crate's received line, with a line after it | refused: `custody-chain`, at the next line | P0 |
+| `withdrawal-appended` | a withdrawal written as a later line, with its reason | accepted: the chain stays whole | P0 |
+| `audit-head-mismatch` | an audit record whose log head hash matches no line of the auditor's custody log | refused: `custody-head` | P0 |

@@ -70,8 +70,9 @@ def rational(q):
 
 
 def time(dt):
-    """The one spelling of an aware datetime, in UTC."""
-    if dt.tzinfo is None or dt.utcoffset().total_seconds() != 0:
+    """The one spelling of an aware datetime, in UTC; ValueError for any other."""
+    offset = dt.utcoffset() if dt.tzinfo is not None else None
+    if offset is None or offset.total_seconds() != 0:
         raise ValueError("a time is written in UTC")
     s = f"{dt.year:04d}-{dt.month:02d}-{dt.day:02d}T{dt.hour:02d}:{dt.minute:02d}:{dt.second:02d}"   # not strftime:
     # glibc's %Y leaves a year below 1000 unpadded (P0's verifier, round 5)

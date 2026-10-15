@@ -5,10 +5,15 @@ control's twin, and must be accepted. tests/controls/test_control_registry.py wa
 METHOD.md section 2): a row of P0's that no planted fault exercises fails by name, a builder that names no row
 fails by name, and every other owner's row is printed by name as pending until its parcel lands.
 
-PLANTS holds P0's builders. Each takes an empty directory and returns what it planted: a crate directory for
-the checker, or a (log, record) pair for the custody check. Stdlib only.
+PLANTS holds P0's builders. plants() merges them with each parcel's, from the parcel's own plants_<parcel>.py
+beside this file (P0.1), so that parcels building at once never edit this file. It merges when called, never
+while this module is being imported: a parcel's plants module imports this one, for twin(), RAW and the helpers,
+and a merge made at import found that module half made whenever it was imported first (P0.1's verifier, round 1,
+D2). Each plant takes an empty directory and returns what it planted: a crate directory for the checker, or a
+(log, record) pair for the custody check. Stdlib only.
 """
 import hashlib
+import importlib
 import json
 from dataclasses import dataclass
 from pathlib import Path
@@ -204,3 +209,20 @@ PLANTS = {
     "withdrawal-appended": withdrawal_appended,
     "audit-head-mismatch": audit_head_mismatch,
 }
+
+
+def merged(plants, modules):
+    """P0's plants, and each parcel module's PLANTS dict. A name planted twice is refused, never overwritten."""
+    out = dict(plants)
+    for module in modules:
+        clash = sorted(set(module.PLANTS) & set(out))
+        if clash:
+            raise RuntimeError(f"{module.__name__} plants {clash}, which another module already plants")
+        out.update(module.PLANTS)
+    return out
+
+
+def plants():
+    """Every plant: P0's, then each parcel module's, plants_*.py beside this file in name order, merged now."""
+    return merged(PLANTS, [importlib.import_module(f"controls.{p.stem}")
+                           for p in sorted(Path(__file__).parent.glob("plants_*.py"))])

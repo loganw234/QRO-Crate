@@ -26,6 +26,13 @@ def test_the_table_can_fail_its_sanity(monkeypatch):
     assert any("qro:x" in p for p in V.sanity())
 
 
+def test_a_step_given_two_parcels_fails_the_sanity_check(monkeypatch):
+    """A step's refusals name the one parcel that may register it (checker.load, P0.1)."""
+    bad = V.Refusal("zz-second-owner", "step 4", "refused", "P2", "a second parcel's refusal at step 4")
+    monkeypatch.setattr(V, "REFUSALS", V.REFUSALS + (bad,))
+    assert V.sanity() == ["refusal zz-second-owner: step 4 is P1's, and this names P2"]
+
+
 def test_rocrates_context_is_the_pinned_copy():
     data = (Path(V.__file__).parent / V.ROCRATE_CONTEXT_FILE).read_bytes()
     assert hashlib.sha256(data).hexdigest() == V.ROCRATE_CONTEXT_SHA256

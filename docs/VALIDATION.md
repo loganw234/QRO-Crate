@@ -928,3 +928,576 @@ the first commit holds the tree as frozen for round 6, with:
 - the README's status.
 
 It is pushed to a public repository on GitHub.
+
+## 2026-10-15 - P0.1: round 6's notes, and the round's shared files
+
+P0.1 is the lead's, before the round's parcels. Logan, 2026-10-15: "Round
+6's notes can be folded into the next round". It takes round 6's notes, and
+prepares the files that parcels building at once would share.
+
+**Code, from round 6's notes:**
+- **The case rule** holds every path along a file, its directories and the
+  descriptor among them. It refuses a path that is both a file and a
+  directory. `data/A/x` beside `data/a/y` had been accepted where case is
+  kept (round 6, 8.3 item 1).
+- **The root** is a Dataset, and never an action (8.3 item 2).
+- **The metadata file:**
+  - a link is refused `file-link`, before any read (8.3 item 5);
+  - its exact name is held on every host (8.3 item 7).
+- **The walk** descends in name order. It sorts its directories in place
+  (8.3 item 3).
+- **`time()`** refuses a tzinfo that gives no offset (8.2 item 10).
+- **The privacy gate:**
+  - four more forms of home path, each its own alternative with its own
+    plant: a file URL with an encoded drive colon, `/var/home`, a UNC home,
+    and a remote URI's home (8.3 item 6);
+  - its key pattern's whitespace is bounded. 16,000 spaces after `token`
+    took 2.6 s, and take 7 ms;
+  - its controls' summary claims every plant caught only when each was
+    (8.2 item 8).
+- **The stage registry:** no two stages share a name, and pytest's own
+  configuration is pinned. There is no conftest.py, no ini file, and
+  exactly the options the stages assume (8.1 items 4 and 5).
+
+**Round 6's test gaps (8.1), each now planted:**
+- the privacy gate: its exit status, its reading of commit messages, its
+  controls' verdict, and an unreadable tracked file;
+- the seam's success path;
+- five classes of error from a parcel's code;
+- type confusion inside values, in seven plants;
+- the writers' guards;
+- the fixture's raw form: a boolean count, and an array;
+- a raw result that states no shots;
+- the docs gate's other directories;
+- the instruments' comparison;
+- the vocabulary's `--write`;
+- the controls' run saying WRONG;
+- the plant command's custody branch.
+
+**The round's shared files (study QRO-0, section 13):**
+- A parcel's plants go in its own module, plants_<parcel>.py in controls/.
+- The registry merges them, and refuses a name planted twice.
+- CLAUDE.md's item 7 says what else each parcel keeps to itself.
+
+**Prose:**
+- FORMAT.md items 11, 12, 14 and 16, and its limit on the walk;
+- the checker's and the reader's docstrings, and the `graph-form` row;
+- CLAUDE.md: the quick budget, now ~30 s, and Logan's rule of 2026-10-15
+  on send-backs (item 6).
+
+**Measured, by the lead:**
+- **13 hand mutants of P0.1's code changes** (scratch only): 13 of 13
+  killed. That held after two plants were made to decide:
+  - the metadata link, with bytes that are not metadata, so that only the
+    check made before any read can say `file-link`;
+  - the walk's order, with the host's listing reversed. NTFS lists names
+    in order already, so on Windows the plant could not otherwise tell.
+- **The runner:** `QRO_MOTH_ROOT=<moth-quantum> bash verify/run.sh`, run
+  `20261015-072938-15365-bb90d1d+dirty`: **17 of 17 stages passed, none
+  skipped.**
+  - docs: 76 passed;
+  - tool-tests: 49;
+  - vocab-tests: 7;
+  - format: 623;
+  - custody: 21;
+  - control-tests: 20;
+  - controls-run: 9 of 9, 21 pending;
+  - study-plants: 68 faults refused, 6 right variants accepted;
+  - privacy: 241 files and 1 commit message, nothing found;
+  - privacy-controls: 37 of 37 caught;
+  - instruments: 5 of 5 reproduced;
+  - check-docs: 10 documents, 24 other markdown files, 34 source files;
+  - the twin: ACCEPTED `ff3fe486…`, unchanged;
+  - the negative control: refused `raw-digest at data/raw.counts.json`.
+
+**The lead's slips, caught on the way:**
+- A placeholder path, plants_<parcel>.py under controls/ written as one path,
+  was read by the docs gate as a missing path, rightly.
+- An append helper dropped the blank lines before each new block.
+- A test wrapper was not an iterator, as Python 3.12's `os.walk` needs. One
+  walk mutant was counted killed by that erroring test, and was run again
+  after the fix.
+
+**Next:** P0.1's verifier, round 1 of a loose cap of three (CLAUDE.md item
+6).
+
+## 2026-10-15 - P0.1's first verifier: NOT READY, D1 to D3, and the fixes
+
+P0.1's first verifier ran on Sonnet, on the full bar, as round 1 of the
+loose cap of three (CLAUDE.md item 6). Its report is
+docs/reviews/P0.1/round1.md. It found every code change P0.1 made for round
+6's notes right, and three defects. None is menial: two are what code does,
+and the third is what the shared files are for. So this is send-back 1 of
+3, and round 2 keeps the full bar.
+
+**D1, the pin on pytest's configuration** (a gate, and a false claim). The
+pin read a conftest.py anywhere, and three names of configuration file at
+the root alone. A pytest.ini under tests/ took 327 tests out of their stage,
+and the quick budget still passed. Now:
+- verify/pytest-stage.sh gives pytest `-c pyproject.toml`, so a stage reads
+  the root's pyproject.toml and no other configuration file, wherever it
+  sits. pytest 9.1.1 then takes the root as its rootdir, and as the
+  directory above which it reads no conftest.py (READ, its
+  _pytest/config/findpaths.py and config/__init__.py).
+- The stage registry's test holds the script's pytest line and the
+  options; no conftest.py where a stage reads one, the root or under
+  tests/; and no other configuration file of pytest's seven names at the
+  root or under tests/, where a stage would ignore it. A conftest.py in a
+  virtual environment is no longer reported, the verifier's second face.
+- A test runs the stage script itself, with a pytest.ini under tests/ and
+  then a pytest.toml at the root. Each takes a test out when pytest finds
+  it, and the stage runs both tests (MEASURED).
+
+**D2, the plants merge's import cycle** (code). A plants module imported
+before the registry crashed at import. Now the registry merges when
+`plants()` is called, never while it is being imported. A test writes a
+plants module as a parcel would, in a copy of the packages, and imports it
+before and after the registry, each in a fresh process; a second module
+planting its name is refused.
+
+**D3, what the shared files are for.** A parcel doing what item 7 said
+failed three quick-budget stages, and two parcels met in four places. Each
+seam is removed where it was:
+- **Registration.** Nothing registered a parcel's step for a real crate.
+  A parcel now declares its steps, raw forms, count rules and generators in
+  its own module, `qro.register_<parcel>`, and `checker.load()` merges every
+  one present (FORMAT.md item 20).
+  - A parcel registers only the steps whose refusals the vocabulary gives
+    it; the vocabulary's sanity check refuses a step given two parcels.
+  - A key another function holds is refused, the fixture's among them: the
+    command line registers the fixture first, under `--fixtures`.
+  - Any of these, or a module that will not import, is the checker itself
+    failing, exit 3.
+  - The command line's check and the controls' run load; nothing else in
+    process does. P0's step-unbuilt tests now set the steps unbuilt
+    themselves, so they hold whatever is loaded, and test_sites.py's step
+    4, set directly, no longer stays registered for later tests.
+- **The stages.** P1's, P2's and P4's are written in verify/run.sh, each
+  skipped by name until its directory exists, and in the quick budget. The
+  docs gate leaves a path the runner guards with `need_file` unchecked.
+- **docs/CONTROLS.md** no longer says which controls are built, so a
+  parcel's plant regenerates nothing; `python -m controls.run` says it.
+- **Test names.** Every Python file under a parcel's tests/<parcel>/ carries
+  its prefix, held by the registry's test, so two parcels' names never meet.
+- **The registry's test** used P1's real control as a stand-in; it uses a
+  name no control has.
+- **Not done, and stated in CLAUDE.md item 7:** the controls' run knows two
+  outcomes, refused by a name and accepted. P3's and P5's rows that state
+  or keep, and `joint-omission`, need more. P5 and P3 build one after the
+  other, after P1 and P2, so the lead extends the run from P5's approved
+  design before P5 builds. A command of the command line is the lead's too.
+
+**Notes taken:**
+- 4.1.1: a crate the user cannot list is misuse, exit 2, whatever its
+  metadata holds. A test holds it.
+- 4.1.3: the address patterns start only where a run of their characters
+  starts. One run of 100,000 letters took 77 s; two take under 3 s now, a
+  test holds it. Stated: a second address glued to the first by one of an
+  address's characters is not found, and a test holds that too.
+- 4.1.4: the key pattern's bounds, measured and stated in the gate's
+  docstring: 32 white-space characters before the separator, where two runs
+  meet, 16 after a quote, and 16 after the separator and after `Bearer` or
+  `apikey`. A test holds each, one more passing. The verifier's "17 spaces
+  pass" holds after the separator.
+- 4.1.5: the remote-URI alternative names smb, nfs, rsync, ftp, ftps and
+  file too, each held by a test. The other forms stay under the gate's "a
+  shape no alternative names passes".
+- 4.2: tests for the privacy gate's command line in both modes, run as the
+  runner runs it; an alternative with no plant; a file control that catches
+  nothing; the binary listing; the controls' summary; the walk's order
+  within one directory; a file below a directory named as the descriptor; a
+  metadata file that is a directory; a number for the audit record's
+  stages, and every stage in sorted order; the case refusal's location; the
+  generator's exit 2, and a parcel's plant naming no control; the controls'
+  run with a P0 row unplanted. Git's configuration is kept out of the test
+  repositories.
+- 4.3: FORMAT.md item 16 and qro/__main__.py's docstring on
+  `PermissionError`, which said "whoever raises it"; the README's status;
+  CLAUDE.md's full run, ~85 s; the docs stage's description; FORMAT.md's
+  rule table.
+
+**Not taken, and why:**
+- 4.1.2 is the walk's fix itself.
+- The test of the metadata file named in another case bites only where
+  case is folded: on Linux its file is missing whatever the clause. The
+  lead's mutant of the clause was killed on Windows (4.2).
+- The verifier's WSL run used Python 3.10, below the floor of 3.12; its 4
+  failures there are tomllib's absence.
+
+**Corrections to the entry above** (append-only, so restated here):
+- "There is no conftest.py, no ini file, and exactly the options the stages
+  assume" was false: D1.
+- "Its controls' summary claims every plant caught only when each was" is
+  not what the code does. The summary's last clause says whether every
+  alternative has a plant; the exit status says whether every plant was
+  caught (note 4.3.2).
+- "Round 6's test gaps (8.1), each now planted" was wider than true. The
+  gate's command line, half the controls' verdict, the file controls, the
+  binary listing and the walk's order within a directory were not held.
+  They are now (above).
+
+**Measured, by the lead:**
+- **The runner:** `QRO_MOTH_ROOT=<moth-quantum> bash verify/run.sh`, run
+  `20261015-092711-30766-bb90d1d+dirty`, on the tree as frozen but for this
+  entry: **17 stages passed, 3 skipped by name** (p1, p2 and p4, whose
+  parcels are not built), none failed.
+  - docs: 97 passed; tool-tests: 71; vocab-tests: 8; format: 643; custody:
+    23; control-tests: 22. That is 864 tests;
+  - controls-run: 9 of 9, 21 pending;
+  - study-plants: 68 faults refused, 6 right variants accepted;
+  - privacy: 244 files and 1 commit message, nothing found;
+  - privacy-controls: 37 of 37 caught;
+  - instruments: 5 of 5 reproduced;
+  - check-docs: 10 documents, 26 other markdown files, 35 source files;
+  - the twin: ACCEPTED `ff3fe486…`, unchanged;
+  - the negative control: refused `raw-digest at data/raw.counts.json`.
+- **32 hand mutants of this round's code** (in the lead's scratch,
+  m_p01_r2.py, run by round 3's hm.py): 31 killed. The survivor is the
+  plants merge's sort. NTFS lists names in order already, so on this host
+  the sort changes nothing; elsewhere it fixes which module a clash names.
+- **The lead's simulation of P1 and P2 building at once** (in the lead's
+  scratch, sim_parallel.py). Each parcel adds a registration module, a
+  plants module and a prefixed test, six files in all, and neither edits a
+  file of the tree. With both, the runner passed 19 stages and skipped p4
+  by name. P1's stand-in plant came out as section 11 says, refused
+  `commitment` by its loaded step. The simulation's first run failed
+  `format` (below).
+
+**The models:** P0.1's first verifier ran on Sonnet, and its second will.
+Logan, 2026-10-15: "Use Sonnet models for the parcels in this round, as
+well as for the verifiers. They've been proving capable at parcel work.
+Unsure if that was already the approach used here or if Opus were still
+handling parcels. Difficult parcels still get opus, though most of this
+work is not "difficult" so to speak". The lead judges P2, the measures, the
+one difficult parcel so far: its certified intervals need outward rounding,
+which the study's instrument does not do, and its exact hold must run on
+the standard library alone. So the lead plans P2 on Opus, and the rest on
+Sonnet, and will say so again when P2's brief goes out.
+
+**The lead's slips, caught on the way:**
+- An example address in a new comment of the privacy gate's, in a domain
+  not reserved. The gate's new end-to-end test read it on its first run.
+- A helper module under tests/ would be shadowed by a `tests` package in
+  Miniconda's site-packages, so the Git-Bash helper is copied, and says why.
+- The docs gate read three placeholders as missing paths, rightly.
+- The loader's test copied the registries as they stood; once P1's module
+  exists, an earlier test would have loaded it into the copy. The test now
+  starts from unbuilt registries.
+- The simulation's first run failed `format`: P0's step-unbuilt plant in
+  tests/format/test_refusals.py met the stand-in's loaded step 4, which an
+  earlier test in the process had loaded. That test now sets steps 4 to 8
+  unbuilt itself, as the other step-unbuilt test does.
+
+**Next:** P0.1's verifier, round 2, on the full bar.
+
+## 2026-10-15 - P0.1's second verifier: NOT READY, R2-1 to R2-3, and the fixes
+
+P0.1's second verifier ran on Sonnet, on the full bar. Its report is
+docs/reviews/P0.1/round2.md. D1 to D3 held: it merged three stand-in
+parcels' branches with no conflict and no edit to a file of the lead's, and
+1,189 command lines gave the same exit and lines as round 1's tree. It found
+three defects, each needing a fault the lead had not planted: two gates and
+one piece of code. None is menial, so this is send-back 2 of 3, and round 3
+keeps the full bar.
+
+**R2-1, a conftest.py that hides itself** (a gate). One line in a
+conftest.py directly under tests/, `collect_ignore_glob` naming the registry's test and
+test_hostile.py, took 410 tests out of the full run, the test that forbids
+it among them, and the run passed. Now the stage script gives pytest
+`--noconftest`, so no conftest.py is ever read. The registry holds the
+option; a conftest.py at the root or under tests/ is still reported, since
+whoever wrote it expected it read; and the end-to-end test plants round 2's
+own conftest.py, which takes a test out when pytest reads it, while the
+stage runs both.
+
+**R2-2, the docs gate's exemption had no end** (a gate). A path the runner
+guarded with `need_file` stayed exempt after it existed, so every path
+named below tests/p1 would have gone unchecked once P1 landed. Now only a
+guarded path that is missing is exempt; a test makes the directory and
+sees a missing path below it reported.
+
+**R2-3, a parcel module's failure at import** (code, and three false
+sentences). `load()` let a module's own exception through: a `Refused`
+raised at import was exit 1, a verdict on a crate never read, and a
+`PermissionError` exit 2. Now any `Exception` raised while a module is
+imported or its declarations read is a `RegistrationError`, exit 3, so the
+docstring, FORMAT.md items 16 and 20, and qro/__main__.py's docstring are
+true. A test holds six ways of failing to load, with `--fixtures` and
+without it.
+
+**Notes taken:**
+- 4.1.1: the registry holds the stage script's environment lines and its
+  three checks on the summary line, not its pytest line alone. Tests run
+  the script with `PYTEST_ADDOPTS` set, with `FORCE_COLOR` and `PY_COLORS`
+  set, and on a test that skips.
+- 4.1.2: each parcel stage's `need_file` guards the directory its stage
+  runs; `need_file` tests with `-e`; and the quick budget is every stage
+  but study-plants, privacy-controls and instruments, as CLAUDE.md says.
+  Each is a test, with its plants.
+- 4.1.3: each address pattern's lookbehind is held to its local part's own
+  class, which keeps the search linear; and a second address glued by each
+  separating character, `-`, `.`, `_`, `%`, `+` or a digit, is held not
+  found, for both patterns. The `\b` before a URI's scheme only narrows
+  what matches, so it is left.
+- 4.1.4: the plant command's misuse, the controls' run's last line, and the
+  docs gate's "(new)" marker each have a test.
+- 4.1.5: the prefix rule's test plants a nested file without the prefix.
+- 4.1.6: two parcels' clash names the later one, two parcels' rules of one
+  name are both kept, and a commented `need_file` guards nothing. Each has
+  a test.
+- 4.1.8: every test in tests/tools/ runs with no GIT_ variable of the
+  user's, and with no global or system configuration, its subprocesses
+  among them.
+- 4.2: the gate's comment on the address patterns, and its docstring's
+  bounds, which missed a quote's place, are restated as measured, with a
+  test at each place, `apikey`'s and the quote's among them; FORMAT.md item
+  20's sentence on what loads in process; docs/README.md's line on the
+  reviews; CLAUDE.md item 7, which now names `joint-omission`; and the
+  quick budget's time (below).
+- 4.3.1: a module that changes the registries while `load()` imports it is
+  refused. A stated limit: one imported before `load()` first imports it
+  has run already, and is not seen.
+- 4.3.2: a name of P0's fixture's is refused with or without `--fixtures`.
+- 4.3.3: FORMAT.md item 20 says a parcel's module is imported on every
+  check.
+- 4.3.4: CLAUDE.md item 7 names the lead's other seams: a tool's stage, a
+  top-level directory's place in the lint line, a document directly under
+  docs/ in the index, and the names of a parcel's modules under qro/.
+- 4.3.5: a name planted twice is a contradiction to the generator, exit 2,
+  not a traceback.
+- 4.3.6: the stage script gives pytest `--color=no`.
+- 4.3.7 is moot: with `--noconftest` and `-c`, pytest reads no conftest.py
+  and no configuration file but the root's, however the host spells a name.
+
+**Not taken, and why:**
+- 4.1.7: PYTEST_FILES is pytest 9.1.1's own list, READ from its source,
+  and with `-c` none of the files it names is read; only the hygiene report
+  depends on it.
+- The plants merge's sort, again: equivalent on NTFS.
+
+**Corrections to the entries above** (append-only, so restated here):
+- The ledger's "A test holds each, one more passing" was untrue for
+  `apikey`'s bound, and the docstring's bounds missed one place. Both hold
+  now.
+- The gate's comment said a text that held a finding still does. It does
+  not where the first address is allowed or reserved and a real one is
+  glued to it; that is now a stated limit.
+- FORMAT.md item 20 said P0's tests still plant into unbuilt steps because
+  nothing in process loads. Every in-process test of the command line
+  loads; P0's tests hold because they set the steps unbuilt themselves.
+
+**Measured, by the lead:**
+- **The runner:** `QRO_MOTH_ROOT=<moth-quantum> bash verify/run.sh`, run
+  `20261015-111041-53645-bb90d1d+dirty`, on the tree as frozen but for this
+  entry: **17 stages passed, 3 skipped by name** (p1, p2 and p4), none
+  failed.
+  - docs: 113 passed; tool-tests: 84; vocab-tests: 8; format: 651;
+    custody: 23; control-tests: 27. That is 906 tests;
+  - controls-run: 9 of 9, 21 pending;
+  - study-plants: 68 faults refused, 6 right variants accepted;
+  - privacy: 245 files and 1 commit message, nothing found;
+  - privacy-controls: 37 of 37 caught;
+  - instruments: 5 of 5 reproduced;
+  - check-docs: 10 documents, 27 other markdown files, 35 source files;
+  - the twin: ACCEPTED `ff3fe486…`, unchanged;
+  - the negative control: refused `raw-digest at data/raw.counts.json`.
+- **Its time:** the quick budget took 43 s twice on an idle host, and the
+  full run 95 s. CLAUDE.md said ~30 s and ~85 s, and says ~45 s and ~95 s
+  now; this round's tests are most of the difference.
+- **26 hand mutants of this round's code** (in the lead's scratch,
+  m_p01_r3.py, run by round 3's hm.py): 25 killed. The survivor is the
+  command line's order of the fixture's registration and `load()`, which
+  no longer matters: no parcel may register a fixture's name.
+- **The lead's simulation of P1 and P2 building at once,** run again: 19
+  stages passed, and p4 skipped by name.
+
+**The lead's slips, caught on the way:**
+- The three defects were the lead's. The conftest.py scan assumed a stage
+  reads only the conftest.py files the scan can see, and the docs gate's
+  exemption and the loader's import were each written with no failure
+  planted against them. Two of the prose findings, the gate's comment on
+  addresses and its docstring's bounds, were sentences written past what
+  had been measured.
+
+**Next:** P0.1's verifier, round 3, on the full bar.
+
+## 2026-10-15 - P0.1's third verifier: NOT READY, G1 to G3, C1 and P1, and the fixes; the cap reached
+
+P0.1's third verifier ran on Sonnet, on the full bar. Its report is
+docs/reviews/P0.1/round3.md, with one home path redacted. R2-1 to R2-3
+held: 74 ways for a parcel's module to fail to load, through the command
+line and both control commands, and 1,189 command lines unchanged from
+round 2's tree. It found three gates, one contrived piece of code and one
+sentence:
+- **G1** (a gate, reachable by accident): a test below a directory pytest
+  skips by default, `build/`, `dist/`, `venv/`, a dot-directory and their
+  like, was run by no stage, and the registry counted it run.
+- **G2** (a gate, failing closed): `FORCE_COLOR=1` or `PY_COLORS=1` still
+  failed the docs stage on a good tree. The registry's own end-to-end test
+  read a coloured line from its nested pytest.
+- **G3** (a gate, deliberate): a test module's `pytest_plugins` line and a
+  plugin module took tests out of their stage, the registry's own among
+  them, as R2-1's conftest.py had.
+- **C1** (code, contrived): an exception whose own text raised a `Refused`
+  or a `PermissionError` escaped `load()`'s conversion as exit 1 or 2.
+- **P1** (prose): the README said the verifier was going to its second
+  round.
+
+**The cap.** This is the third NOT READY, and its reasons are narrower than
+round 2's, as round 2's were than round 1's: one gate an accident can
+reach, one that fails closed, one that needs two deliberate files, code that
+needs a hostile exception class, and a sentence. So, by CLAUDE.md item 6,
+round 4 is briefed that only a defect in what the code does blocks: a wrong
+acceptance or refusal, a crash or a wrong exit, from any of the shipped
+code, or a gate that lets through a fault an accident can make. Prose, test
+reach where the code is right, faults built to evade a gate, and contrived
+inputs are notes.
+
+**The fixes:**
+- **G1:** pyproject.toml empties `norecursedirs`, held by the registry's
+  pin of the options, so pytest enters every directory under tests/ but
+  the two it never enters whatever its options, `__pycache__` and a
+  virtual environment's (READ, pytest 9.1.1's _pytest/main.py). The
+  registry reports a test file below either as run by no stage. A test
+  runs the stage script on a failing test below `build/`, and the stage
+  fails. MEASURED with pytest run on the stage script's options: as
+  shipped, a failing test below each of nine such names went unrun; with
+  `norecursedirs` empty, each was run and failed, and one below
+  `__pycache__` still went unrun.
+- **G2:** every end-to-end run of the stage script in the registry's tests
+  runs with `FORCE_COLOR` and `PY_COLORS` set, and the nested pytest with
+  `--color=no`, so a user's terminal can fail none of them.
+- **G3:** the stage script refuses a `pytest_plugins` line under its
+  directory before pytest starts, where no test can reach. A test plants
+  round 3's plugin, and the stage is refused before any test passes. A
+  stated limit, in the registry's docstring: a test module written to
+  reach into pytest's own state, past that refusal, can take tests out of
+  its stage, and no pin can stop it.
+- **C1:** `checker.describe()` gives an exception's type and text, or its
+  type alone where the text raises; the loader and the command line's
+  catch-all both use it. A refusal or a want of permission whose line
+  cannot be written reaches the catch-all as the checker failing. Tests:
+  a module raising such an exception at import, and a step raising one at
+  check time, and a refusal whose detail has no text, each exit 3.
+- **P1:** the README points at the record, where each round is, rather
+  than naming the round.
+
+**Notes taken:**
+- 1: `python -m controls.run` answers its own failure, a parcel's module
+  that will not load among the causes, as exit 3 and one line. A
+  module's `SystemExit(0)` had ended the run with exit 0 and no output. A
+  test runs it as a process on a copy of the packages holding such a
+  module.
+- 5 and 6: each `need_file` is paired with the next stage the runner calls,
+  as the runner reads it, whatever lines come between; and every stage is
+  held to the two-line form, so none written on one line goes unread.
+- 7: the registry pins every command line of the stage script by its
+  SHA-256, so a line added or changed fails until the pin changes with it.
+- 8: CLAUDE.md tells a parcel what pytest reads in a stage, and where it
+  does not look.
+- 9 to 13: tests for the loader's snapshot of each registry, the fixture
+  prefix's exact extent, the cause a refused module carries, the "(new)"
+  marker's place after its own path, the controls' run's lines as a
+  process, the docs gate's lines as a process, the generator's two
+  untested messages, and the escaped address's other three glue
+  characters.
+- 14: the registry's docstring states what it holds, and its limits.
+
+**Not taken, and why:** notes 2 to 4. A registration directory without
+`__init__.py` registers nothing, and fails safe, to `step-unbuilt`.
+`PYTHONDEVMODE` is the user's mode. A test class pytest cannot collect
+warns and passes, as in moth-quantum's script: a stage that refused every
+warning would fail on a library's, a stated limit for now.
+
+**Measured, by the lead:**
+- **The runner:** `QRO_MOTH_ROOT=<moth-quantum> bash verify/run.sh`, run
+  `20261015-124432-10534-bb90d1d+dirty`, on the tree as frozen but for this
+  entry: **17 stages passed, 3 skipped by name** (p1, p2 and p4), none
+  failed.
+  - docs: 123 passed; tool-tests: 88; vocab-tests: 8; format: 662;
+    custody: 23; control-tests: 29. That is 933 tests;
+  - controls-run: 9 of 9, 21 pending;
+  - study-plants: 68 faults refused, 6 right variants accepted;
+  - privacy: 246 files and 1 commit message, nothing found;
+  - privacy-controls: 37 of 37 caught;
+  - instruments: 5 of 5 reproduced;
+  - check-docs: 10 documents, 28 other markdown files, 35 source files;
+  - the twin: ACCEPTED `ff3fe486…`, unchanged;
+  - the negative control: refused `raw-digest at data/raw.counts.json`.
+- **Its time:** the full run took 99 s; CLAUDE.md says ~100 s.
+- **7 hand mutants of this round's code** (in the lead's scratch,
+  m_p01_r4.py): 7 killed. The seventh, `__main__` calling `main()` and not
+  `run()`, survived the first pass, and its process test was written for
+  it.
+- **The lead's simulation of P1 and P2 building at once:** 19 stages
+  passed, and p4 skipped by name.
+
+**The lead's slips, caught on the way:**
+- G2 and C1 were the lead's: the colour option reached the stage script
+  and not the registry's own nested pytest, and the loader's conversion
+  wrote an exception's text unguarded.
+- The registry's pin of the pytest line first matched the new
+  `pytest_plugins` scan as well, and the guard reading first matched
+  `need_file`'s own definition. Both were caught by the docs stage.
+
+**Next:** P0.1's verifier, round 4, on the relaxed bar.
+
+## 2026-10-15 - P0.1's fourth verifier: READY, on the relaxed bar
+
+P0.1's fourth verifier ran on Sonnet, on the relaxed bar the cap set (the
+entry above): only a wrong acceptance or refusal, a crash or a wrong exit
+from the shipped code, or a gate that lets through a fault an accident can
+make, would send it back. Its report is docs/reviews/P0.1/round4.md, with
+two home paths redacted.
+
+**READY.** It found no blocking defect, and no regression from bb90d1d:
+1,189 command lines give the same exit and lines on this tree as on
+bb90d1d's. What it measured:
+- the runner reproduces every number of the entry above, in 99.9 s;
+  Python 3.13.5 runs all 933 tests, and the tools give the same results;
+- G1 to G3 and C1 hold: a failing test below 25 directory names fails its
+  stage at 48 of 50 places, the 2 others below `__pycache__`, which the
+  registry reports; the quick budget passes under seven colour settings;
+  six hostile exception texts at three places each exit 3;
+- stand-ins for P1, P2 and P4, with helper modules under qro/, a raw form,
+  a generator, a count rule, plants using the registry's helpers, and
+  prefixed tests, pass the runner alone and merged, with no file of the
+  lead's edited; one pytest session over all of tests/ passes in five
+  orders;
+- 30 accidents injected into the merged tree: 25 refused by the stage that
+  should refuse them;
+- 441 mutants of every region P0.1 changed: 415 killed, and none of the 26
+  survivors a wrong answer from the shipped code.
+
+**Its notes, below the bar.** The lead takes them as P0.2, before P1 and P2
+build, past a verifier of its own:
+- N1: a test class pytest cannot collect, and a test that returns a value
+  where it should assert, pass their stage with a warning. Its measured
+  fix: those two warnings made errors in pyproject.toml, and the registry's
+  pin with them. Every stage passes under `-W error` today.
+- N2: the registry reads tests/ only, so a test file elsewhere, in qro/ say,
+  is run by no stage and flagged by nothing, and a parcel's `p2_*.py` helper
+  holding tests is never collected. Its first sentence, and CLAUDE.md's,
+  claim more.
+- N3: `python -m controls.run` prints a message as it is, so a line feed
+  makes two lines, and a character stdout cannot encode breaks the run off
+  the runner. The command line escapes its line; the run will too.
+- N4: a plants module that exits 0 at import ends the plant command and the
+  generator with exit 0, unrun; the runner still fails, by its negative
+  control and its controls' stages.
+- N5: .gitignore names no virtual environment, so a parcel's own in its
+  worktree fails the privacy stage on a third party's address.
+- N6: the `pytest_plugins` scan reads lines; the registry already states
+  the class it leaves as a limit.
+- N7: the 26 mutation survivors: 17 equivalent, 3 the plants merge's sort,
+  3 unasserted messages, and 3 killed by stages alone.
+- N8: CLAUDE.md does not say that a test fixture shaped like a key, a CRN
+  or a home path is built at run time, as the privacy gate's plants are.
+
+**The send-backs:** four rounds, three NOT READY, each over narrower
+reasons than the last, and the cap's relaxed bar on the fourth (CLAUDE.md
+item 6; Logan, 2026-10-15). Every report is in docs/reviews/P0.1/.
+
+**Next:** Logan's word on P0.1's commit and push. Then P1's design goes out,
+and P0.2 takes round 4's notes, past its own verifier before P1 and P2
+build.

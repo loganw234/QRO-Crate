@@ -201,12 +201,14 @@ def test_a_registered_count_rule_is_run(tmp_path):
     assert (r.value.name, r.value.where) == ("count-unpaid", "#job")
 
 
-def test_a_registered_step_is_run_in_place_of_step_unbuilt(tmp_path):
+def test_a_registered_step_is_run_in_place_of_step_unbuilt(tmp_path, monkeypatch):
+    """Registered by monkeypatch: set directly, the step stayed registered for every later test in the process
+    (P0.1)."""
     c = rewrite(crate(tmp_path), lambda md: entity(md, RAW).update({"qro:commitment": "a" * 64}))
 
     def step4(crate_dir, md):
         raise Refused("commitment", RAW, "the provider echoed another")
-    checker.STEPS[4] = step4
+    monkeypatch.setitem(checker.STEPS, 4, step4)
     with pytest.raises(Refused) as r:
         checker.check(c)
     assert r.value.name == "commitment"

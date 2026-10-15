@@ -11,16 +11,17 @@ import sys
 import tempfile
 from pathlib import Path
 
-from controls.registry import PLANTS, twin
+from controls.registry import plants, twin
 from qro.__main__ import main as qro
 
 
 def main(argv):
-    if len(argv) != 1 or (argv[0] != "twin" and argv[0] not in PLANTS):
-        print(f"usage: python -m controls.plant twin|{'|'.join(sorted(PLANTS))}", file=sys.stderr)
+    every = plants()
+    if len(argv) != 1 or (argv[0] != "twin" and argv[0] not in every):
+        print(f"usage: python -m controls.plant twin|{'|'.join(sorted(every))}", file=sys.stderr)
         return 2
     with tempfile.TemporaryDirectory() as d:
-        planted = twin(d) if argv[0] == "twin" else PLANTS[argv[0]](d)
+        planted = twin(d) if argv[0] == "twin" else every[argv[0]](d)
         if not isinstance(planted, tuple):
             return qro(["check", "--fixtures", str(planted)])
         log, rec = planted

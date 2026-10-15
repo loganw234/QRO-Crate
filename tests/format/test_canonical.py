@@ -86,3 +86,12 @@ def test_arrange_sorts_only_the_lists_of_list_valued_terms(tmp_path):
     md["@graph"][1]["qro:implementation"] = ["b 2", "a 1"]
     root = canonical.arrange(md)["@graph"][1]
     assert root["x"] == [3, 1, 2] and root["qro:implementation"] == ["a 1", "b 2"]
+
+
+def test_the_writer_refuses_a_bare_string_for_a_list_valued_term(tmp_path):
+    """Round 6, 8.1 item 9: the writer arranges only what is a list, and holds the rest to the reader."""
+    md = metadata(tmp_path)
+    md["@graph"][1]["qro:implementation"] = "x"
+    with pytest.raises(Refused) as r:
+        canonical.write(md)
+    assert r.value.name == "spelling"

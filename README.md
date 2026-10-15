@@ -18,8 +18,12 @@ on Moth's Atlas emulator.
   - the controls' registry;
   - the runner.
 - P0's verifier found it READY in its sixth and last round, on 2026-10-15,
-  to the bar Logan set: no defect in what the code does. Its notes on the
-  tests and the prose come next (docs/VALIDATION.md).
+  to the bar Logan set: no defect in what the code does.
+- P0.1, the lead's, takes that round's notes and prepares the files that
+  parcels building at once would share: each parcel's checker code, plants
+  and tests go in files of its own, and P1's, P2's and P4's stages are
+  already written. Each round of its verifier, what it found and what was
+  fixed, is in docs/VALIDATION.md, and each report in docs/reviews/P0.1/.
 - Nothing else is built: no adapter, no measures, no comparison, no profile
   crate, no contributor kit. A crate holding a field that steps 4 to 8 of
   the checker would check is refused `step-unbuilt`.

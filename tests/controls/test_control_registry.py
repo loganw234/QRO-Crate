@@ -23,18 +23,18 @@ def orphaned(controls, plants):
 
 
 def test_every_p0_row_is_exercised_and_every_plant_names_a_row():
-    assert unexercised(R.CONTROLS, R.PLANTS) == []
-    assert orphaned(R.CONTROLS, R.PLANTS) == []
+    assert unexercised(R.CONTROLS, R.plants()) == []
+    assert orphaned(R.CONTROLS, R.plants()) == []
 
 
 def test_the_registry_check_can_fail():
     """A dummy row and a dummy plant, each caught by name, then gone."""
     dummy = R.Control("dummy-row", "nothing", "refused", "spelling", "P0", "`spelling`")
-    assert unexercised(R.CONTROLS + (dummy,), R.PLANTS) == ["dummy-row"]
-    assert orphaned(R.CONTROLS, dict(R.PLANTS, **{"dummy-plant": None})) == ["dummy-plant"]
+    assert unexercised(R.CONTROLS + (dummy,), R.plants()) == ["dummy-row"]
+    assert orphaned(R.CONTROLS, dict(R.plants(), **{"dummy-plant": None})) == ["dummy-plant"]
 
 
-@pytest.mark.parametrize("name", sorted(R.PLANTS))
+@pytest.mark.parametrize("name", sorted(R.plants()))
 def test_each_built_control_comes_out_as_section_11_says(name):
     c = R.CONTROL[name]
     got, refusal, where = outcome(name)
@@ -96,3 +96,126 @@ def test_the_study_comparison_can_fail():
     table = study_table()
     changed = [(c.name, c.fault + " ", c.text) for c in R.CONTROLS]
     assert changed != [(a, b, c) for a, b, c in table]
+
+
+def test_the_controls_run_says_wrong_and_fails_when_a_plant_comes_out_otherwise(capsys):
+    """Round 6, 8.1 item 17: the run's loop was held by no test."""
+    from controls import run
+    assert run.main(dict(R.plants(), **{"shot-moved": R.twin})) == 1
+    assert "WRONG     shot-moved" in capsys.readouterr().out
+
+
+def test_the_controls_run_fails_on_a_p0_row_with_no_plant(capsys):
+    """P0.1's verifier, round 1, 4.2: a P0 row left unplanted was printed, and no test held the run's exit."""
+    from controls import run
+    every = R.plants()
+    del every["count-unpaid"]
+    assert run.main(every) == 1
+    assert re.search(r"^WRONG +count-unpaid +P0's control, with no plant$", capsys.readouterr().out, re.M)
+
+
+@pytest.mark.parametrize("name, code", [("custody-chain", 1), ("audit-head-mismatch", 1), ("withdrawal-appended", 0)])
+def test_the_plant_command_runs_a_custody_control_through_the_command_line(name, code):
+    """Round 6, 8.1 item 17: its custody branch was run by no stage."""
+    from controls.plant import main
+    assert main([name]) == code
+
+
+@pytest.mark.parametrize("argv", [[], ["twin", "extra"], ["no-such-control"], [""]],
+                         ids=["no argument", "two", "no such control", "an empty name"])
+def test_the_plant_command_refuses_its_misuse_with_its_usage(argv, capsys):
+    """P0.1's verifier, round 2, 4.1.4: the usage branch was held by no test."""
+    from controls.plant import main
+    assert main(argv) == 2
+    assert capsys.readouterr().err == "usage: python -m controls.plant twin|" + "|".join(sorted(R.plants())) + chr(10)
+
+
+def test_the_controls_run_as_a_process_says_each_control_and_each_pending_row():
+    """Round 3, note 11: its lines, its labels and its __main__ were unasserted. Each line is derived from the
+    registry, so a parcel's plant changes what is expected, not this test."""
+    import subprocess
+    import sys
+    r = subprocess.run([sys.executable, "-m", "controls.run"], cwd=Path(__file__).resolve().parents[2],
+                       capture_output=True, text=True)
+    assert r.returncode == 0, r.stdout[-800:]
+    lines = r.stdout.splitlines()
+    every = R.plants()
+    for c in R.CONTROLS:
+        if c.name in every:
+            label = f"ok        {c.name:22} {c.expected}" + (f" {c.refusal} at " if c.refusal else "")
+            assert any(line.startswith(label) for line in lines), (c.name, label)
+        else:
+            assert f"pending   {c.name:22} {c.owner}: {c.text}" in lines, c.name
+
+
+def test_the_controls_run_as_a_process_fails_when_a_parcels_module_exits_0_at_import(tmp_path):
+    """Round 3, note 1, as the runner runs it: a copy of the packages holding a parcel's module that raises
+    SystemExit(0) as it is imported. The run ended with exit 0 and no output; it is its own failure, exit 3."""
+    import os
+    import shutil
+    import subprocess
+    import sys
+    for pkg in ("qro", "controls"):
+        shutil.copytree(ROOT / pkg, tmp_path / pkg, ignore=shutil.ignore_patterns("__pycache__"))
+    (tmp_path / "qro" / "register_p1.py").write_text("import sys" + chr(10) + "sys.exit(0)" + chr(10),
+                                                     encoding="utf-8")
+    env = {k: v for k, v in os.environ.items() if k != "PYTHONPATH"}
+    r = subprocess.run([sys.executable, "-m", "controls.run"], cwd=tmp_path, capture_output=True, text=True, env=env)
+    assert r.returncode == 3 and r.stdout.startswith("FAILED: the controls' run itself failed, SystemExit"), \
+        (r.returncode, r.stdout[-400:], r.stderr[-400:])
+
+
+def test_the_controls_run_counts_what_it_ran(capsys):
+    """P0.1's verifier, round 2, 4.1.4: the run's last line was unasserted."""
+    from controls import run
+    assert run.main() == 0
+    built = sum(c.name in R.plants() for c in R.CONTROLS)
+    last = capsys.readouterr().out.rstrip().splitlines()[-1]
+    assert last == (f"{built} of {built} built controls came out as section 11 says; "
+                    f"{len(R.CONTROLS) - built} pending other parcels")
+
+
+def test_a_parcels_plants_join_p0s_and_a_name_planted_twice_is_refused():
+    """P0.1: parcels building at once add plants in their own modules, never in this registry's file. The stand-in
+    names are no control's, so no parcel's real plant meets them (P0.1's verifier, round 1, D3)."""
+    from types import SimpleNamespace
+    mine = SimpleNamespace(__name__="controls.plants_zz", PLANTS={"zz-not-a-control": R.twin})
+    merged = R.merged(R.PLANTS, [mine])
+    assert merged["zz-not-a-control"] is R.twin and set(R.PLANTS) < set(merged)
+    clash = SimpleNamespace(__name__="controls.plants_zz2", PLANTS={"shot-moved": R.twin})
+    with pytest.raises(RuntimeError, match="already plants"):
+        R.merged(R.PLANTS, [clash])
+
+
+ROOT = Path(__file__).resolve().parents[2]
+
+
+def test_a_parcels_plants_module_is_found_and_imports_either_way(tmp_path):
+    """P0.1's verifier, round 1, D2, end to end: a plants module written as a parcel writes one, importing the
+    registry for twin(), in a copy of the packages. Imported before the registry or after it, it loads, and
+    plants() finds it beside P0's; a second module planting its name is refused."""
+    import os
+    import shutil
+    import subprocess
+    import sys
+    nl = chr(10)
+    for pkg in ("qro", "controls"):
+        shutil.copytree(ROOT / pkg, tmp_path / pkg, ignore=shutil.ignore_patterns("__pycache__"))
+    (tmp_path / "controls" / "plants_zz.py").write_text(nl.join([
+        "from controls.registry import RAW, twin", "", "", "def zz_plant(d):", "    return twin(d) / RAW", "", "",
+        'PLANTS = {"zz-plant": zz_plant}', ""]), encoding="utf-8")
+    env = {k: v for k, v in os.environ.items() if k != "PYTHONPATH"}
+
+    def run(code):
+        return subprocess.run([sys.executable, "-c", code], cwd=tmp_path, capture_output=True, text=True, env=env)
+    for code in ("import controls.plants_zz",
+                 "from controls.plants_zz import zz_plant",
+                 "from controls import plants_zz, registry; assert registry.plants()['zz-plant'] is plants_zz.zz_plant",
+                 "from controls import registry; p = registry.plants(); assert 'zz-plant' in p and 'shot-moved' in p"):
+        r = run(code)
+        assert r.returncode == 0, (code, r.stderr[-800:])
+    (tmp_path / "controls" / "plants_zz2.py").write_text(nl.join([
+        "from controls.registry import twin", 'PLANTS = {"zz-plant": twin}', ""]), encoding="utf-8")
+    r = run("from controls import registry; registry.plants()")
+    assert r.returncode == 1 and "controls.plants_zz2 plants ['zz-plant'], which another module already plants" in \
+        r.stderr, r.stderr[-800:]

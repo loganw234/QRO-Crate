@@ -147,7 +147,10 @@ def test_every_p0_refusal_has_a_plant_and_every_plant_names_one():
 
 
 @pytest.mark.parametrize("name", sorted(PLANTS))
-def test_each_plant_is_refused_by_its_own_name(tmp_path, name):
+def test_each_plant_is_refused_by_its_own_name(tmp_path, monkeypatch, name):
+    """Steps 4 to 8 unbuilt by the test itself: once a parcel's steps are loaded, an earlier test in the process
+    loads them, and step-unbuilt's plant met a built step 4 (the lead's simulation of P1 and P2, P0.1)."""
+    monkeypatch.setattr(checker, "STEPS", {n: None for n in range(4, 9)})
     with pytest.raises(Refused) as r:
         checker.check(PLANTS[name](crate(tmp_path)))
     assert r.value.name == name, f"refused {r.value.name} at {r.value.where}: {r.value.detail}"
@@ -169,7 +172,9 @@ def test_the_bytes_refused_before_anything_is_read(data, why):
     assert r.value.name == "spelling", why
 
 
-def test_steps_4_to_8_each_refuse_their_fields_until_built(tmp_path):
+def test_steps_4_to_8_each_refuse_their_fields_until_built(tmp_path, monkeypatch):
+    """Unbuilt by the test itself, so it holds once the parcels' steps are loaded too (P0.1)."""
+    monkeypatch.setattr(checker, "STEPS", {n: None for n in range(4, 9)})
     fields = {4: ("qro:commitment", "a" * 64), 8: ("qro:valuesDigest", "b" * 64)}
     for n, (k, v) in fields.items():
         c = edit(fixture.make(tmp_path / f"c{n}"), lambda md: entity(md, RAW).update({k: v}))

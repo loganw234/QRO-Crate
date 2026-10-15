@@ -10,7 +10,7 @@ The definitions are qro/vocabulary.py and controls/registry.py; the files are:
   - docs/VOCABULARY.md, the profile's vocabulary: kinds, absence words, spellings, words, terms, types, and the
     custody log's and audit record's fields. Each term has an anchor, which its IRI names;
   - docs/REFUSALS.md, every refusal and where it is raised;
-  - docs/CONTROLS.md, every control of section 11 and its owner.
+  - docs/CONTROLS.md, every control of section 11 and its owner, and never which are built (P0.1).
 Exit 0: every file is exactly what its definition renders. 1: drift, with a diff, or a file missing. 2: the
 definition contradicts itself. Stdlib only.
 """
@@ -89,13 +89,14 @@ def refusals_md():
 
 
 def controls_md():
-    built = set(C.PLANTS)
+    """The table alone, never which controls are built: a built column drifted with every parcel's plant, so two
+    parcels building at once both regenerated this page (P0.1's verifier, round 1, D3)."""
     out = [BANNER.format(src="controls/registry.py"), "# Controls\n\n",
            "Study QRO-0's section 11: each control one planted fault, refused by the name given or stated as the "
-           "study says. `python -m controls.run` runs every built one; the rest are pending their parcel.\n\n",
-           "| control | planted fault | expected | owner | built |\n|---|---|---|---|---|\n"]
-    out += [f"| `{c.name}` | {cell(c.fault)} | {cell(c.text)} | {c.owner} | {'yes' if c.name in built else 'pending'} |\n"
-            for c in C.CONTROLS]
+           "study says. `python -m controls.run` runs every built one, and names the rest as pending their "
+           "parcel.\n\n",
+           "| control | planted fault | expected | owner |\n|---|---|---|---|\n"]
+    out += [f"| `{c.name}` | {cell(c.fault)} | {cell(c.text)} | {c.owner} |\n" for c in C.CONTROLS]
     return "".join(out)
 
 
@@ -110,7 +111,11 @@ def problems():
             out.append(f"control {c.name}: {c.refusal} is not a refusal")
         if c.expected not in ("refused", "accepted", "states"):
             out.append(f"control {c.name}: expected {c.expected}")
-    for name in C.PLANTS:
+    try:
+        every = C.plants()
+    except RuntimeError as x:                      # a name planted twice (P0.1's verifier, round 2, note 4.3.5)
+        return out + [str(x)]
+    for name in every:
         if name not in C.CONTROL:
             out.append(f"plant {name} names no control")
     return out

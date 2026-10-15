@@ -1,25 +1,29 @@
 """Run every built control, from the command line: each planted fault must come out as section 11 says.
 
-    python -m controls.run        # 0 = every built control did; 1 = each one that did not, by name
+    python -m controls.run        # 0 = every built control did; 1 = each one that did not, by name; 3 = the run
+                                  # itself failed, a parcel's module that would not load among the causes
 
 It prints each control's outcome, and every pending row (another parcel's, not yet built) by name. A control
 counts only if it is refused by the name its row gives, or accepted where its row says accepted; a refusal by
 any other name is a failure, since it proves nothing about the fault it plants (moth-quantum, verify/run.sh's
-MUST_SAY). Stdlib only.
+MUST_SAY). A row of P0's with no plant fails the run by name. The checker runs as the command line runs it: the
+fixture's raw form and generator registered, and every parcel's steps (checker.load). Stdlib only.
 """
 import sys
 import tempfile
 
-from controls.registry import CONTROLS, PLANTS
+from controls.registry import CONTROLS, plants
 from qro import checker, custody, fixture
 from qro.refusal import Refused
 
 
-def outcome(name):
-    """("accepted", None) or ("refused", refusal name), for the control's planted fault."""
+def outcome(name, every=None):
+    """("accepted", None, "") or ("refused", refusal name, where), for the control's planted fault."""
+    every = plants() if every is None else every
     fixture.register()
+    checker.load()
     with tempfile.TemporaryDirectory() as d:
-        planted = PLANTS[name](d)
+        planted = every[name](d)
         try:
             if isinstance(planted, tuple):
                 log, rec = planted
@@ -33,26 +37,37 @@ def outcome(name):
     return "accepted", None, ""
 
 
-def main():
+def main(every=None):
+    every = plants() if every is None else every
     bad = 0
     for c in CONTROLS:
-        if c.name not in PLANTS:
+        if c.name not in every:
             if c.owner == "P0":                              # P0's are built, or this run fails by name
                 bad += 1
                 print(f"WRONG     {c.name:22} P0's control, with no plant")
             else:
                 print(f"pending   {c.name:22} {c.owner}: {c.text}")
             continue
-        got, name, where = outcome(c.name)
+        got, name, where = outcome(c.name, every)
         ok = (got, name) == (c.expected, c.refusal)
         bad += not ok
         print(f"{'ok' if ok else 'WRONG':9} {c.name:22} {got}{' ' + name if name else ''}"
               f"{' at ' + where if where else ''}" + ("" if ok else f"; section 11 says {c.text}"))
-    built = sum(c.name in PLANTS for c in CONTROLS)
+    built = sum(c.name in every for c in CONTROLS)
     print(f"{built - bad} of {built} built controls came out as section 11 says; "
           f"{len(CONTROLS) - built} pending other parcels")
     return 1 if bad else 0
 
 
+def run():
+    """main(), with the run's own failure as exit 3 and its one line, never a pass: a parcel's module that raised
+    SystemExit(0) while it loaded ended the run with exit 0 and no output (P0.1's verifier, round 3, note 1)."""
+    try:
+        return main()
+    except BaseException as x:
+        print(f"FAILED: the controls' run itself failed, {checker.describe(x)}; no control was judged")
+        return 3
+
+
 if __name__ == "__main__":
-    sys.exit(main())
+    sys.exit(run())

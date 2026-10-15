@@ -100,16 +100,27 @@ def test_an_audit_record_out_of_its_spelling_is_refused():
     assert r.value.name == "spelling"
 
 
-@pytest.mark.parametrize("stages", [["crate-only", "crate-only"], ["crate-only", "anchors"], [], "crate-only",
-                                    ["crate-only", "audit"]],
-                         ids=["a stage twice", "unsorted", "none", "a string", "a word of no set"])
+@pytest.mark.parametrize("stages", [["crate-only", "crate-only"], ["crate-only", "anchors"], [], "crate-only", [1],
+                                    [["crate-only"]],
+                                    ["crate-only", "audit"], 5],
+                         ids=["a stage twice", "unsorted", "none", "a string", "a number", "a list in the list",
+                              "a word of no set", "a number for the list"])
 def test_an_audit_records_stages_are_a_sorted_list_of_distinct_words(stages):
-    """P0's verifier, round 2: no test planted a stage twice, and its rule could go unwatched."""
+    """P0's verifier, round 2: no test planted a stage twice, and its rule could go unwatched. A number for the list
+    is refused, never a crash (P0.1's verifier, round 1, 4.2)."""
     rec = json.loads(record("none"))
     rec["stages"] = stages
     with pytest.raises(Refused) as r:
         custody.check_record(canonical.dumps(rec), b"")
     assert (r.value.name, r.value.where.split()[-1]) == ("spelling", "stages")
+
+
+def test_an_audit_records_every_stage_in_sorted_order_is_accepted():
+    """P0.1's verifier, round 1, 4.2: held to sorted order, never to a set's, which changes with the hash seed."""
+    from qro import vocabulary as V
+    rec = json.loads(record("none"))
+    rec["stages"] = sorted(V.WORDS["audit-stage"])
+    custody.check_record(canonical.dumps(rec), b"")
 
 
 def test_stated_limit_a_line_dated_in_the_future_is_accepted():

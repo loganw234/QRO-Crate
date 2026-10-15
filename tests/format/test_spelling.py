@@ -210,3 +210,19 @@ def test_every_lone_surrogate_is_refused_in_text():
 def test_a_spelling_the_table_does_not_name_is_an_error_not_an_acceptance():
     with pytest.raises(KeyError):
         S.problem("no-such-spelling", "x")
+
+
+def test_the_time_writer_refuses_every_time_not_in_utc():
+    """Round 6, 8.1 item 9 and 8.2 item 10: an offset, and a tzinfo that gives none, are ValueError."""
+    from datetime import timedelta, tzinfo
+
+    class NoOffset(tzinfo):
+        def utcoffset(self, dt):
+            return None
+    for tz in (timezone(timedelta(hours=1)), NoOffset()):
+        with pytest.raises(ValueError):
+            S.time(datetime(2026, 10, 14, tzinfo=tz))
+
+
+def test_the_time_writer_keeps_every_microsecond():
+    assert S.time(datetime(2026, 10, 14, 0, 0, 0, 5, tzinfo=timezone.utc)) == "2026-10-14T00:00:00.000005Z"

@@ -18,7 +18,12 @@ What it cannot see (each limit stated by the behaviour it concedes):
   - an IBM API key is 44 characters of [A-Za-z0-9_-] with no fixed prefix: it is caught only after one of the names
     listed, or inside a CRN, JWT or bearer header. A Moth key is caught bare only as moth_ and twenty or more letters
     and digits, one a digit; in any other shape, only after a listed name or in a bearer header;
-  - an address in an allowed or reserved domain passes;
+  - after a listed name, the white space is bounded, so that the search stays linear (round 6). A value passes
+    with more than 32 white-space characters between the name and its `=` or `:`; with a quote there, more than
+    16 between the name and the quote, or between the quote and the separator; or more than 16 after the
+    separator, or after `Bearer` or `apikey` (MEASURED by tests/tools/test_tools.py, at each place);
+  - an address in an allowed or reserved domain passes, and so does one glued to the end of it by one of an
+    address's characters (ALTERNATIVES, the comment above the address patterns);
   - a binary file, one with a NUL in its first 4,096 bytes and no byte-order mark, is not read. Each is listed by
     name in the summary, so none passes unseen;
   - commit authors' and committers' names and addresses are git's metadata, not messages: not read;
@@ -40,7 +45,7 @@ ROOT = Path(__file__).resolve().parent.parent
 ALLOWED_ADDRESSES = {"noreply@anthropic.com"}
 RESERVED = re.compile(r"(?i)(^|\.)(example\.(com|org|net)|invalid|test|localhost)$")
 _NAME = r"[^\W_][\w.-]*"                    # a home directory's name: Unicode letters and digits first
-_KEY = r"""\s*["']?\s*[=:]\s*["']?(?:Bearer\s+|apikey\s+)?[A-Za-z0-9._~+/-]{24,}"""
+_KEY = r"""\s{0,16}["']?\s{0,16}[=:]\s{0,16}["']?(?:Bearer\s{1,16}|apikey\s{1,16})?[A-Za-z0-9._~+/-]{24,}"""   # bounded: a long run of space backtracked quadratically (round 6)
 
 # (kind, name, pattern): one alternative a row, so that each has its own control below.
 ALTERNATIVES = [
@@ -54,8 +59,19 @@ ALTERNATIVES = [
     ("path", "backslash-home", r"(?i)(?<![A-Za-z0-9.:\\])\\home\\" + _NAME),
     ("path", "wsl-unc", r"(?i)\\\\wsl(\$|\.localhost)\\"),
     ("path", "url-quoted-home", r"(?i)%2F(users|home)%2F|[a-z]%3A(%5C|%2F)users(%5C|%2F)"),
-    ("address", "address", r"[A-Za-z0-9._%+-]+@([A-Za-z0-9-]+\.)+[A-Za-z]{2,}"),
-    ("address", "escaped-address", r"(?i)[A-Za-z0-9._%+-]+(\\u0040|\[at\]|\(at\))([A-Za-z0-9-]+\.)+[A-Za-z]{2,}"),
+    ("path", "file-url-home", r"(?i)(?<![A-Za-z0-9])[a-z]%3a/+(users|documents%20and%20settings)/+" + _NAME),
+    ("path", "var-home", r"(?i)(?<![A-Za-z0-9.])/var/home/" + _NAME),
+    ("path", "unc-home", r"(?i)\\\\[^\\\s]+\\(home|users)\\" + _NAME),
+    ("path", "remote-uri-home", r"(?i)\b(vscode-remote|ssh|sftp|scp|smb|nfs|rsync|ftps?|file)://[^/\s]*/(home|users)/"
+     + _NAME),
+    # An address starts only where a run of its characters starts: started at every character of a long run, the
+    # search was quadratic, 77 s for one run of 100,000 letters (P0.1's verifier, round 1, note 4.1.3). A text's
+    # first address starts there anyway, and is found as before. A stated limit: an address glued to the end of the
+    # one before it by one of an address's characters, as in a@x.example.com-c@y.example.org, is not found, and
+    # so it passes where the one before it is allowed or reserved (P0.1's verifier, round 2, note 4.2.2).
+    ("address", "address", r"(?<![A-Za-z0-9._%+-])[A-Za-z0-9._%+-]+@([A-Za-z0-9-]+\.)+[A-Za-z]{2,}"),
+    ("address", "escaped-address",
+     r"(?i)(?<![A-Za-z0-9._%+-])[A-Za-z0-9._%+-]+(\\u0040|\[at\]|\(at\))([A-Za-z0-9-]+\.)+[A-Za-z]{2,}"),
     ("key", "crn", r"(?i)crn(:|%3a|\\u003a)v1(:|%3a|\\u003a)[A-Za-z0-9:%._/\\-]*"),
     ("key", "named:QISKIT_IBM_TOKEN", r"(?i)QISKIT_IBM_TOKEN" + _KEY),
     ("key", "named:IBM_QUANTUM_TOKEN", r"(?i)IBM_QUANTUM_TOKEN" + _KEY),
@@ -168,6 +184,10 @@ PLANTS = {
     "backslash-home": "see " + "\\" + "home" + "\\" + "someone",
     "wsl-unc": "see " + "\\\\" + "wsl$" + "\\Ubuntu\\x",
     "url-quoted-home": "path=" + "%2F" + "Users" + "%2Fsomeone",
+    "file-url-home": "see file:///c" + "%3A" + "/" + "Users" + "/someone/x",
+    "var-home": "see /var/" + "home" + "/someone/x",
+    "unc-home": "see " + "\\\\" + "server" + "\\" + "home" + "\\" + "someone",
+    "remote-uri-home": "see vscode-remote://ssh-remote+box" + "/" + "home" + "/someone/x",
     "address": "mail someone" + "@" + "personal-domain.net",
     "escaped-address": "mail someone" + "\\u0040" + "personal-domain.net",
     "crn": "instance " + "crn" + "%3Av1%3Abluemix%3Apublic",
@@ -233,7 +253,8 @@ def control(root):
         print(f"control  {what:42} {'caught' if ok else 'NOT CAUGHT'}")
         caught += ok
     total = len(PLANTS) + len(FILE_CONTROLS)
-    print(f"controls: {caught} of {total} caught; every alternative has its own")
+    print(f"controls: {caught} of {total} caught"
+          + ("; every alternative has its own plant" if not missing else f"; {len(missing)} unpaired"))
     return 0 if caught == total and not missing else 1
 
 

@@ -7,8 +7,10 @@ in this order (cft-fp256's strict reader, docs/CERTIFICATES.md:852-899, READ, ad
   2. the top level holds @context and @graph only: `graph-form`;
   3. the @context is this profile version's: `context`;
   4. @graph is a list of entities, each with an @id and an @type in their spellings (`spelling`); a file's @id is
-     its path in the crate, in the path spelling (`spelling`); no @id twice, no two files, the descriptor among
-     them, whose names differ only by case, the graph in its order, the descriptor and the root as this profile states them, the root carrying
+     its path in the crate, in the path spelling (`spelling`); no @id twice, no two paths, a file's directories
+     and the descriptor among them, whose names differ only by case, nor a path both a file and a directory,
+     the graph in its order, the descriptor and the root as this profile states them, the root a Dataset and
+     never an action, the root carrying
      every term it must, the root mentioning every action, and every reference to a relative @id naming an
      entity: `graph-form`. A reference whose @id is not in the `iri` spelling is relative, so one that only looks
      like an IRI (`http:`, a space or a control character in it) names no entity, and is `graph-form` too;
@@ -157,15 +159,24 @@ def _graph(graph):
             if p:
                 raise Refused("spelling", f"{where} @id", f"a file's @id is its path in the crate: {p}")
         ids.append(e["@id"])
-    seen, folded = set(), {canonical.DESCRIPTOR.casefold(): canonical.DESCRIPTOR}    # the descriptor is a file too
+    # Every path along a file, its directories and itself, against every other: two whose names differ only by
+    # case are one path on a host that folds case, and so is a path that is a file and a directory at once
+    # (P0's verifier, round 6: data/A/x and data/a/y were accepted where case is kept, and are one directory
+    # where it is folded). The descriptor is a file too.
+    seen, paths = set(), {canonical.DESCRIPTOR.casefold(): (canonical.DESCRIPTOR, "file")}
     for e, i in zip(graph, ids):
         if i in seen:
             raise Refused("graph-form", i, "an @id twice in the graph")
         seen.add(i)
         if local_file(e):
-            other = folded.setdefault(i.casefold(), i)
-            if other != i:
-                raise Refused("graph-form", i, f"a file whose name differs from {other}'s only by case")
+            parts = i.split("/")
+            for n in range(1, len(parts) + 1):
+                path, kind = "/".join(parts[:n]), "file" if n == len(parts) else "directory"
+                other, other_kind = paths.setdefault(path.casefold(), (path, kind))
+                if other != path:
+                    raise Refused("graph-form", i, f"a path, {path}, whose name differs from {other}'s only by case")
+                if other_kind != kind:
+                    raise Refused("graph-form", i, f"{path} is both a file and a directory")
     if ids[:2] != [canonical.DESCRIPTOR, canonical.ROOT]:
         raise Refused("graph-form", "@graph", "the descriptor first, then the root")
     if ids[2:] != sorted(ids[2:]):
@@ -177,6 +188,8 @@ def _graph(graph):
                       "the descriptor is a CreativeWork about ./ that conformsTo RO-Crate 1.3, and nothing more")
     if "Dataset" not in canonical.types(root):
         raise Refused("graph-form", canonical.ROOT, "the root is a Dataset")
+    if set(canonical.types(root)) & V.ACTION_TYPES:
+        raise Refused("graph-form", canonical.ROOT, "the root is a Dataset, never an action")   # round 6
     for k in V.ROOT_REQUIRED:
         if k not in root:
             raise Refused("graph-form", f"{canonical.ROOT} {k}", "the root carries every term the profile requires "

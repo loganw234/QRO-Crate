@@ -2,21 +2,27 @@
 
 P0 builds four of them:
   1. the bytes: qro/reader.py;
-  2. no link anywhere in the crate (`file-link`); every listed file present under its exact name (`file-missing`);
+  2. no link anywhere in the crate, the metadata file among them (`file-link`); every listed file, and the metadata
+     file, present under its exact name (`file-missing`); the walk in name order, raising on a directory it
+     cannot list;
      every file present listed and reached from the root through hasPart (`file-unlisted`); every file's bytes
      held to its digest and size (`file-digest`, and `raw-digest` for a raw result);
   3. every raw result read in its raw form (`raw-form`), and every count held to what the bytes hold
      (`count-unpaid`, rule 7); then every count rule a parcel registers in COUNTS;
   9. the metadata regenerated from the records by the generator the root names, the header normalised, and
      compared byte for byte (`metadata-generated`, rule 5).
-Steps 4 to 8 are the parcels'. Each registers its step in STEPS, a raw form's reader in RAW_FORMS, a count rule in
-COUNTS, and a generator in GENERATORS. Where a crate holds a CHECKED field whose step is not built, a raw form with
-no reader, or a generator not built, the checker refuses `step-unbuilt`: it never passes what it has not checked
+Steps 4 to 8 are the parcels'. A parcel declares its steps, raw forms' readers, count rules and generators in its
+own module, qro.register_<parcel>, and load() merges them into STEPS, RAW_FORMS, COUNTS and GENERATORS (P0.1).
+Where a crate holds a CHECKED field whose step is not built, a raw form with no reader, or a generator not
+built, the checker refuses `step-unbuilt`: it never passes what it has not checked
 ("a seam's refusal belongs in every backend", ParcelRound, METHOD.md section 2). A registered reader or generator
 that fails on the crate's bytes is refused by its step's name, never a crash. Stdlib only.
 """
 import hashlib
+import importlib
+import importlib.util
 import os
+import sys
 from pathlib import Path
 
 from qro import canonical, reader
@@ -33,11 +39,106 @@ class RawFormError(ValueError):
     pass
 
 
+class RegistrationError(Exception):
+    """A parcel's module registers what is not its own to register: the checker's build is wrong, not the crate."""
+
+
+def step_owners():
+    """{step: the parcel whose refusals the vocabulary places at it}: steps 1, 2, 3 and 9 are P0's."""
+    out = {}
+    for r in V.REFUSALS:
+        for part in r.where.split("; "):
+            if part.startswith("step "):
+                out[int(part[len("step "):])] = r.owner
+    return out
+
+
+def registration(parcel):
+    """The module a parcel declares its checker code in: qro.register_p1 for P1."""
+    return f"qro.register_{parcel.lower()}"
+
+
+FIXTURE_NAMES = "qro-fixture"      # P0's fixture's raw form and generator begin so, and no parcel's may
+
+
+def _register(registry, key, fn, module):
+    if str(key).startswith(FIXTURE_NAMES):
+        raise RegistrationError(f"{module} registers {key}, a name of P0's fixture")
+    if registry.get(key) is not None and registry[key] is not fn:
+        raise RegistrationError(f"{module} registers {key}, which another function already holds")
+    registry[key] = fn
+
+
+def _registries():
+    return dict(STEPS), dict(RAW_FORMS), list(COUNTS), dict(GENERATORS)
+
+
+def describe(x):
+    """An exception's type and text, or its type alone where its text itself raises: written here, the text of a
+    hostile exception, whose __str__ raised a Refused, escaped as a verdict (P0.1's verifier, round 3, C1)."""
+    try:
+        name = type(x).__name__
+    except BaseException:
+        name = "an exception"
+    try:
+        return f"{name}: {x}"
+    except BaseException:
+        return f"{name}, whose text cannot be read"
+
+
+def _declared(module, name, parcel, owners):
+    for n, fn in getattr(module, "STEPS", {}).items():
+        if owners.get(n) != parcel:
+            raise RegistrationError(f"{name} registers step {n}, which is {owners.get(n, 'no parcel')}'s")
+        _register(STEPS, n, fn, name)
+    for registry, declared in ((RAW_FORMS, "RAW_FORMS"), (GENERATORS, "GENERATORS")):
+        for key, fn in getattr(module, declared, {}).items():
+            _register(registry, key, fn, name)
+    for rule in getattr(module, "COUNTS", ()):
+        if rule not in COUNTS:
+            COUNTS.append(rule)
+
+
+def load():
+    """Merge each parcel's declarations into the registries, for every parcel whose module is present (P0.1, after
+    its verifier's round 1, D3: nothing registered a parcel's step for a real crate).
+
+    A parcel's module, qro.register_<parcel>, declares what it registers, as STEPS {n: fn}, RAW_FORMS
+    {name: fn}, COUNTS [fn] and GENERATORS {name: fn}. load() raises RegistrationError for:
+      - a step whose refusals the vocabulary gives another parcel, or no parcel (step_owners);
+      - a key another function holds, and a name of P0's fixture's, with --fixtures or without it;
+      - a module that changes the registries while load() imports it, where it should declare;
+      - any Exception a module raises while it is imported or its declarations are read, a Refused or a
+        PermissionError among them (P0.1's verifier, round 2, R2-3: they gave exit 1, a verdict on a crate never
+        read, and exit 2).
+    The command line answers each as the checker itself failing, exit 3, as it does an exit or an interrupt raised
+    at import: never a verdict. Loading twice changes nothing. A stated limit: a module that something imported
+    before load() did, a parcel's own test say, has run already, so load() cannot see it change the registries.
+    The command line's check and controls.run call load(); nothing else in process does."""
+    owners = step_owners()
+    for parcel in V.OWNERS:
+        name = registration(parcel)
+        if parcel == "P0" or (name not in sys.modules and importlib.util.find_spec(name) is None):
+            continue
+        try:
+            before = _registries()
+            module = importlib.import_module(name)
+            if _registries() != before:
+                raise RegistrationError(f"{name} changes the checker's registries itself; a parcel declares them")
+            _declared(module, name, parcel, owners)
+        except RegistrationError:
+            raise
+        except Exception as x:
+            raise RegistrationError(f"{name} cannot be loaded: {describe(x)}") from x
+
+
 def check(crate_dir):
     """The crate's metadata, if every step accepts it; otherwise Refused, at the first failure."""
     crate = Path(crate_dir)
     meta = crate / canonical.DESCRIPTOR
-    if not meta.is_file() or meta.is_symlink():
+    if _is_link(meta):
+        raise Refused("file-link", canonical.DESCRIPTOR, "the metadata file is a link: a crate holds files")
+    if not meta.is_file() or canonical.DESCRIPTOR not in os.listdir(crate):     # its exact name, on every host
         raise Refused("file-missing", canonical.DESCRIPTOR, "the crate has no metadata file")
     md = reader.read(meta.read_bytes())
     files(crate, md)
@@ -70,7 +171,8 @@ def walk(crate):
     directory it cannot list raises the host's error."""
     found = []
     for dirpath, dirnames, filenames in os.walk(crate, followlinks=False, onerror=_unlistable):
-        for name in sorted(dirnames) + sorted(filenames):
+        dirnames.sort()                      # in place, so the walk descends in name order on every host
+        for name in dirnames + sorted(filenames):
             p = Path(dirpath, name)
             rel = p.relative_to(crate).as_posix()
             if _is_link(p):

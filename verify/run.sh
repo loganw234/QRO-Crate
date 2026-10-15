@@ -48,7 +48,7 @@ export PYTHONIOENCODING=utf-8
 ONLY=""; SKIP=""; REQUIRE_ALL=0; LIST=0; RESUME=""; FRESH=0; BUDGET=""
 
 # Named cuts, checked against the derived stage list below.
-BUDGET_QUICK=lint,docs,check-docs,vocabulary,tool-tests,vocab-tests,format,custody,control-tests,controls-run,twin,controls,study,privacy
+BUDGET_QUICK=lint,docs,check-docs,vocabulary,tool-tests,vocab-tests,format,custody,p1,p2,p4,control-tests,controls-run,twin,controls,study,privacy
 
 die () { echo "FATAL: $*" >&2; exit 2; }
 
@@ -287,7 +287,7 @@ need_env ()  { [ -n "${!1:-}" ] || STAGE_SKIP_REASON="$2"; }
 stage lint "ruff over the package, the controls, the tools and the tests" -- \
   python -m ruff check qro controls tools tests
 
-stage docs "the registry, from the runner's text: each test file and tool check run by a stage; no two test files share a name" -- \
+stage docs "the registry, from the runner's text: each test file and tool check run by a stage; no two test files share a name, and a parcel's carry its prefix; pytest's configuration pinned to pyproject.toml" -- \
   bash verify/pytest-stage.sh tests/docs
 
 stage check-docs "the documents' own gate, on what it reads: links resolve, the index lists the documents, named paths exist" -- \
@@ -307,6 +307,21 @@ stage format "the spellings; the canonical writer; every P0 refusal planted, and
 
 stage custody "the custody log's chain and head, the audit record, the appended withdrawal, the stated limits" -- \
   bash verify/pytest-stage.sh tests/custody
+
+# The parcels' stages, written by the lead before the parcels build, so that parcels building at once never edit
+# this file (P0.1's verifier, round 1, D3). Each runs its parcel's own directory, and skips by name until that
+# directory exists. P3's and P5's are written when their briefs go out; a parcel that needs another stage asks.
+need_file tests/p1 "P1, the adapter, is not built yet: there is no tests/p1"
+stage p1 "P1, the adapter: Quantum-Film's records and IBM's into crates; checker steps 4, 5 and 8" -- \
+  bash verify/pytest-stage.sh tests/p1
+
+need_file tests/p2 "P2, the golden measures, is not built yet: there is no tests/p2"
+stage p2 "P2, the golden measures: measures, twins, floor, certified intervals, the exact hold; steps 6 and 7" -- \
+  bash verify/pytest-stage.sh tests/p2
+
+need_file tests/p4 "P4, the profile, is not built yet: there is no tests/p4"
+stage p4 "P4, the profile: the Profile Crate, the context, the shapes and the examples" -- \
+  bash verify/pytest-stage.sh tests/p4
 
 stage control-tests "the controls' registry walked both ways; each built control comes out as section 11 says" -- \
   bash verify/pytest-stage.sh tests/controls

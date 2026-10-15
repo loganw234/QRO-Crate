@@ -110,12 +110,15 @@ RAW_FORM_FAULTS = [   # each refused for the one rule it names (round 5, R5-5a: 
     (b'{"01x":1}\n', "'01x' is not a bitstring of the first one's length"),
     (b'{"0":-1}\n', "the count of 0 is not a non-negative integer"),
     (b'{}\n', "an object of one outcome or more"),
+    (b'{"00":true}\n', "the count of 00 is not a non-negative integer"),
+    (b'[]\n', "an object of one outcome or more"),
 ]
 
 
 @pytest.mark.parametrize("raw, rule", RAW_FORM_FAULTS,
                          ids=["nan", "deep", "no-final-line-feed", "unequal-bitstrings", "a-non-bit-key",
-                              "a-non-bit-tail", "a-negative-count", "no-outcome"])
+                              "a-non-bit-tail", "a-negative-count", "no-outcome", "a-boolean-count",
+                              "an-array"])
 def test_a_raw_result_its_reader_cannot_read_is_raw_form(tmp_path, raw, rule):
     c = crate(tmp_path)
     (c / RAW).write_bytes(raw)
@@ -515,3 +518,189 @@ def test_a_directory_the_walk_cannot_list_is_raised_not_passed_over(tmp_path, mo
     monkeypatch.setattr(os, "scandir", scandir)
     with pytest.raises(PermissionError):
         checker.check(c)
+
+
+# -- P0.1: round 6's notes ------------------------------------------------------------------------------------
+@pytest.mark.parametrize("names, detail, where", [
+    (["data/A/x.txt", "data/a/y.txt"], "a path, data/a, whose name differs from data/A's only by case",
+     "data/a/y.txt"),
+    (["data/A", "data/a/b.txt"], "a path, data/a, whose name differs from data/A's only by case", "data/a/b.txt"),
+    (["data/a", "data/a/b.txt"], "data/a is both a file and a directory", "data/a/b.txt"),
+    (["Data/x.txt"], "a path, data, whose name differs from Data's only by case", "data/notes.txt"),
+], ids=["two directories by case", "a file and a directory by case", "a file and a directory", "data/ by case"])
+def test_paths_along_files_that_differ_only_by_case_are_refused(tmp_path, names, detail, where):
+    """Round 6, 8.3 item 1: on a host that folds case, each pair is one path. Refused at the later entity in the
+    graph's order (P0.1's verifier, round 1, 4.2: no test read the location)."""
+    def add(md):
+        for n in names:
+            listed(md, n)
+    c = rewrite(crate(tmp_path), add)
+    r = refused("graph-form", lambda: reader.read((c / canonical.DESCRIPTOR).read_bytes()))
+    assert (r.detail, r.where) == (detail, where)
+
+
+def test_a_root_that_is_also_an_action_is_refused(tmp_path):
+    """Round 6, 8.3 item 2."""
+    c = rewrite(crate(tmp_path), lambda md: md["@graph"][1].update(
+        {"@type": ["CreateAction", "Dataset"], "mentions": [{"@id": "./"}]}))
+    r = refused("graph-form", lambda: reader.read((c / canonical.DESCRIPTOR).read_bytes()))
+    assert r.where == "./" and "never an action" in r.detail
+
+
+def test_a_metadata_file_that_is_a_link_is_file_link(tmp_path, monkeypatch):
+    """Round 6, 8.3 item 5: it was refused file-missing, which said less. Its bytes are not metadata, so only the
+    check made before any read can say file-link: a link is never followed to read what it points at."""
+    c = crate(tmp_path)
+    (c / canonical.DESCRIPTOR).write_bytes(b"not metadata")
+    real = checker._is_link
+    monkeypatch.setattr(checker, "_is_link", lambda p: p.name == canonical.DESCRIPTOR or real(p))
+    r = refused("file-link", lambda: checker.check(c))
+    assert r.where == canonical.DESCRIPTOR
+
+
+def test_a_metadata_file_named_in_another_case_is_file_missing_on_every_host(tmp_path):
+    """Round 6, 8.3 item 7: Windows said file-unlisted, Linux file-missing."""
+    c = crate(tmp_path)
+    (c / canonical.DESCRIPTOR).rename(c / "tmp.json")
+    (c / "tmp.json").rename(c / canonical.DESCRIPTOR.upper())
+    refused("file-missing", lambda: checker.check(c))
+
+
+class _Reversed:
+    """os.scandir's entries in reverse: a host whose listing order is not name order, on any host."""
+    def __init__(self, it):
+        self.entries = iter(list(it)[::-1])
+        it.close()
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *_):
+        return False
+
+    def __iter__(self):
+        return self
+
+    def __next__(self):
+        return next(self.entries)
+
+    def close(self):
+        pass
+
+
+def test_the_walk_descends_in_name_order(tmp_path, monkeypatch):
+    """Round 6, 8.3 item 3: the walk sorted a copy of its directories, and descended in the host's order.
+    NTFS lists names in order already, so the host's listing is reversed here."""
+    real = os.scandir
+    monkeypatch.setattr(os, "scandir", lambda path=".": _Reversed(real(path)))
+    c = crate(tmp_path)
+    outside = tmp_path / "outside"
+    outside.mkdir()
+    for d in ("h", "a", "m"):
+        (c / d).mkdir()
+        link_dir(c / d / "link", outside)
+    r = refused("file-link", lambda: checker.check(c))
+    assert r.where == "a/link"
+
+
+def test_a_registered_step_that_accepts_lets_the_crate_through(tmp_path, monkeypatch):
+    """Round 6, 8.1 item 6: the seam's success path, the first thing a parcel uses."""
+    own_generator(monkeypatch)
+    ran = []
+    monkeypatch.setitem(checker.STEPS, 4, lambda c, md: ran.append(4))
+    c = rewrite(crate(tmp_path), lambda md: entity(md, RAW).update({"qro:commitment": "a" * 64}))
+    assert canonical.body_digest(checker.check(c)) and ran == [4]
+    monkeypatch.setitem(checker.STEPS, 4, None)
+    refused("step-unbuilt", lambda: checker.check(c))
+
+
+@pytest.mark.parametrize("error", [KeyError("k"), ValueError("v"), TypeError("t"), IndexError("i"), OSError("o")],
+                         ids=["KeyError", "ValueError", "TypeError", "IndexError", "OSError"])
+def test_a_parcels_reader_or_generator_raising_any_error_is_refused_by_its_steps_name(tmp_path, monkeypatch, error):
+    """Round 6, 8.1 item 7: both plants raised ZeroDivisionError alone."""
+    def boom(*_):
+        raise error
+    c = crate(tmp_path)
+    monkeypatch.setitem(checker.RAW_FORMS, fixture.RAW_FORM, boom)
+    refused("raw-form", lambda: checker.check(c))
+    fixture.register()
+    monkeypatch.setitem(checker.GENERATORS, fixture.GENERATOR, boom)
+    refused("metadata-generated", lambda: checker.check(c))
+
+
+def test_a_top_level_array_of_the_two_keys_is_graph_form(tmp_path):
+    """Round 6, 8.1 item 8: type confusion, refused by name and never a crash."""
+    c = crate(tmp_path)
+    (c / canonical.DESCRIPTOR).write_bytes(canonical.dumps(["@context", "@graph"]))
+    r = refused("graph-form", lambda: reader.read((c / canonical.DESCRIPTOR).read_bytes()))
+    assert r.where == "the top level"
+
+
+TYPE_CONFUSION = [
+    ("an empty reference", lambda md: md["@graph"][1]["hasPart"].append({})),
+    ("a reference to a number", lambda md: md["@graph"][1]["hasPart"].append({"@id": 5})),
+    ("a list for a reference", lambda md: md["@graph"][1]["hasPart"].append(["@id"])),
+    ("a type list with a number", lambda md: entity(md, RAW).update({"@type": ["File", 5]})),
+    ("a reference for a name", lambda md: md["@graph"][1].update(name={"@id": "x"})),
+    ("a string for a list", lambda md: md["@graph"][1].update({"qro:implementation": "x"})),
+]
+
+
+@pytest.mark.parametrize("plant", [p for _, p in TYPE_CONFUSION], ids=[n for n, _ in TYPE_CONFUSION])
+def test_a_value_of_the_wrong_kind_is_spelling_and_never_a_crash(tmp_path, plant):
+    c = rewrite(crate(tmp_path), plant)
+    refused("spelling", lambda: reader.read((c / canonical.DESCRIPTOR).read_bytes()))
+
+
+def test_a_raw_result_that_states_no_shots_is_accepted(tmp_path, monkeypatch):
+    """Round 6, 8.1 item 11: a count is checked where it is stated, and need not be."""
+    own_generator(monkeypatch)
+    c = rewrite(crate(tmp_path), lambda md: entity(md, RAW).pop("qro:shots"))
+    assert "qro:shots" not in entity(checker.check(c), RAW)
+
+
+# -- P0.1's verifier, round 1: the test reach of its notes 4.1.1 and 4.2 -----------------------------------------
+def test_the_walk_reports_the_first_of_one_directorys_files_by_name(tmp_path, monkeypatch):
+    """The order of names within one directory: the host's listing reversed, three files the walk is told are
+    links."""
+    real_scandir, real_link = os.scandir, checker._is_link
+    monkeypatch.setattr(os, "scandir", lambda path=".": _Reversed(real_scandir(path)))
+    c = crate(tmp_path)
+    for name in ("b.txt", "a.txt", "c.txt"):
+        (c / "data" / name).write_bytes(b"x")
+    monkeypatch.setattr(checker, "_is_link", lambda p: p.name in ("a.txt", "b.txt", "c.txt") or real_link(p))
+    r = refused("file-link", lambda: checker.check(c))
+    assert r.where == "data/a.txt"
+
+
+def test_a_file_below_a_directory_named_as_the_descriptor_is_refused(tmp_path):
+    """The descriptor is a file: a path through it as a directory is one the host cannot hold."""
+    c = rewrite(crate(tmp_path), lambda md: listed(md, canonical.DESCRIPTOR + "/x.txt"))
+    r = refused("graph-form", lambda: reader.read((c / canonical.DESCRIPTOR).read_bytes()))
+    assert (r.detail, r.where) == (f"{canonical.DESCRIPTOR} is both a file and a directory",
+                                   canonical.DESCRIPTOR + "/x.txt")
+
+
+def test_a_metadata_file_that_is_a_directory_is_file_missing(tmp_path):
+    """Without the regular-file test, the read raised: IsADirectoryError, exit 3, or on Windows PermissionError."""
+    c = tmp_path / "crate"
+    (c / canonical.DESCRIPTOR).mkdir(parents=True)
+    r = refused("file-missing", lambda: checker.check(c))
+    assert r.where == canonical.DESCRIPTOR
+
+
+def test_a_crate_the_user_cannot_list_is_misuse_though_its_metadata_is_not_json(tmp_path, monkeypatch, capfd):
+    """Note 4.1.1: check() lists the crate before it reads the metadata, so a crate the user cannot list is misuse,
+    exit 2, whatever its metadata holds (FORMAT.md item 16). It was refused `spelling`, exit 1."""
+    from qro.__main__ import main
+    c = crate(tmp_path)
+    (c / canonical.DESCRIPTOR).write_bytes(b"not metadata")
+    real = os.listdir
+
+    def listdir(path="."):
+        if pathlib.Path(path) == c:
+            raise PermissionError(13, "permission denied", os.fspath(path))
+        return real(path)
+    monkeypatch.setattr(os, "listdir", listdir)
+    assert main(["check", "--fixtures", str(c)]) == 2
+    assert "cannot be read here" in capfd.readouterr().err

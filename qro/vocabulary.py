@@ -203,8 +203,9 @@ REFUSALS = (
     Refusal("context", "step 1", "refused", "P0", "the @context is not this profile version's"),
     Refusal("graph-form", "step 1; step 3", "refused", "P0",
             "the graph's shape: the top level; a @graph that is not a list of two entities or more; an entity "
-            "without @id or @type; a repeated @id; two files, the descriptor among them, whose names differ only "
-            "by case; the order; the descriptor; the root, its type and every term it must carry; the root's "
+            "without @id or @type; a repeated @id; two paths along files, the descriptor among them, whose names "
+            "differ only by case, or a path both a file and a directory; the order; the descriptor; the root, its "
+            "type, never an action, and every term it must carry; the root's "
             "conformsTo, which is Process Run Crate 0.6 and this profile; the root's mentions; a reference that "
             "names no entity; a term on an entity its domain does not admit; and, at step 3, a raw result that is "
             "not a File the crate holds"),
@@ -370,6 +371,11 @@ def sanity():
             out.append(f"refusal {r.name}: where {r.where}")
         if r.owner not in OWNERS:
             out.append(f"refusal {r.name}: owner {r.owner}")
+    step_owner = {}                  # a step's refusals name its parcel, which alone registers it (checker.load)
+    for r in REFUSALS:
+        for part in r.where.split("; "):
+            if part.startswith("step ") and step_owner.setdefault(part, r.owner) != r.owner:
+                out.append(f"refusal {r.name}: {part} is {step_owner[part]}'s, and this names {r.owner}")
     if set(WORDS["custody-event"]) != set(CUSTODY_LINE):
         out.append("the custody-event words are not the custody line's events")
     for e, fields in CUSTODY_LINE.items():
