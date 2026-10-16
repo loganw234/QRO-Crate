@@ -2092,3 +2092,378 @@ p03c_records.py, which places P0.3's review and its two ledger entries. None of 
 - **CLAUDE.md's ~125 s** sits a little below this round's full runs: 133 s to 141 s by the lead, nothing else
   running.
 - **A version given as the JSON number 0.1** is refused `context` with a detail that reads as if it agreed.
+
+## 2026-10-16 - P0.2 and P0.3 committed; P0.4: their last verifiers' notes
+
+**P0.2 is committed as ecb7e5e, and P0.3 as 7f40400,** both pushed to origin main, by Logan's word of 2026-10-16:
+"Yes, continue".
+- P0.3 was applied to the checkout by its four scripts. The checkout equalled the rehearsal copy, and that equalled
+  the tree P0.3's second verifier passed, but for the two verifiers' records.
+- The runner passed on the checkout before the commit: 17 stages passed and 7 skipped by name, in 126 s.
+- P1.1 and P4 build in their worktrees, from 7f40400.
+
+**P0.4, the lead's,** takes the notes of P0.2's fourth verifier and P0.3's second (docs/reviews/P0.2/round4.md,
+docs/reviews/P0.3/round2.md). The edits are in the lead's scratch, p04_edits.py, with three made after it, below.
+
+**The privacy gate:**
+- **What is staged.** A plain `git commit` takes the index, and the gate read the file on disk. So a key staged
+  and then edited out of its file would have been committed (round 4).
+  - The gate now reads each staged version that differs from its file, in one `git cat-file --batch`, and names a
+    finding in it "(staged)". The summary counts such versions only where there are any.
+  - On the checkout, with P0.4 unstaged, it reads the 10 committed versions of the files P0.4 changes.
+- **Every message whole.** git log now writes each message in UTF-8, whatever `i18n.logOutputEncoding` asks, and
+  ends each with a NUL. So neither a UTF-16 output nor a 0x01 byte in a message hides a key.
+- **A nested repository** below the tree is named in the summary, and not read or copied. git commits it as a link,
+  never as its files. The gate had failed on it as unreadable.
+- **git failing to read staged objects** is a finding, as git log's failure is. With `packed-refs` corrupt, git
+  refuses `cat-file` too. The first version of this change raised there, and the history test, run on it, showed
+  it.
+- **Its docstring** says what it reads, and states the shapes of a broken ref that git reads as a branch with no
+  commit.
+
+**The rest:**
+- **A linked worktree,** where `.git` is a file and where the parcels build, now holds a test of the gate and one of
+  the registry's file list.
+- **The `need_env` rule** no longer takes a name in a comment for a read.
+- **The reader** names another version `context` only where the version is text. A number there is a misshapen
+  entity, `graph-form`.
+- **The reader's order** is now pinned at the root's mentions too. A `Profile` entity typed `Profile` alone is now
+  planted.
+- **`qro:lawCircuit`'s meaning** holds "and its coherences", as P2's design wrote it.
+- **The study's qpy-only paragraph** cites bundle.py's lines 7 and 17. Line 7 says `isa_sha256` is the QPY's
+  digest, and line 17 that the commitment binds it.
+- **The runner's prose** names the SHACL engine among what a resumed run must share. The engine's fingerprint no
+  longer needs Python 3.12 to read its packages.
+- **pyproject.toml** says a warnings filter set at import lifts the three pins raised at collection. The returned
+  value's pin holds.
+- **A two-commit history** is read as two messages, a test that a `git log` without `-z` would fail.
+
+**Corrections to the entries above** (append-only, so restated here):
+- P0.3's first entry says P2's and P4's designs were "approved 2026-10-16", the UTC date of the ledger's entry. By
+  this ledger's local dates they were approved on 2026-10-15.
+- P0.2's third entry, and the gate's docstring after it, said a history git log cannot read is a finding "whatever
+  broke it". It is a finding wherever git log fails, but for a branch git says has no commit. Some broken refs git
+  reads as such a branch, or as an empty history: a ref deleted, a ref replaced by a directory, an emptied
+  `packed-refs`, a ref naming a tree or a blob. Those pass with no message read; the docstring now states them.
+
+**Not taken:**
+- **A deleted `need_env` guard, or one pointed at another variable the runner reads,** is not caught. A stage that
+  needs moth-quantum and runs without it fails loudly, since its tests need the records.
+- **A test of the runner's fingerprint line** stays unwritten. It is the runner's own environment record, and
+  `--resume` refusing another engine was MEASURED by P0.3's second verifier.
+
+**Measured, by the lead:**
+- **The runner:** `QRO_MOTH_ROOT=<moth-quantum> bash verify/run.sh`, run `20261016-034703-46713-7f40400+dirty`, on
+  the tree as frozen but for this entry: **17 stages passed, 7 skipped by name**, none failed, in 130 s. P1.1 and
+  P4 were building beside it.
+  - docs: 138 passed; tool-tests: 114; vocab-tests: 11; format: 678; custody: 23; control-tests: 32. That is 996
+    tests, 12 more than P0.3's;
+  - privacy: 255 files, 4 commit messages, and 10 staged versions, nothing found;
+  - privacy-controls: 37 of 37 caught;
+  - check-docs: 10 documents, 37 other markdown files, 35 source files;
+  - the twin: ACCEPTED `21fafec5…`.
+- **12 hand mutants of P0.4's code** (the lead's scratch, m_p04.py): 12 killed, each by the test meant to kill it.
+
+**Next:** P0.4's verifier, round 1, on Sonnet and the full bar.
+
+## 2026-10-16 - P0.4's first verifier: NOT READY, D1 and D2, and the fixes
+
+**The verdict** (docs/reviews/P0.4/round1.md): NOT READY, on two small defects. The privacy gate's new code gave
+no wrong answer, and the verifier found no way for a key to reach a commit or a message past it. It is P0.4's
+first send-back, 1 of the cap's 3. The verifier checked:
+- about 35 staged scenarios, and 525 random repositories against an oracle of its own, with no difference;
+- the 47 history shapes of P0.2's fourth round, 70 control bytes before a key, and 15 log encodings;
+- all 29 of git's repository variables, singly and together;
+- the full runner on a clone, 17 passed and 7 skipped by name, and the lead's 12 mutants, all killed.
+
+**The defects, fixed:**
+- **D1 [code, the runner].** The SHACL engine's package expression, `d.metadata["Name"] + "==" + d.version`,
+  raised `TypeError` on a distribution with no name, such as a `dist-info` directory with no METADATA. The runner
+  then hashed the traceback, so a package added to the engine went unseen, and `--resume` went on (MEASURED by
+  the verifier).
+  - It is now `"%s==%s" % (d.metadata["Name"], d.version)`, which lists such a distribution as `None==None`, the
+    verifier's measured fix.
+  - A test reads the expression from the runner's own text and runs it on such a distribution. It also holds the
+    engine's line in the fingerprint, and its interpreter run with `-I`.
+- **D2 [gate and prose].** The `need_env` rule dropped only a comment that fills its line, so a variable named
+  only in a trailing comment still counted as read.
+  - It now drops a comment that starts a line or follows a blank. A quoted `#` after a blank ends what it reads
+    too, which can only flag more.
+  - The comment test plants both kinds, and the registry's docstrings say what the rule now reads.
+
+**The notes taken:**
+- **[test reach] `.git` as a file.** The gate asked in four places whether a tree is a git checkout. It now asks
+  one function, `in_git`. The linked-worktree test holds all three of git's readings there:
+  - a key in a file git ignores tells git's listing from the walk a copy with no `.git` gets;
+  - a key staged and edited out holds the staged versions;
+  - a key in a message holds the history.
+  The registry's linked-worktree test gains an ignored file and a tracked `.gitignore`, so its two branches no
+  longer give the same list.
+- **[test reach] The staged reader's arms,** each now a test:
+  - a gitlink is skipped, and named a nested repository;
+  - an object git does not hold is a finding;
+  - a key staged in a file and then deleted is found;
+  - a binary staged version is listed by name.
+- **[code] Nested repositories and links.** The gate took every directory git listed for a nested repository. A
+  link to a directory is a directory too, and so is a tracked file a directory replaced. Under WSL, the verifier
+  MEASURED an untracked link to a directory, its text a home path, passing as "a nested repository", where the
+  gate before P0.4 had refused it.
+  - A nested repository is now told by git's own marks. Untracked, git lists it with a trailing slash. Tracked,
+    the index holds a gitlink, mode 160000.
+  - A link is read as its own text, which is what git commits for it, never as what it points to. That also
+    closes an older gap: a home path that a link to a file named passed.
+  - The controls copy what the gate reads, a link's text as a plain file.
+  - A tracked file a directory replaced is unreadable, a finding, as a tracked file deleted is.
+  - This machine cannot make a link (WinError 1314), so the test's link is a file that the test's `is_symlink`
+    and `readlink` call one.
+- **[prose] The gate's docstring.** It said git log writes UTF-8 "whatever the repository's configuration asks",
+  and that "no byte a message holds splits it". It now says `--encoding=UTF-8` overrides
+  `i18n.logOutputEncoding`, and that a 0x01 byte no longer splits a message. Three limits are now stated:
+  - a commit that records its own encoding, as `i18n.commitEncoding` set to UTF-16 or IBM037 writes, loses a key
+    (MEASURED by the verifier, the gate before P0.4 alike);
+  - git log writes a message only up to a NUL it holds, which `git commit` refuses and a commit built by hand can
+    hold;
+  - in a copy with no git, a link to a directory is neither read nor named.
+- **[prose] "as text".** FORMAT.md item 21 and the reader's two docstrings now say "one declaring another
+  version, as text, is `context`". reader.py's line of 186 characters, P0.3's note 10, is rewrapped.
+- **[prose] Two meanings.** `qro:line` now says "the job", and `qro:measuredPub` "the Pub", as P1's and P2's
+  designs do (P0.3's note 6). The generated pages are regenerated.
+
+**Corrections to the entry above** (append-only, so restated here):
+- It said the `need_env` rule "no longer takes a name in a comment for a read". It took one in a whole-line
+  comment only, which was D2. Now it takes none in a trailing comment either.
+- Its "Not taken" said a `need_env` guard pointed at another variable the runner reads is not caught, as a stage
+  that needs moth-quantum fails loudly without it. Pointed at another stage's variable, the guard skips by name,
+  with a reason not its own.
+  - The rule now holds each `need_env`'s reason to name its variable, and a guard pointed at `QRO_MOTH_ROOT` is
+    planted.
+  - A deleted guard still makes its stage run, and fail loudly where its variable is missing. For p1-crates and
+    p2-crates that is BELIEVED, as their directories are not built yet.
+- Its "Not taken" said the fingerprint's line needs no test, as P0.3's second verifier MEASURED `--resume`
+  refusing another engine. That measured the expression before P0.4 changed it, and D1 is the change's. The test
+  is written now.
+- Its privacy figure, 10 staged versions, was measured before the entry itself was written. The verifier read 11,
+  the entry's own VALIDATION.md among them.
+
+**Not taken:**
+- **Survivors that change no answer:** `--encoding=ISO-8859-1` (a key is ASCII, found either way), a version given
+  as a float, and the resume message's text. The `lstrip()` survivor went with the line it mutated.
+- **CLAUDE.md's ~125 s** stays (P0.3's note 9). The full runs with nothing beside them measured 115 s to 141 s;
+  those beside the parcels' builds take longer, as this entry's does.
+- **P0.3's note 4, tests that kill a runner mutant by its text,** stays a note. The registry reads the runner's
+  text, not its run, as its docstring says.
+
+**Measured, by the lead,** on the tree as frozen but for this entry, with the P1.1 and P4 builds beside it:
+- **The runner:** `QRO_MOTH_ROOT=<moth-quantum> bash verify/run.sh`, run `20261016-051516-62626-7f40400+dirty`:
+  **17 stages passed, 7 skipped by name**, none failed, in 174 s.
+  - docs: 141 passed; tool-tests: 120; vocab-tests: 11; format: 678; custody: 23; control-tests: 32. That is
+    1,005 tests, 9 more than round 1's;
+  - privacy: 257 files, 4 commit messages, and 14 staged versions, nothing found;
+  - privacy-controls: 37 of 37 caught;
+  - check-docs: 10 documents, 39 other markdown files, 35 source files;
+  - the twin: ACCEPTED `21fafec5…`.
+- **28 hand mutants** (m_p04_r1.py): m_p04.py's twelve, three of them rewritten where their code changed, and 16
+  of this round's own. Those take in each of the verifier's survivors whose code still stands and changes an
+  answer. All 28 were killed, each by the test meant to kill it.
+- **Real links, under WSL** (git 2.34.1, Python 3.10.12; the lead's probe_wsl_links.sh):
+  - git lists a link to a directory and a link to a file by their bare names, and a nested repository as `nest/`;
+  - the gate finds the home path in both links' text, untracked and staged, and names the nested repository;
+  - staged, a link's version equals its text, so the gate counts no staged version that differs.
+- **git log and a NUL** (git 2.45.2, the lead's probe_nul.py): a commit built by hand, its message holding an `x`,
+  a NUL and two more lines, is written as far as the `x`.
+
+**Next:** P0.4's verifier, round 2, on Sonnet and the full bar.
+
+## 2026-10-16 - P0.4's second verifier: NOT READY, R2-1, and the fixes
+
+**The verdict** (docs/reviews/P0.4/round2.md): NOT READY, on one defect in what the code does, a regression the
+fix of round 1's note brought. It is P0.4's second send-back, 2 of the cap's 3. The reason is a defect in what the
+code does, not a menial one, so the next round keeps the full bar. Round 1's D1 and D2 are fixed, and the verifier
+checked:
+- the full runner on a clone and on a linked worktree of it, every figure equal to the entry before's;
+- the lead's 28 mutants, each killed by its own test, which its own harness named;
+- 30 mutants of its own, and over 3,100 random repositories, 2,650 of them under WSL with real links, against an
+  oracle that commits with `git add -A` and reads every blob.
+
+**The defect, fixed.**
+- **R2-1 [code, the privacy gate].** The gate named every path the index holds as a gitlink a nested repository,
+  and read nothing there, whatever was on disk.
+  - Where a file or a symbolic link sits at that path, `git add -A`, `git add -u` and `git commit -a` commit it in
+    the gitlink's place, and a key in it passed (MEASURED by the verifier: exit 0, where 7f40400 and round 1's
+    packet exit 1). Its oracle found 138 such misses, and no other.
+  - A gitlink is now a nested repository only while a directory that is no symbolic link, or nothing, is at its
+    path: the verifier's own fix. A file or a link there is read, a link as its own text.
+  - Tests plant a key in a file at a gitlink's path, and a key as the text of a simulated link to a directory
+    there. The gitlink test now holds both an empty directory and nothing as a nested repository.
+
+**The notes taken:**
+- **[gate] N1, comments.** The `need_env` rule now drops a comment as bash starts one: a `#` beginning a word, at a
+  line's start or after a blank or one of `; & | ( ) < >`. A `#` after `;` or `&&` with no blank had counted as a
+  read. Two plants hold it.
+- **[gate] N2, a guard's form.** A new rule fails every call of `need_file` or `need_env` written in another form
+  than the one the rules read: indented, tabbed, two blanks apart, after another command, its reason
+  single-quoted, bare or continued. Each of those seven is planted, its variable misspelt. `need_env`'s
+  definition is now pinned too, as `need_file`'s is, and planted inverted.
+- **[test reach] N3, a tree with no .git.** A test runs the gate on one. It reads every file, finds a key in one,
+  and reads none in a nested repository's `.git` or in the caches.
+- **[test reach] N4, three link sites,** each now a test:
+  - the staged reader holds a version to a symbolic link's own text;
+  - the controls copy a link's text;
+  - the controls `git init` each copy of a linked worktree.
+- **[prose and test reach] N5, a float.** A version given as `0.1` is now planted, and refused `graph-form`. The
+  entry before was wrong to call that survivor one that changes no answer, below.
+- **[code] N6, the package list.** Both of the runner's package lists now read with `.get`, from one expression,
+  `PACKAGES`. Indexing a missing key raised `KeyError` under the importlib_metadata 8.5.0 backport (MEASURED by
+  the verifier), as the standard library is to, and the runner would have hashed a traceback again. A test runs
+  the expression on metadata that raises on a missing key, and on metadata that is None.
+- **[test reach] N7, the pipeline.** A test runs the runner's own `shacl_engine` in Git Bash, on an engine that is
+  this interpreter and runs only with `-I`, with a directory of distributions first on its path. Its line is the
+  engine and 16 hexadecimal digits, and the digits change as a distribution is added, one with no name among them.
+- **[prose] N8, "link".** In the gate, "link" now means a symbolic link only, and git's own is a "gitlink". The
+  summary says a nested repository is "committed as a gitlink".
+- **[prose] N9:**
+  - a file name not in UTF-8, which Linux allows, stops the gate with an error: now a stated limit, below;
+  - the limit on a commit's own encoding now says git's conversion "can garble" a message;
+  - the P0.4 reviews' README says how the notification escaped each report's `<`, `>` and `&`.
+
+**Corrections to the entries above** (append-only, so restated here):
+- The entry before said the survivors that take a float for another version, `--encoding=ISO-8859-1` and the
+  resume message's text change no answer. The float one does: the reader refuses a float version `graph-form`,
+  and the survivor refused it `context`. It is planted now.
+- It said the `need_env` rule now takes no name "in a trailing comment". It still took one after a metacharacter
+  with no blank; it takes none now.
+- It said a commit that records its own encoding, as UTF-16 or IBM037, loses a key. It can: the verifiers lost the
+  key for IBM037, and for UTF-16 with a message not in ASCII; round 2 found it for UTF-16 with one in ASCII.
+- Until R2-1's fix, the gate's docstring ("reads every file git would commit"), CLAUDE.md's rule 3 and the
+  privacy stage's text were each false for a file or a link at a gitlink's path.
+
+**Not taken:**
+- **A file name not in UTF-8,** older than P0.4, stays a stated limit. The gate stops with an error, so it never
+  passes.
+- **A guard repointed with its reason edited to match** is not caught, as the entry before said: such a skip says
+  its own reason.
+- **The six mutants the verifier found equivalent or redundant** need no test.
+
+**Measured, by the lead,** on the tree as frozen but for this entry, beside P1.1's build and P4's verifier:
+- **The runner:** `QRO_MOTH_ROOT=<moth-quantum> bash verify/run.sh`, run `20261016-064155-26425-7f40400+dirty`:
+  **17 stages passed, 7 skipped by name**, none failed, in 165 s.
+  - docs: 154 passed; tool-tests: 127; vocab-tests: 11; format: 679; custody: 23; control-tests: 32. That is
+    1,026 tests, 21 more than after round 1's fixes;
+  - privacy: 258 files, 4 commit messages, and 14 staged versions, nothing found;
+  - privacy-controls: 37 of 37 caught;
+  - check-docs: 10 documents, 40 other markdown files, 35 source files;
+  - the twin: ACCEPTED `21fafec5…`.
+- **45 hand mutants** (m_p04_r2.py): m_p04_r1.py's 28, four rewritten where their code changed and two retargeted
+  where their test was renamed, and 17 of this round's own. Before the run, the lead's check_ids.py found each
+  mutant's text once and collected each target test. All 45 were killed, each by the test meant to kill it.
+- **Real links at a gitlink's path, under WSL** (git 2.34.1, Python 3.10.12; the lead's probe_wsl_gitlink.sh):
+  - with a file holding a key there, `git add -A -n` adds `sub`, and the gate finds the key and exits 1;
+  - with a symbolic link to a directory there, its text a home path, `git add -A -n` adds `sub`, and the gate
+    finds the path and exits 1;
+  - with an empty directory there, git adds nothing, and the gate names a nested repository and exits 0;
+  - with nothing there, git removes `sub`, and the gate names a nested repository and exits 0.
+
+**Next:** P0.4's verifier, round 3, on Sonnet and the full bar.
+
+## 2026-10-16 - P0.4's third verifier: NOT READY, R3-1 and R3-2, and the fixes; the cap reached
+
+**The verdict** (docs/reviews/P0.4/round3.md): NOT READY, on two small defects, each with a measured one-line fix.
+It found no defect in the privacy gate. R2-1's fix held in 28 states at a gitlink's path, compared with what a real
+`git add -A` stores, and over 1,870 random repositories against its oracle, with no miss. The lead's 45 mutants
+each died by their own target.
+
+**The cap.** This is P0.4's third send-back, 3 of the cap's 3 (CLAUDE.md item 6). Its reasons grew more menial:
+round 2's was a regression in what the gate reads; round 3's are a contrived hole in a test rule and a test that
+fails on a host no document claims. So round 4 is told that only a defect in what the code does blocks, and the
+rest become notes the lead takes afterwards, as P0.2's fourth round was.
+
+**The defects, fixed:**
+- **R3-1 [gate, the registry].** The rule that every guard is called in one form stripped comments as the
+  `need_env` rule does, a quoted `#` after a blank among them. So a guard called after a command holding one, as in
+  `echo "a #b"; need_env QRO_SHACL_PYTHO "x"`, was read by no rule, and its stage skipped by name for ever
+  (MEASURED by the verifier). The rule now strips only a line that is a comment: for a rule that looks for a call,
+  stripping more hides one. The plant is in the guard-form test, and the shared comment's claim, "which can only
+  flag more", now says which rule it holds for.
+- **R3-2 [gate, the docs stage].** The new engine test wrote its stand-in engine as text, so on POSIX it had no
+  execute bit, the shell printed `Permission denied`, and the test failed there (MEASURED under WSL). It now writes
+  the engine LF, with `write_bytes`, since `write_text` writes CRLF on Windows (P1.1's finding), and makes it
+  executable.
+
+**The notes taken:**
+- **[test reach]** A dangling symbolic link at a gitlink's path, read as its text since `lexists` sees it, is a
+  third case of R2-1's test; the comment rule's arms for a tab, `|`, `(`, `)`, `<` and `>` are planted; and so are
+  a second call on one line, a comment line naming a guard, and a call of `need`.
+- **[gate, older than P0.4]** The runner's command guard, `need`, which nothing called and no rule read, is gone.
+  The guard-form rule now names it, so a call of it is flagged.
+- **[code, runner, older than P0.4]** A package listing that fails for any reason, a METADATA not in UTF-8 say,
+  is no list: the runner's new `packages` makes its hash unique, so `--resume` refuses the environment. Before, it
+  hashed the traceback, and a package added after it went unseen (MEASURED by the verifier at 7f40400 and at this
+  packet). The engine test plants one, and holds that a listing that works hashes the same twice.
+- **[code, older than P0.4]** A named pipe or a device at a listed path, read as a file, held the gate for ever
+  (MEASURED by the verifier under WSL). It is now unreadable, a finding; a test plants one, made by the test's own
+  `is_file`, since this machine makes no pipe.
+- **[prose]** The runner's comment on `PACKAGES` now says the traceback lists no package at all, and that the
+  `TypeError` came from adding None to a string. The gate's docstring says "a copy with no .git".
+
+**Corrections to the entries above** (append-only, so restated here):
+- The entry before said a guard repointed with its reason edited to match is not caught, "as the entry before
+  said: such a skip says its own reason". That entry said the reason was "not its own", before the reason rule.
+  What holds: such a skip says its own reason, and is not caught.
+- It said the six mutants the verifier found equivalent or redundant need no test. The one dropping the tab from
+  the comment rule was neither, as a comment after a tab changes the answer; it is planted now.
+- It said each of the seven guard plants has "its variable misspelt". The seventh is a `need_file` whose path is
+  missing, which has no variable.
+
+**Measured, by the lead,** on the tree as frozen but for this entry:
+- **The runner:** `QRO_MOTH_ROOT=<moth-quantum> bash verify/run.sh`, run `20261016-081006-44733-7f40400+dirty`:
+  **17 stages passed, 7 skipped by name**, none failed, in 139 s.
+  - docs: 164 passed; tool-tests: 129; vocab-tests: 11; format: 679; custody: 23; control-tests: 32. That is
+    1,038 tests, 12 more than after round 2's fixes;
+  - privacy: 259 files, 4 commit messages, and 14 staged versions, nothing found;
+  - privacy-controls: 37 of 37 caught;
+  - check-docs: 10 documents, 41 other markdown files, 35 source files;
+  - the twin: ACCEPTED `21fafec5…`.
+- **58 hand mutants** (m_p04_r3.py): m_p04_r2.py's 45, five rewritten where their code changed, and 13 of this
+  round's own. check_ids.py found each mutant's text once and collected each target first. All 58 were killed,
+  each by the test meant to kill it.
+
+**Next:** P0.4's verifier, round 4, on Sonnet and the relaxed bar.
+
+## 2026-10-16 - P0.4's fourth verifier: READY, on the relaxed bar
+
+**The verdict** (docs/reviews/P0.4/round4.md): READY, with no defect in what the code does.
+- **Round 3's fixes hold.** Round 3's own guard fuzzer, with bash as ground truth, found no miss in 4,951 chunks
+  that call a guard, where it had found 564. The whole suite passes under WSL, and the docs and tools tests on
+  Python 3.13.5.
+- **The round's other changes hold.** End to end, `--resume` refuses each changed engine and continues an unchanged
+  one, a failing listing among them. A pipe, a device and a socket at a tracked path, at a gitlink's path, or in a
+  copy with no .git, are each a finding where round 3's gate hung.
+- **The privacy gate holds.** Round 3's oracle found no miss in 3,600 more repositories, and a scan of the clone's
+  whole history with broader shapes than the gate's found no key, CRN or home path.
+- **The lead's 58 mutants** each died by their own target.
+
+**Its notes, to take after the commit** (none blocks; in a later piece of the lead's own, after P0.5):
+1. **The gate reads HEAD's messages, not the blobs of earlier commits.** A key committed and then deleted is pushed
+   with the history, and the gate passes (MEASURED). It claims no more; but before a push is the place to read
+   every blob the push sends.
+2. **A `git replace` ref** shows the gate another message than the one pushed (MEASURED). git can be told to ignore
+   replace refs.
+3. **Two spellings of a home path pass:** a UNC path with forward slashes to WSL, and a drive path percent-encoded
+   with its colon kept (MEASURED).
+4. **The registry pins the lint stage's directories, not its program:** `python - ruff check ...` prints `lint ok`
+   on an empty program (MEASURED).
+5. **No test runs the runner's own accounting:** a stage's failure counted as none passes every test, and the runner
+   then exits 0 (MEASURED). The registry's sentence that the negative control "shows on every run that the runner
+   can still fail" claims more than it holds.
+6. **The guards of stages not built yet** are not required, and the `profile` stage's `--check` is unpinned while
+   its tool is absent; each fails loudly once the stage runs.
+7. **Survivors among its own mutants,** the shipped code right in each: the special-file check's place before the
+   link check; a tab-indented comment line; the guard word's look-behind; `2>&1` in `packages`; the failure
+   token's parts.
+8. **The pipe test patches `is_file`;** a POSIX host could make a real one.
+9. **verify/pytest-stage.sh still names `need`** in its last message, and the runner's header does not list its
+   removal among the departures from moth-quantum's runner.
+10. **CLAUDE.md's ~125 s** against 146 s on a shared machine, as noted before.
+
+**The whole of P0.4** took four rounds and three send-backs, the last two over narrower reasons, and is committed as
+the next entry says. Its fixes, and its verifiers' measurements, are in the four entries above and the reports.

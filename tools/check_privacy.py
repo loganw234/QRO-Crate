@@ -9,12 +9,14 @@ or a home-directory path, written into a tracked file or a commit message the wa
 carries one (rule 3). It does not guard against deliberate evasion, and it does not judge content.
 
 It reads every file git would commit (tracked, or untracked and not ignored; `git ls-files -z`, so no name is
-quoted away), its own source included, and every commit message on HEAD's history. Every git it runs on a
-repository runs without the variables git lists as pointing it at a repository, GIT_DIR among them, and with
-git's configuration (P0.2's verifier, rounds 1 and 2). A history git log cannot read is a finding, whatever
-broke it, a commit gone, a branch ref emptied or packed-refs corrupt among the causes; only a branch git says
-has no commit yet has no message to read (rounds 2 and 3). A message not in UTF-8 is read with its bad bytes
-replaced. A file with a byte-order mark
+quoted away), its own source included, a symbolic link as its own text, which is what git commits; the staged
+version of each tracked file whose index differs from the file on disk, which a plain `git commit` takes (P0.2's
+verifier, round 4); and every commit message on HEAD's history. Every git it runs on a repository runs without
+the variables git lists as pointing it at a repository, GIT_DIR among them, and with git's configuration (P0.2's
+verifier, rounds 1 and 2). git log failing is a finding unless git says the branch has no commit yet: a commit
+gone, a branch ref emptied or garbage, and packed-refs corrupt among the causes (rounds 2 and 3). git log is
+asked for UTF-8, which overrides i18n.logOutputEncoding, and ends each message with a NUL, so a control byte such
+as 0x01 no longer splits one (round 4). A message's bytes not in UTF-8 are replaced. A file with a byte-order mark
 is read in its encoding, UTF-16 and UTF-32 included. A finding is printed masked.
 
 What it cannot see (each limit stated by the behaviour it concedes):
@@ -32,14 +34,27 @@ What it cannot see (each limit stated by the behaviour it concedes):
   - a binary file, one with a NUL in its first 4,096 bytes and no byte-order mark, is not read. Each is listed by
     name in the summary, so none passes unseen;
   - commit authors' and committers' names and addresses are git's metadata, not messages: not read;
-  - in a copy with no git history, commit messages are not read.
+  - a message whose commit records an encoding of its own, as i18n.commitEncoding set to UTF-16 or IBM037 writes,
+    git log converts from that encoding, which can garble it, and a key in it is then lost (MEASURED by P0.4's
+    verifiers: IBM037 in both rounds, UTF-16 for a message not in ASCII); and git log writes a message only up to
+    a NUL it holds, which `git commit` refuses and a commit built by hand can hold, so what follows the NUL is not
+    read (P0.4's verifier, round 1, MEASURED, and the lead, git 2.45.2);
+  - a file whose name is not UTF-8, which Linux allows, stops the gate with an error, never a pass (P0.4's
+    verifier, round 2, MEASURED);
+  - in a copy with no .git, commit messages are not read, and a symbolic link to a directory is neither read nor
+    named (P0.4's verifier, round 3, MEASURED); nor are messages read where HEAD names a ref git reads as a branch
+    with no commit, a ref deleted or replaced by a directory, or an emptied packed-refs, among the shapes; nor where
+    a ref names a tree or a blob, which git log reads as an empty history (P0.2's verifier, round 4, MEASURED);
+  - a nested repository below the tree, which git commits as a gitlink and never as its files, is named in the
+    summary and not read: one git lists untracked with a trailing slash, or one the index holds as a gitlink while
+    a directory, or nothing, is at its path. A file or a symbolic link at a gitlink's path is read, as `git add -A`
+    commits it in the gitlink's place (P0.4's verifier, round 2, R2-1).
 
     python tools/check_privacy.py              # 0 = nothing found; 1 = each finding, masked
     python tools/check_privacy.py --control    # 0 = every planted fault caught by its own alternative
 """
 import os
 import re
-import shutil
 import subprocess
 import sys
 import tempfile
@@ -119,27 +134,115 @@ def git_env():
     return {k: v for k, v in os.environ.items() if k.upper() not in drop}
 
 
+def in_git(root):
+    """Whether root is a git checkout: its .git a directory, or a file naming one, as a linked worktree's is, where
+    the parcels build (P0.2's verifier, round 4). Every place here that asks, asks this (P0.4's verifier, round 1:
+    four places asked it apart, and no test told a file from a directory at three)."""
+    return (root / ".git").exists()
+
+
+def index(root):
+    """[(mode, object id, path)]: the index's entries, `git ls-files -z --stage`."""
+    listing = subprocess.run(["git", "-C", str(root), "ls-files", "-z", "--stage"], capture_output=True,
+                             check=True, env=git_env()).stdout
+    out = []
+    for record in listing.split(b"\0"):
+        if record:
+            meta, path = record.split(b"\t", 1)
+            mode, oid = meta.split(b" ")[:2]
+            out.append((mode, oid, path.decode("utf-8")))
+    return out
+
+
 def files(root):
-    if (root / ".git").exists():
+    """(files, nested): every file git would commit, tracked or untracked and not ignored; and each nested
+    repository, which git commits as a gitlink, never as its files. A nested repository is told by git's own marks:
+    untracked, git lists it with a trailing slash; tracked, the index holds it as a gitlink, mode 160000. Its being
+    a directory says nothing: a symbolic link to a directory is one too, and so is a tracked file a directory
+    replaced (P0.4's verifier, round 1). Nor does the index's mark alone: where a file or a symbolic link is at a
+    gitlink's path, `git add -A` and `git commit -a` commit it in the gitlink's place, so it is read (round 2,
+    R2-1). With no .git, every file below the root but in .git and the caches, and no nested repository."""
+    if in_git(root):
         out = subprocess.run(["git", "-C", str(root), "ls-files", "-z", "-co", "--exclude-standard"],
                              capture_output=True, check=True, env=git_env()).stdout
-        return [root / p.decode("utf-8") for p in out.split(b"\0") if p]
+        listed = [p.decode("utf-8") for p in out.split(b"\0") if p]
+        gitlinks = {path for mode, _, path in index(root) if mode == b"160000" and held(root / path)}
+        nested = sorted({p[:-1] for p in listed if p.endswith("/")} | gitlinks)
+        return [root / p for p in listed if not p.endswith("/") and p not in gitlinks], [root / p for p in nested]
     skip = {".git", "__pycache__", ".pytest_cache", ".gate-state", ".ruff_cache"}
-    return [Path(d) / f for d, ds, fs in os.walk(root) for f in fs if not (set(Path(d).relative_to(root).parts) & skip)]
+    return [Path(d) / f for d, ds, fs in os.walk(root) for f in fs
+            if not (set(Path(d).relative_to(root).parts) & skip)], []
+
+
+def held(p):
+    """Whether a gitlink's path still holds a nested repository's place: a directory that is no symbolic link, or
+    nothing at all."""
+    return not os.path.lexists(p) or (p.is_dir() and not p.is_symlink())
+
+
+def committed(p):
+    """The bytes git commits for the path p: a symbolic link's own text, never what it points to; else the file's
+    bytes. The gate read through a symbolic link, so a home path one names passed, and one to a directory was taken
+    for a nested repository (P0.4's verifier, round 1). A named pipe or a device, neither a file, a directory nor a
+    link, is an OSError, unreadable: read, a pipe with no writer held the gate for ever (round 3, MEASURED under
+    WSL), and git refuses to add one."""
+    if p.is_symlink():
+        return os.fsencode(os.readlink(p))
+    if p.exists() and not p.is_file() and not p.is_dir():
+        raise OSError(f"{p.name}: a named pipe or a device, not a file")
+    return p.read_bytes()
 
 
 def read(p):
     """(text, None), or (None, why it was not read)."""
     try:
-        data = p.read_bytes()
+        data = committed(p)
     except OSError as e:
         return None, f"unreadable: {type(e).__name__}"
+    return decode(data)
+
+
+def decode(data):
+    """A file's bytes as text, in the encoding its byte-order mark names, else UTF-8; or (None, "binary")."""
     for bom, enc in BOMS:
         if data.startswith(bom):
             return data[len(bom):].decode(enc.replace("-sig", ""), errors="replace"), None
     if b"\0" in data[:4096]:
         return None, "binary"
     return data.decode("utf-8", errors="replace"), None
+
+
+def staged(root):
+    """[(path, bytes or None)]: each staged version that differs from its file on disk, or whose file is gone, its
+    bytes None where its object is missing; or None where git cannot read the index's objects at all, a corrupt
+    packed-refs among the causes, which check() makes a finding. A plain `git commit` takes the index, so a key
+    staged and then edited out of its file would be committed though the file no longer shows it (P0.2's
+    verifier, round 4). One `git cat-file --batch` reads them all."""
+    # a gitlink names another repository's commit, and no blob here
+    entries = [(path, oid) for mode, oid, path in index(root) if mode != b"160000"]
+    if not entries:
+        return []
+    run = subprocess.run(["git", "-C", str(root), "cat-file", "--batch"],
+                         input=b"".join(oid + b"\n" for _, oid in entries), capture_output=True, env=git_env())
+    if run.returncode != 0:
+        return None
+    batch, out, at = run.stdout, [], 0
+    for path, oid in entries:
+        end = batch.index(b"\n", at)
+        header = batch[at:end].split(b" ")
+        if header[1:] == [b"missing"]:
+            out.append((path, None))
+            at = end + 1
+            continue
+        size = int(header[2])
+        data, at = batch[end + 1:end + 1 + size], end + 1 + size + 1
+        try:
+            disk = committed(root / path)
+        except OSError:
+            disk = None
+        if data != disk:
+            out.append((path, data))
+    return out
 
 
 def mask(s):
@@ -162,33 +265,52 @@ def findings(text, alternatives=None):
 
 
 def check(root):
-    bad, unread, n = [], [], 0
-    for p in files(root):
-        text, why = read(p)
+    bad, unread, n, staged_read = [], [], 0, 0
+    listed, repositories = files(root)
+    # a nested repository, which git commits as a gitlink (P0.2's verifier, round 4)
+    nested = [f"{p.relative_to(root).as_posix()}/: a nested repository, committed as a gitlink, never as its files"
+              for p in repositories]
+    for p in listed:
         rel = p.relative_to(root).as_posix()
+        text, why = read(p)
         if text is None:
             (unread if why == "binary" else bad).append(f"{rel}: {why}")
             continue
         n += 1
         for kind, name, s in findings(text):
             bad.append(f"{rel}: a {kind} ({name}), {mask(s)}")
+    if in_git(root):
+        versions = staged(root)
+        if versions is None:
+            bad.append("staged versions: unread, as git cat-file failed")
+        for path, data in versions or []:
+            text, why = (None, "unreadable: its object missing") if data is None else decode(data)
+            if text is None:
+                (unread if why == "binary" else bad).append(f"{path} (staged): {why}")
+                continue
+            staged_read += 1
+            for kind, name, s in findings(text):
+                bad.append(f"{path} (staged): a {kind} ({name}), {mask(s)}")
     msgs = 0
-    if (root / ".git").exists():
-        r = subprocess.run(["git", "-C", str(root), "log", "--format=%H%x00%B%x01"], capture_output=True, text=True,
-                           encoding="utf-8", errors="replace", env=dict(git_env(), LC_ALL="C"))
+    if in_git(root):
+        r = subprocess.run(["git", "-C", str(root), "log", "-z", "--encoding=UTF-8", "--format=%H%n%B"],
+                           capture_output=True, text=True, encoding="utf-8", errors="replace",
+                           env=dict(git_env(), LC_ALL="C"))
         # Only an unborn branch is no history, as git says it in the C locale; anything else that fails git log is
         # a finding (P0.2's verifier, round 3: HEAD's rev-parse fails for a broken ref as for an unborn one).
         if r.returncode != 0 and "does not have any commits yet" not in r.stderr:
             bad.append("commit messages: unread, as git log failed")
-        for entry in r.stdout.split("\x01") if r.returncode == 0 else []:
-            if "\x00" not in entry:
+        for entry in r.stdout.split("\x00") if r.returncode == 0 else []:
+            sha, line_feed, body = entry.partition("\n")
+            if not line_feed:
                 continue
-            sha, body = entry.split("\x00", 1)
             msgs += 1
             for kind, name, s in findings(body):
                 bad.append(f"commit {sha.strip()[:7]}: a {kind} ({name}), {mask(s)}")
     summary = f"{n} files and {msgs} commit messages read; {len(unread)} binary files not read"
-    return bad, summary + "".join(f"\n  not read: {u}" for u in unread)
+    if staged_read:
+        summary += f"; {staged_read} staged versions that differ from their files read"
+    return bad, summary + "".join(f"\n  not read: {u}" for u in unread + nested)
 
 
 # -- controls: each alternative, and each way of finding a file, watched to fail ---------------------------------
@@ -233,10 +355,14 @@ PLANTS = {
 
 
 def _copy(root, dest):
-    for p in files(root):
+    """What the gate reads of root, each file's committed bytes, a symbolic link's text among them, as a plain file;
+    a nested repository, not read, is not copied. A copy made through a symbolic link, as a mutant of this made
+    it, stops the controls with IsADirectoryError at one to a directory (P0.4's verifier, round 2, N4, MEASURED
+    under WSL)."""
+    for p in files(root)[0]:
         t = dest / p.relative_to(root)
         t.parent.mkdir(parents=True, exist_ok=True)
-        shutil.copy2(p, t)
+        t.write_bytes(committed(p))
     return dest
 
 
@@ -267,7 +393,7 @@ def control(root):
     for what, plant in FILE_CONTROLS:
         with tempfile.TemporaryDirectory() as td:
             r = _copy(root, Path(td) / "copy")
-            if (root / ".git").exists():
+            if in_git(root):
                 subprocess.run(["git", "-C", str(r), "init", "-q"], check=True, env=git_env())
             plant(r)
             ok = any(": a " in b for b in check(r)[0])   # a key or a path found, never a file unread (P0.2's

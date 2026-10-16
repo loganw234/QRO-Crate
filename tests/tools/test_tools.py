@@ -244,7 +244,10 @@ def test_a_history_git_cannot_read_is_a_finding_and_no_history_is_none(tmp_path)
     for name, fault in (("a", tip_gone), ("b", ref_emptied), ("c", packed_refs_corrupt)):
         r = git_tree(tmp_path / name, {"notes.md": "nothing to see" + chr(10)})
         fault(r)
-        assert "commit messages: unread, as git log failed" in privacy.check(r)[0], name
+        bad = privacy.check(r)[0]
+        assert "commit messages: unread, as git log failed" in bad, name
+        # with packed-refs corrupt, git reads no staged object either: a finding too, never a crash (P0.4)
+        assert ("staged versions: unread, as git cat-file failed" in bad) == (name == "c"), (name, bad)
     fresh = tmp_path / "fresh"
     fresh.mkdir()
     (fresh / "notes.md").write_text("nothing to see" + chr(10), encoding="utf-8")
@@ -269,6 +272,233 @@ def test_a_commit_message_not_in_utf8_is_read_not_a_crash(tmp_path):
                    env=hermetic_git(tmp_path))
     bad, summary = privacy.check(r)
     assert bad == [] and "1 commit messages read" in summary, (bad, summary)
+
+
+def test_a_key_staged_and_edited_out_of_its_file_is_found(tmp_path):
+    """P0.2's verifier, round 4: the gate read the file on disk, and a plain `git commit` takes what is staged."""
+    key = privacy.PLANTS["named:QISKIT_IBM_TOKEN"]
+    r = git_tree(tmp_path, {"notes.md": "nothing to see" + chr(10)})
+    (r / "notes.md").write_text(key + chr(10), encoding="utf-8")
+    subprocess.run(["git", "-C", str(r), "add", "notes.md"], check=True, env=hermetic_git(tmp_path))
+    (r / "notes.md").write_text("nothing to see" + chr(10), encoding="utf-8")
+    bad, summary = privacy.check(r)
+    assert [b for b in bad if b.startswith("notes.md (staged): a key (")] and (
+        "; 1 staged versions that differ from their files read" in summary), (bad, summary)
+
+
+@pytest.mark.parametrize("encoding, lead", [(None, chr(1)), ("UTF-16", ""), ("UTF-16LE", ""), ("UTF-32", "")],
+                         ids=["a 0x01 byte before the key", "UTF-16", "UTF-16LE", "UTF-32"])
+def test_a_key_in_a_commit_message_is_found_whatever_leads_it_or_encoding_is_asked(tmp_path, encoding, lead):
+    """P0.2's verifier, round 4: the gate split git log's output on a 0x01 byte, which a message may hold; and an
+    i18n.logOutputEncoding of UTF-16 or its kin wrote what the gate's decoding read as no key. git log now writes
+    UTF-8, and ends each message with a NUL."""
+    key = privacy.PLANTS["named:QISKIT_IBM_TOKEN"]
+    r = git_tree(tmp_path, {"notes.md": "nothing to see" + chr(10)}, message="a note" + chr(10) + chr(10) + lead + key)
+    if encoding:
+        subprocess.run(["git", "-C", str(r), "config", "i18n.logOutputEncoding", encoding], check=True,
+                       env=hermetic_git(tmp_path))
+    bad, _ = privacy.check(r)
+    assert [b for b in bad if b.startswith("commit ") and ": a key (" in b], bad
+
+
+def test_each_commit_message_is_read_as_one(tmp_path):
+    """P0.4: git log ends each message with a NUL, and the gate counts what it splits; two commits are two."""
+    r = git_tree(tmp_path, {"notes.md": "nothing to see" + chr(10)}, message="the first")
+    git = ["git", "-C", str(r), "-c", "user.name=x", "-c", "user.email=x@example.org"]
+    subprocess.run(git + ["commit", "-q", "--allow-empty", "-m", "the second"], check=True, env=hermetic_git(tmp_path))
+    bad, summary = privacy.check(r)
+    assert bad == [] and "1 files and 2 commit messages read" in summary, (bad, summary)
+
+
+def test_a_nested_repository_is_named_and_not_read(tmp_path):
+    """P0.2's verifier, round 4: git lists an untracked nested repository as a directory, which the gate failed as
+    unreadable. git commits it as a gitlink, never as its files: it is named, and not read, and the controls copy
+    without it."""
+    r = git_tree(tmp_path, {"notes.md": "nothing to see" + chr(10), "tools/check_privacy.py": "# a stand-in" + chr(10)})
+    git_tree(r / "nested", {"inner.md": "nothing" + chr(10)})
+    bad, summary = privacy.check(r)
+    assert bad == [] and "not read: nested/repo/: a nested repository" in summary, (bad, summary)
+    assert privacy.control(r) == 0
+
+
+def test_the_gate_reads_a_linked_worktree_whose_git_is_a_file(tmp_path):
+    """P0.2's verifier, round 4: the parcels build in linked worktrees, where .git is a file, and no test ran the
+    gate in one. P0.4's, round 1: each of git's three readings is held there, git's listing told from the walk a
+    copy with no .git gets by a key in a file git ignores, and the staged versions by a key staged and edited out."""
+    key = privacy.PLANTS["named:QISKIT_IBM_TOKEN"]
+    r = git_tree(tmp_path / "main", {"notes.md": "nothing to see" + chr(10), ".gitignore": "ignored.md" + chr(10)},
+                 message="a note" + chr(10) + chr(10) + key)
+    w = tmp_path / "linked"
+    subprocess.run(["git", "-C", str(r), "worktree", "add", "-q", str(w)], check=True, env=hermetic_git(tmp_path))
+    (w / "keys.md").write_text(key + chr(10), encoding="utf-8")
+    (w / "ignored.md").write_text(key + chr(10), encoding="utf-8")
+    (w / "notes.md").write_text(key + chr(10), encoding="utf-8")
+    subprocess.run(["git", "-C", str(w), "add", "notes.md"], check=True, env=hermetic_git(tmp_path))
+    (w / "notes.md").write_text("nothing to see" + chr(10), encoding="utf-8")
+    found = sorted({b.split(": a key (")[0] for b in privacy.check(w)[0]})        # two alternatives find each key
+    assert (w / ".git").is_file() and found[1:] == ["keys.md", "notes.md (staged)"] and found[0].startswith(
+        "commit "), found
+
+
+def simulate_links(monkeypatch, texts):
+    """Make each name in texts a symbolic link, with that text, as the gate sees it. This machine may not make one
+    (Windows without Developer Mode refuses, WinError 1314), so the gate's is_symlink and readlink are told; the
+    lead's run under WSL (docs/VALIDATION.md) holds what git and the system do with real ones."""
+    is_symlink, readlink = privacy.Path.is_symlink, privacy.os.readlink
+    monkeypatch.setattr(privacy.Path, "is_symlink", lambda p: p.name in texts or is_symlink(p))
+    monkeypatch.setattr(privacy.os, "readlink", lambda p: texts.get(Path(p).name) or readlink(p))
+
+
+@pytest.mark.parametrize("disk", ["an empty directory", "nothing"])
+def test_a_gitlink_is_named_a_nested_repository_and_not_read_as_a_blob(tmp_path, disk):
+    """P0.4's verifier, round 1: no test reached the staged reader's skip of a gitlink, which names another
+    repository's commit and no blob here; read as a blob, every submodule would be an object missing. Staged by hand,
+    it names a commit this repository does not hold, as a submodule's does. With a directory at its path, or nothing,
+    it is named a nested repository."""
+    r = git_tree(tmp_path, {"notes.md": "nothing to see" + chr(10)})
+    subprocess.run(["git", "-C", str(r), "update-index", "--add", "--cacheinfo", "160000," + "1" * 40 + ",linked"],
+                   check=True, env=hermetic_git(tmp_path))
+    if disk == "an empty directory":
+        (r / "linked").mkdir()
+    bad, summary = privacy.check(r)
+    assert bad == [] and "not read: linked/: a nested repository" in summary, (bad, summary)
+
+
+@pytest.mark.parametrize("disk", ["a file", "a symbolic link to a directory", "a dangling symbolic link"])
+def test_a_gitlink_whose_path_holds_a_file_or_a_symbolic_link_is_read(tmp_path, monkeypatch, disk):
+    """P0.4's verifier, round 2, R2-1: the gate named every gitlink a nested repository and read nothing at its path,
+    so a file or a symbolic link there, which `git add -A` and `git commit -a` commit in the gitlink's place, passed
+    with a key in it. A gitlink is a nested repository only while a directory that is no link, or nothing, is at
+    its path. Round 3: a dangling link is something there, though it names nothing (`lexists`, never `exists`)."""
+    key = privacy.PLANTS["named:QISKIT_IBM_TOKEN"]
+    r = git_tree(tmp_path, {"notes.md": "nothing to see" + chr(10)})
+    subprocess.run(["git", "-C", str(r), "update-index", "--add", "--cacheinfo", "160000," + "1" * 40 + ",sub"],
+                   check=True, env=hermetic_git(tmp_path))
+    if disk == "a file":
+        (r / "sub").write_text(key + chr(10), encoding="utf-8")
+    elif disk == "a symbolic link to a directory":
+        (r / "sub").mkdir()
+        simulate_links(monkeypatch, {"sub": key})
+    else:
+        lexists = privacy.os.path.lexists
+        monkeypatch.setattr(privacy.os.path, "lexists", lambda p: Path(p).name == "sub" or lexists(p))
+        simulate_links(monkeypatch, {"sub": key})
+    bad, summary = privacy.check(r)
+    assert [b for b in bad if b.startswith("sub: a key (")] and "nested repository" not in summary, (bad, summary)
+
+
+@pytest.mark.parametrize("arm", ["an object missing", "a file gone from disk", "a binary version"])
+def test_each_arm_of_the_staged_reader(tmp_path, arm):
+    """P0.4's verifier, round 1: three arms of the staged reader no test reached. A staged version whose object git
+    does not hold cannot be read: a finding. A key staged in a file then deleted is in the commit: found. A staged
+    version that is binary is listed by name and not read, as a binary file is."""
+    key = privacy.PLANTS["named:QISKIT_IBM_TOKEN"]
+    r = git_tree(tmp_path, {"notes.md": "nothing to see" + chr(10)})
+    git = ["git", "-C", str(r)]
+    if arm == "an object missing":
+        subprocess.run(git + ["update-index", "--add", "--cacheinfo", "100644," + "1" * 40 + ",ghost.md"], check=True,
+                       env=hermetic_git(tmp_path))
+    else:
+        (r / "x.md").write_bytes((b"\0" if arm == "a binary version" else b"") + key.encode("ascii") + b"\n")
+        subprocess.run(git + ["add", "x.md"], check=True, env=hermetic_git(tmp_path))
+        if arm == "a file gone from disk":
+            (r / "x.md").unlink()
+        else:
+            (r / "x.md").write_text("nothing to see" + chr(10), encoding="utf-8")
+    bad, summary = privacy.check(r)
+    if arm == "an object missing":
+        assert "ghost.md (staged): unreadable: its object missing" in bad, bad
+    elif arm == "a file gone from disk":
+        assert [b for b in bad if b.startswith("x.md (staged): a key (")], bad
+    else:
+        assert bad == [] and "not read: x.md (staged): binary" in summary, (bad, summary)
+
+
+def test_a_tracked_file_a_directory_replaced_is_unreadable_and_no_nested_repository(tmp_path):
+    """P0.4's verifier, round 1: the gate took every directory git listed for a nested repository, so a tracked file
+    a directory replaced was named one, and passed. Only git's own marks name one now, and the file git would take
+    from disk cannot be read: a finding, as a tracked file deleted is."""
+    r = git_tree(tmp_path, {"notes.md": "nothing to see" + chr(10), "gone.md": "soon a directory" + chr(10)})
+    (r / "gone.md").unlink()
+    (r / "gone.md").mkdir()
+    (r / "gone.md" / "inner.md").write_text("nothing to see" + chr(10), encoding="utf-8")
+    bad, summary = privacy.check(r)
+    assert [b for b in bad if b.startswith("gone.md: unreadable")] and "nested repository" not in summary, (
+        bad, summary)
+
+
+def test_a_link_is_read_as_its_own_text_which_git_commits(tmp_path, monkeypatch):
+    """P0.4's verifier, round 1, MEASURED under WSL: an untracked symbolic link to a directory was taken for a nested
+    repository and passed, where git commits the link's own text, and a home path is among what that text can be;
+    one to a file was read as the file it names. The link is simulated (simulate_links)."""
+    r = git_tree(tmp_path, {"notes.md": "nothing to see" + chr(10)})
+    (r / "link").write_text("nothing to see" + chr(10), encoding="utf-8")
+    simulate_links(monkeypatch, {"link": "/" + "home" + "/someone/x"})
+    bad, _ = privacy.check(r)
+    assert [b for b in bad if b.startswith("link: a path (posix-home), ")], bad
+
+
+def test_a_named_pipe_or_a_device_is_a_finding_and_never_read(tmp_path, monkeypatch):
+    """P0.4's verifier, round 3, MEASURED under WSL: a named pipe at a tracked file's path, or at a gitlink's, held
+    the gate for ever, read as a file. It is neither a file, a directory nor a link, so it is unreadable, a finding.
+    This machine makes no pipe, so the pipe here is a file the gate's is_file calls none."""
+    r = git_tree(tmp_path, {"notes.md": "nothing to see" + chr(10), "pipe": "nothing to see" + chr(10)})
+    is_file = privacy.Path.is_file
+    monkeypatch.setattr(privacy.Path, "is_file", lambda p: p.name != "pipe" and is_file(p))
+    assert "pipe: unreadable: OSError" in privacy.check(r)[0]
+
+
+def test_a_staged_symbolic_link_is_held_to_its_text_not_to_what_it_names(tmp_path, monkeypatch):
+    """P0.4's verifier, round 2, N4: the staged reader holds a version to the bytes git would commit from disk, a
+    symbolic link's own text. Held to what the link names, every tracked link would be read again, as a version
+    that differs. git holds a link as mode 120000 and its text; the link is simulated."""
+    r = git_tree(tmp_path, {"notes.md": "nothing to see" + chr(10)})
+    env = hermetic_git(tmp_path)
+    oid = subprocess.run(["git", "-C", str(r), "hash-object", "-w", "--stdin"], input=b"elsewhere/x.md",
+                         capture_output=True, check=True, env=env).stdout.decode("ascii").strip()
+    subprocess.run(["git", "-C", str(r), "update-index", "--add", "--cacheinfo", "120000," + oid + ",link"],
+                   check=True, env=env)
+    (r / "link").write_text("what it names" + chr(10), encoding="utf-8")
+    simulate_links(monkeypatch, {"link": "elsewhere/x.md"})
+    bad, summary = privacy.check(r)
+    assert bad == [] and "staged versions" not in summary, (bad, summary)
+
+
+def test_the_controls_copy_a_symbolic_link_as_its_own_text(tmp_path, monkeypatch):
+    """P0.4's verifier, round 2, N4: the controls copy what the gate reads. Through a symbolic link, a copy took
+    what the link names, and one to a directory stopped the controls with IsADirectoryError (MEASURED under WSL).
+    The link is simulated."""
+    r = git_tree(tmp_path, {"notes.md": "nothing to see" + chr(10)})
+    (r / "link").write_text("what it names" + chr(10), encoding="utf-8")
+    simulate_links(monkeypatch, {"link": "elsewhere/x.md"})
+    assert (privacy._copy(r, tmp_path / "copy") / "link").read_bytes() == b"elsewhere/x.md"
+
+
+def test_the_controls_copies_of_a_linked_worktree_are_repositories_of_their_own(tmp_path, monkeypatch):
+    """P0.4's verifier, round 2, N4: where .git is a file, the controls still `git init` each copy. Else the file
+    controls read the walk a copy with no .git gets, never git's listing, which the control of a name not in ASCII
+    is there to hold."""
+    r = git_tree(tmp_path / "main", {"notes.md": "nothing to see" + chr(10),
+                                     "tools/check_privacy.py": "# a stand-in" + chr(10)})
+    w = tmp_path / "linked"
+    subprocess.run(["git", "-C", str(r), "worktree", "add", "-q", str(w)], check=True, env=hermetic_git(tmp_path))
+    seen, check = [], privacy.check
+    monkeypatch.setattr(privacy, "check", lambda root: seen.append((root / ".git").is_dir()) or check(root))
+    assert privacy.control(w) == 0 and seen == [False] + [True] * len(privacy.FILE_CONTROLS), seen
+
+
+def test_a_tree_with_no_git_is_walked_but_for_git_directories_and_caches(tmp_path):
+    """P0.4's verifier, round 2, N3: no test ran the gate on a tree with no .git, as a copy is. The walk reads every
+    file below the root, and finds a key in one, but for those in a .git, a nested repository's, and the caches."""
+    key = privacy.PLANTS["named:QISKIT_IBM_TOKEN"]
+    r = tmp_path / "copy"
+    for rel in ("notes.md", "sub/.git/config", "__pycache__/x.txt", ".pytest_cache/x.txt", ".ruff_cache/x.txt",
+                ".gate-state/x.txt"):
+        (r / rel).parent.mkdir(parents=True, exist_ok=True)
+        (r / rel).write_text(key + chr(10), encoding="utf-8")
+    bad, summary = privacy.check(r)
+    assert {b.split(":")[0] for b in bad} == {"notes.md"} and summary.startswith("1 files and 0 commit messages"), (
+        bad, summary)
 
 
 def test_the_gates_command_line_exits_as_its_verdict_in_both_modes(tmp_path):

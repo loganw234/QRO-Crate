@@ -147,7 +147,7 @@ A term stands only on the entities its domain admits: `*` any, `./` the root, th
 | <a id="deviceKind"></a>`qro:deviceKind` | REPORTED | word:device-kind | no | - | body | - | `IndividualProduct` | P1 | whether a device is a quantum processor |
 | <a id="device"></a>`qro:device` | REPORTED | ref | no | - | body | - | `qro:Job`, `qro:Snapshot` | P1 | the device a job ran on, or a snapshot is of |
 | <a id="jobId"></a>`qro:jobId` | REPORTED | text | no | - | body | - | `qro:Job` | P1 | the provider's job id |
-| <a id="line"></a>`qro:line` | READ | ref | no | - | body | - | `qro:Job` | P1 | the job line: Quantum-Film's record of a job and its commitments, written before any result was read |
+| <a id="line"></a>`qro:line` | READ | ref | no | - | body | - | `qro:Job` | P1 | the job line: Quantum-Film's record of the job and its commitments, written before any result was read |
 | <a id="kitCommit"></a>`qro:kitCommit` | REPORTED | commit | no | `unknown` | body | - | `qro:Job` | P1 | the commit of the code that submitted the job |
 | <a id="role"></a>`qro:role` | READ | word:role | no | - | body | - | `qro:Pub` | P1 | what a PUB's circuit was for |
 | <a id="basis"></a>`qro:basis` | READ | text | no | - | body | - | `qro:Pub` | P1 | the basis each qubit is read in, qubit 0 first |
@@ -166,7 +166,7 @@ A term stands only on the entities its domain admits: `*` any, `./` the root, th
 | `startTime` | ANCHORED | time | no | `unknown` | body | - | `qro:Job` | P1 | when a job's shots began |
 | `endTime` | ANCHORED | time | no | `unknown` | body | - | `qro:Job` | P1 | when a job's shots ended |
 | <a id="law"></a>`qro:law` | CHECKED | ref | no | - | body | 6 | `qro:Question` | P2 | the law table: a File in qro-law/1 form, held to its sum, its support and the question's law circuit |
-| <a id="lawCircuit"></a>`qro:lawCircuit` | CHECKED | ref | no | - | body | 6 | `qro:Question` | P2 | the question's circuit that lays the law; step 6 simulates it and holds the law table to it |
+| <a id="lawCircuit"></a>`qro:lawCircuit` | CHECKED | ref | no | - | body | 6 | `qro:Question` | P2 | the question's circuit that lays the law; step 6 simulates it and holds the law table and its coherences to it |
 | <a id="twins"></a>`qro:twins` | CHECKED | word:twin | yes | - | body | 6 | `qro:Question` | P2 | the classical twins the question names |
 | <a id="measureSet"></a>`qro:measureSet` | CHECKED | text | no | - | body | 6 | `qro:Question` | P2 | the measure set's definition and version |
 | <a id="alpha"></a>`qro:alpha` | CHECKED | rational | no | - | body | 6 | `qro:Measuring` | P2 | the crate's certified intervals hold together with probability at least 1 - alpha |
@@ -176,7 +176,7 @@ A term stands only on the entities its domain admits: `*` any, `./` the root, th
 | <a id="class"></a>`qro:class` | CHECKED | word:class | no | - | body | 6 | `qro:Contrast` | P2 | the law's expected value against the twin's: computed, never declared |
 | <a id="lawValue"></a>`qro:lawValue` | CHECKED | rational | no | - | body | 6 | `qro:Contrast` | P2 | a scalar measure's expected value under the law |
 | <a id="twinValue"></a>`qro:twinValue` | CHECKED | rational | no | - | body | 6 | `qro:Contrast` | P2 | its expected value under the twin |
-| <a id="measuredPub"></a>`qro:measuredPub` | CHECKED | ref | no | - | body | 6 | `qro:Measurement` | P2 | the PUB whose shots are measured |
+| <a id="measuredPub"></a>`qro:measuredPub` | CHECKED | ref | no | - | body | 6 | `qro:Measurement` | P2 | the Pub whose shots are measured |
 | <a id="inScope"></a>`qro:inScope` | CHECKED | integer | no | - | body | 6 | `qro:Measurement` | P2 | the shots in the measure's domain, counted from the raw bytes |
 | <a id="value"></a>`qro:value` | CHECKED | rational | no | `none` | body | 6 | `qro:Measurement` | P2 | the measure's value, an exact ratio of whole counts; none when no shot is in scope |
 | <a id="lower"></a>`qro:lower` | CHECKED | rational | no | - | body | 6 | `qro:Measurement` | P2 | the certified interval's lower end, rounded outward |

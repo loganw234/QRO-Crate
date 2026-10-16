@@ -227,14 +227,20 @@ OTHER = {"@id": "https://example.org/another-profile", "@type": ["CreativeWork",
     (lambda md: entity(md, V.PROFILE).update(description="a profile"), "graph-form", V.PROFILE),
     (lambda md: entity(md, PRC).update({"@type": "Profile"}), "graph-form", PRC),
     (lambda md: fixture.with_entity(md, dict(OTHER)), "graph-form", OTHER["@id"]),
-    (lambda md: entity(md, V.PROFILE).update(version="0.2", name="another"), "graph-form", V.PROFILE)],
+    (lambda md: entity(md, V.PROFILE).update(version="0.2", name="another"), "graph-form", V.PROFILE),
+    (lambda md: entity(md, V.PROFILE).update(version=1), "graph-form", V.PROFILE),
+    (lambda md: entity(md, V.PROFILE).update(version=0.1), "graph-form", V.PROFILE),
+    (lambda md: fixture.with_entity(md, {"@id": "https://example.org/typed-profile-only", "@type": "Profile",
+                                         "name": "x", "version": "1"}), "graph-form",
+     "https://example.org/typed-profile-only")],
     ids=["this profile's entity missing", "Process Run Crate's missing", "this profile at another version",
          "Process Run Crate at another version", "no version", "a key more", "typed Profile alone",
-         "a Profile entity for no profile the root conformsTo", "another version and another name"])
+         "a Profile entity for no profile the root conformsTo", "another version and another name",
+         "a version that is no text", "a version that is a float", "a Profile entity typed Profile alone"])
 def test_each_profile_the_root_conforms_to_has_its_contextual_entity_exactly(tmp_path, fault, refusal, where):
     """RO-Crate 1.3 requires a contextual entity for each profile in conformsTo, and the study's section 3 says so;
     P0 wrote none (P4's design, found 1). The reader holds both to the table's, and names another version
-    `context`."""
+    `context`; a version that is no text, an integer or a float (P0.4's verifier, round 2, N5), is `graph-form`."""
     with pytest.raises(Refused) as e:
         checker.check(edit(crate(tmp_path), fault))
     assert (e.value.name, e.value.where) == (refusal, where)
@@ -257,7 +263,12 @@ def test_the_profiles_are_held_after_the_roots_conformsto_and_before_its_referen
         md["@graph"].remove(entity(md, V.PROFILE))
         md["@graph"][1]["hasPart"] = sorted(md["@graph"][1]["hasPart"] + [{"@id": "data/none.txt"}],
                                             key=lambda r: r["@id"])
-    for name, fault, where in (("a", wrong_conformance, "./ conformsTo"), ("b", dangling, V.PROFILE)):
+    def unmentioned(md):
+        md["@graph"].remove(entity(md, V.PROFILE))
+        fixture.with_entity(md, {"@id": "#run", "@type": "CreateAction"})
+
+    for name, fault, where in (("a", wrong_conformance, "./ conformsTo"), ("b", dangling, V.PROFILE),
+                               ("c", unmentioned, V.PROFILE)):
         with pytest.raises(Refused) as e:
             checker.check(edit(fixture.make(tmp_path / name), fault))
         assert (e.value.name, e.value.where) == ("graph-form", where), name

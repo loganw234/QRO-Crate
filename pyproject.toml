@@ -18,8 +18,9 @@ norecursedirs = []
 # raises as it imports or collects the module (P0.2's verifier, round 2, MEASURED); and pytest warns of the tuple
 # only as it rewrites the module, so a stage that loads a rewrite cached by a run with no filter does not see it
 # (MEASURED, pytest 9.1.1). A fresh checkout holds no cached rewrite. And a test module is code: a warnings
-# filter it sets as it is imported, or one a helper it imports sets, lifts any of the four for the modules
-# imported after it (P0.2's verifier, round 3, MEASURED).
+# filter it sets as it is imported, or one a helper it imports sets, lifts the three raised at collection for
+# the modules imported after it; the returned value's pin, raised as the test runs, holds (P0.2's verifier,
+# rounds 3 and 4, MEASURED).
 filterwarnings = ["error::pytest.PytestCollectionWarning", "error::pytest.PytestReturnNotNoneWarning",
                   "error::pytest.PytestUnknownMarkWarning", "error::pytest.PytestAssertRewriteWarning"]
 

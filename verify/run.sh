@@ -26,7 +26,7 @@
 #   §6  a run id of timestamp + pid + commit; per-stage .ok markers; --resume
 #       reruns only what has not passed, and REFUSES to cross commits, to run
 #       on a dirty tree (two dirty trees of one commit share an id), or to run
-#       in another environment (the interpreter, its packages, moth-quantum's checkout);
+#       in another environment (the interpreter, its packages, moth-quantum's checkout, the SHACL engine);
 #   §7  an append-only JSONL record of every stage verdict.
 #
 # USAGE
@@ -168,10 +168,24 @@ RUNDIR="$STATEROOT/$RUNID"
 mkdir -p "$STATEROOT"
 
 # What a stage runs against that is not in the tree: the interpreter and its
-# packages, the variables that decide what an import finds, and the moth-quantum
+# packages, the variables that decide what an import finds, the moth-quantum
 # checkout the instruments stage reads (its commit and whether it is clean, never
-# its path). A resumed run once reported a stage passed for an environment that
+# its path), and the SHACL engine P4's stage runs (its interpreter's path, and its
+# packages). A resumed run once reported a stage passed for an environment that
 # failed a fresh run (moth-quantum, verifier-P0's re-check).
+#
+# An interpreter's packages are each distribution it finds, as name==version, sorted, and hashed. Each is read
+# with .get, so that one with no name or version is listed as None==None: the expression once added None to a
+# string, and raised TypeError (P0.4's verifier, round 1); indexing a missing key raises KeyError where the
+# standard library follows importlib_metadata 8 (round 2); and the runner hashed the traceback, which lists no
+# package at all. A listing that fails for any other reason, a METADATA not in UTF-8 say, is no list: its hash is
+# made unique, so that --resume refuses the environment, never takes a traceback for one (round 3).
+PACKAGES='import importlib.metadata as m; print(sorted("%s==%s" % ((d.metadata or {}).get("Name"), (d.metadata or {}).get("Version")) for d in m.distributions()))'
+packages () {                   # packages INTERPRETER [OPTION...]: its packages' hash
+  local out
+  out=$("$@" -c "$PACKAGES" 2>&1) || out="no list: $(date +%s%N) $$ $RANDOM"
+  printf '%s' "$out" | sha256sum | cut -c1-16
+}
 fingerprint () {
   local moth=absent
   if [ -n "${QRO_MOTH_ROOT:-}" ]; then
@@ -180,18 +194,19 @@ fingerprint () {
   fi
   echo "python=$(python -c 'import sys; print(sys.version.split()[0])' 2>&1)"
   echo "tools=$(python -m ruff --version 2>&1) / $(python -m pytest --version 2>&1 | head -1)"
-  echo "packages=$(python -c 'import importlib.metadata as m; print(sorted(f"{d.metadata["Name"]}=={d.version}" for d in m.distributions()))' 2>&1 | sha256sum | cut -c1-16)"
+  echo "packages=$(packages python)"
   echo "import-path=PYTHONPATH:${PYTHONPATH:-} PYTHONSAFEPATH:${PYTHONSAFEPATH:-} PYTHONHOME:${PYTHONHOME:-}"
   echo "machine=$(python -c 'import platform; print(platform.platform(), platform.machine())' 2>&1)"
   echo "moth-quantum=$moth"
   echo "shacl-engine=$(shacl_engine)"
 }
 
-# The SHACL engine of P4's p4-shacl stage, by its interpreter and the packages it holds, so that a run resumed
-# under another engine is not taken for this one's (P0.3's verifier, round 1).
+# The SHACL engine of P4's p4-shacl stage, by its interpreter and the packages it holds, read isolated (-I), so
+# that no variable of the runner's moves what it finds; and so that a run resumed under another engine is not
+# taken for this one's (P0.3's verifier, round 1).
 shacl_engine () {
   if [ -z "${QRO_SHACL_PYTHON:-}" ]; then echo absent; return; fi
-  echo "$QRO_SHACL_PYTHON $("$QRO_SHACL_PYTHON" -I -c 'import importlib.metadata as m; print(sorted(f"{d.metadata["Name"]}=={d.version}" for d in m.distributions()))' 2>&1 | sha256sum | cut -c1-16)"
+  echo "$QRO_SHACL_PYTHON $(packages "$QRO_SHACL_PYTHON" -I)"
 }
 if [ -z "$RESUME" ]; then
   # Two fresh runs in one second once shared a directory, and the second read
@@ -202,7 +217,7 @@ if [ -z "$RESUME" ]; then
 else
   [ -d "$RUNDIR" ] || die "--resume: there is no run $RUNID under $STATEROOT"
   [ "$(fingerprint)" = "$(cat "$RUNDIR/environment" 2>/dev/null)" ] || die "--resume: this environment is not
-  the run's (python and its packages, the import path, or moth-quantum's checkout); see $RUNDIR/environment. Use --fresh."
+  the run's (python and its packages, the import path, moth-quantum's checkout, or the SHACL engine); see $RUNDIR/environment. Use --fresh."
 fi
 JSONL="$RUNDIR/stages.jsonl"
 
@@ -281,8 +296,9 @@ stage() {
 }
 
 # Set a skip reason for the NEXT stage when what it needs is absent. A
-# missing tool must never look like a pass.
-need ()      { command -v "$1" >/dev/null 2>&1 || STAGE_SKIP_REASON="$2"; }
+# missing tool must never look like a pass. The command guard moth-quantum's
+# runner has, `need`, is gone: nothing called it, and no rule read a call of
+# it (P0.4's verifier, round 3).
 need_file () { [ -e "$1" ] || STAGE_SKIP_REASON="$2"; }
 need_env ()  { [ -n "${!1:-}" ] || STAGE_SKIP_REASON="$2"; }
 

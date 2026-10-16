@@ -212,8 +212,8 @@ can hold each one to the study.
     `profile_entities()` in qro/vocabulary.py states them, for this profile
     and for Process Run Crate. The reader holds both at step 1: a missing or
     misshapen one is `graph-form`, and so is a `Profile` entity for no
-    profile the root conformsTo; one declaring another version is
-    `context` (P0.3; P4's design, found 1, R3 and D10). The descriptor is
+    profile the root conformsTo; one declaring another version, as text,
+    is `context` (P0.3; P4's design, found 1, R3 and D10). The descriptor is
     likewise one function of the table, `descriptor()`.
 
 ## Stated limits of P0's format

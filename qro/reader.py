@@ -10,10 +10,10 @@ in this order (cft-fp256's strict reader, docs/CERTIFICATES.md:852-899, READ, ad
      its path in the crate, in the path spelling (`spelling`); no @id twice, no two paths, a file's directories
      and the descriptor among them, whose names differ only by case, nor a path both a file and a directory,
      the graph in its order, the descriptor and the root as this profile states them, the root a Dataset and
-     never an action, the root carrying
-     every term it must, each profile the root conformsTo having its contextual entity as the table states it
-     (one declaring another version is `context`: this reader reads one version of each, P0.3), the root
-     mentioning every action, and every reference to a relative @id naming an entity: `graph-form`. A reference whose @id is not in the `iri` spelling is relative, so one that only looks
+     never an action, the root carrying every term it must, each profile the root conformsTo having its contextual
+     entity as the table states it (one declaring another version, as text, is `context`: this reader reads one
+     version of each, P0.3), the root mentioning every action, and every reference to a relative @id naming an
+     entity: `graph-form`. A reference whose @id is not in the `iri` spelling is relative, so one that only looks
      like an IRI (`http:`, a space or a control character in it) names no entity, and is `graph-form` too;
   5. every key is a term: `term-unknown` if neither the vocabulary nor RO-Crate 1.3's context names it,
      `field-kind` if RO-Crate's context defines it but the vocabulary gives it no kind; every type is listed:
@@ -211,13 +211,14 @@ def _graph(graph):
 
 def _profiles(graph):
     """Each profile the root conformsTo has its contextual entity, exactly as the table states it; one declaring
-    another version is `context`, since this reader reads one version of each (P4's design, R3 and D10; P0.3)."""
+    another version, as text, is `context`, since this reader reads one version of each (P4's design, R3 and D10;
+    P0.3). A version that is no text is a misshapen entity (P0.4)."""
     held = {e["@id"]: e for e in graph if "Profile" in canonical.types(e)}
     for want in V.profile_entities():
         have = held.pop(want["@id"], None)
         if have is None:
             raise Refused("graph-form", want["@id"], "each profile the root conformsTo has its contextual entity")
-        if have != want and "version" in have and {**have, "version": want["version"]} == want:
+        if have != want and isinstance(have.get("version"), str) and {**have, "version": want["version"]} == want:
             raise Refused("context", f"{want['@id']} version",
                           f"the crate declares {have['version']}; this reader reads {want['version']}")
         if have != want:

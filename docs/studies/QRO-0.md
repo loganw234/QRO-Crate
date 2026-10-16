@@ -3353,7 +3353,7 @@ read again, both unchanged (NOTICE.md).
 **A correction to control `qpy-only`, 2026-10-15, from P1's design.**
 Section 11's row said the plant recomputes the digests and the
 commitment and leaves the gate list. In moth-quantum, the commitment
-binds the QPY file's own digest (quantum_film/ibm/bundle.py:7), and
+binds the QPY file's own digest (quantum_film/ibm/bundle.py:7 and 17), and
 IBM's echo of the commitment sits inside the raw result. P1's design
 found, on kingston's morning known-answer job, that a step 4 held to the
 echo refuses the plant as the row worded it, `commitment`, and accepts

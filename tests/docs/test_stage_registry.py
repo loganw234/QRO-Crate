@@ -32,8 +32,9 @@ among them, and no conftest.py; none of either sits at the root or under tests/;
 lines are the pinned ones (round 3, note 7), its refusal of a `pytest_plugins` line among them (round 3, G3). A
 parcel's test files carry its prefix, so two parcels' never share a name (round 1, D3). Each `need_file` guards
 the next stage the runner calls, which runs what it guards, a pytest stage its directory and a tool's stage its
-script; each `need_env` names a variable the runner reads elsewhere (P0.3); and the quick budget is every stage
-but the six CLAUDE.md names (round 2, note 4.1.2; round 3, note 5; P0.3).
+script; each `need_env` names a variable the runner reads elsewhere, in no comment, and gives a reason naming it;
+every guard is called in the one form these rules read (P0.3; P0.4); and the quick budget is every stage but the
+six CLAUDE.md names (round 2, note 4.1.2; round 3, note 5; P0.3).
 A test no stage runs is reported among the files git would commit (stray_tests; P0.1's verifier, round 4, N2): a
 test file outside tests/, and a module under tests/ that pytest does not collect but that holds a line beginning
 `def test` or `class Test`, pytest's own naming. git runs here as in the privacy gate, without the variables git
@@ -301,6 +302,27 @@ def test_committed_files_fail_loudly_where_git_cannot_list_them(tmp_path, monkey
         committed_files(tmp_path)
 
 
+def test_committed_files_reads_a_linked_worktree_whose_git_is_a_file(tmp_path, monkeypatch):
+    """P0.2's verifier, round 4: the parcels build in linked worktrees, and no test listed one's files. An ignored
+    file tells git's listing from the walk a copy with no .git gets (P0.4's verifier, round 1)."""
+    import subprocess
+    empty = tmp_path / "gitconfig-empty"
+    empty.write_text("", encoding="utf-8")
+    for k, v in (("GIT_CONFIG_GLOBAL", str(empty)), ("GIT_CONFIG_NOSYSTEM", "1"),
+                 ("XDG_CONFIG_HOME", str(tmp_path / "xdg"))):
+        monkeypatch.setenv(k, v)
+    repo, w = tmp_path / "repo", tmp_path / "linked"
+    repo.mkdir()
+    (repo / "a.py").write_text("", encoding="utf-8")
+    (repo / ".gitignore").write_text("ignored.py" + chr(10), encoding="utf-8")
+    git = ["git", "-C", str(repo), "-c", "user.name=x", "-c", "user.email=x@example.org"]
+    for args in (["init", "-q"], ["add", "-A"], ["commit", "-q", "-m", "one"], ["worktree", "add", "-q", str(w)]):
+        subprocess.run(git + args, check=True, env=git_env())
+    (w / "b.py").write_text("", encoding="utf-8")
+    (w / "ignored.py").write_text("", encoding="utf-8")
+    assert (w / ".git").is_file() and committed_files(w) == [w / ".gitignore", w / "a.py", w / "b.py"]
+
+
 def test_every_tool_check_is_run_by_a_stage():
     assert tools(ROOT), "no tools found"
     assert unstaged(ROOT, RUNNER) == []
@@ -367,6 +389,13 @@ def test_a_second_stage_of_one_name_is_caught():
 
 
 NEED_FILE = 'need_file () { [ -e "$1" ] || STAGE_SKIP_REASON="$2"; }'
+NEED_ENV = 'need_env ()  { [ -n "${!1:-}" ] || STAGE_SKIP_REASON="$2"; }'
+# A comment, as bash starts one: a `#` that begins a word, at a line's start or after a blank or a metacharacter
+# (P0.4's verifiers, rounds 1 and 2). A quoted `#` there ends what is read too. For the need_env rule, which looks
+# for a read, that can only flag more; guards_off_form, which looks for a call, strips only a comment that fills
+# its line, since there stripping more hides a call (round 3, R3-1).
+COMMENT = r"(^|[ \t;&|()<>])#.*$"
+COMMENT_LINE = r"^[ \t]*#.*$"
 
 
 def guard_problems(runner_text):
@@ -375,9 +404,12 @@ def guard_problems(runner_text):
     `need_file` skips only while its path is missing
     (P0.1's verifier, round 2, note 4.1.2: p1's guard naming tests/p2, or written with -f, skipped p1 by name after
     tests/p1 was built, and the run passed; round 3, note 5: a comment between a guard and its stage hid both).
-    And each `need_env` names a variable the runner reads elsewhere, so that a misspelt one cannot skip its stage
-    by name for ever (P0.3's verifier, round 1)."""
+    And each `need_env` names a variable the runner reads elsewhere, in no comment, so that a misspelt one cannot
+    skip its stage by name for ever (P0.3's verifier, round 1); its reason names that variable, so that one
+    repointed at another's skips with a reason that is not its own no longer (P0.4's verifier, round 1); and
+    `need_env` skips only while its variable is empty or unset (round 2)."""
     out = [] if NEED_FILE in runner_text.splitlines() else ["need_file is not " + NEED_FILE]
+    out += [] if NEED_ENV in runner_text.splitlines() else ["need_env is not " + NEED_ENV]
     for m in re.finditer(r'^need_file ([\w./-]+) "', runner_text, re.M):          # a call: a path and its reason
         nxt = re.compile(r'^stage ([a-z0-9-]+) "[^"]*" -- \\\n(.*)$', re.M).search(runner_text, m.end())
         if nxt is None:
@@ -389,11 +421,59 @@ def guard_problems(runner_text):
             ran = next((w for w in words[words.index("python") + 1:] if w != "-I"), None)
         if ran != m.group(1):
             out.append(f"stage {name} runs {ran}, and guards {m.group(1)}")
-    elsewhere = chr(10).join(line for line in runner_text.splitlines() if not line.startswith("need_env "))
-    for m in re.finditer(r'^need_env ([A-Za-z_][A-Za-z0-9_]*) "', runner_text, re.M):
+    elsewhere = chr(10).join(re.sub(COMMENT, "", line) for line in runner_text.splitlines()
+                             if not line.startswith("need_env "))
+    for m in re.finditer(r'^need_env ([A-Za-z_][A-Za-z0-9_]*) "(.*)$', runner_text, re.M):     # and its reason
         if not re.search(re.escape("$") + "[{]?" + m.group(1) + "(?![A-Za-z0-9_])", elsewhere):
             out.append(f"need_env {m.group(1)} names a variable the runner reads nowhere else")
+        elif not re.search("(?<![A-Za-z0-9_])" + m.group(1) + "(?![A-Za-z0-9_])", m.group(2)):
+            out.append(f"need_env {m.group(1)} gives a reason that does not name it")
     return out
+
+
+GUARD_CALL = re.compile(r'need_env [A-Za-z_][A-Za-z0-9_]* "[^"]*"|need_file [\w./-]+ "[^"]*"')
+
+
+def guards_off_form(runner_text):
+    """Each line that names a guard, need_file, need_env or moth-quantum's need, outside a line that is a comment,
+    and is not a call of need_file or need_env in the one form the rules above read: at the line's start, one blank
+    apart, its reason in double quotes to the line's end. A call indented, tabbed, after another command, its reason
+    quoted otherwise or bare, or continued, was read by none of them, so a misspelt variable in it passed (P0.4's
+    verifier, round 2, N2); so was one after a quoted `#`, which the comment rule took for a comment (round 3,
+    R3-1); and need, which the runner no longer defines, was read by no rule (round 3). The two definitions are no
+    calls."""
+    return [line for line in runner_text.splitlines() if line not in (NEED_FILE, NEED_ENV)
+            and not GUARD_CALL.fullmatch(line)
+            and re.search(r"(?<![\w-])need(_env|_file)?(?![\w-])", re.sub(COMMENT_LINE, "", line))]
+
+
+def test_every_guard_is_called_in_the_one_form_the_rules_read():
+    assert guards_off_form(RUNNER) == []
+
+
+@pytest.mark.parametrize("new", ['  need_env QRO_SHACL_PYTHO "x"', 'need_env  QRO_SHACL_PYTHO "x"',
+                                 "need_env" + chr(9) + 'QRO_SHACL_PYTHO "x"', "need_env QRO_SHACL_PYTHO 'x'",
+                                 "need_env QRO_SHACL_PYTHO x", "need_env QRO_SHACL_PYTHO " + chr(92) + chr(10) + '  "x"',
+                                 'true; need_file tests/p9 "x"', 'echo "a #b"; need_env QRO_SHACL_PYTHO "x"',
+                                 'need_env QRO_SHACL_PYTHON "x"; need_env QRO_SHACL_PYTHO "y"',
+                                 'need zz_no_such_command "x"'],
+                         ids=["indented", "two blanks", "a tab", "single-quoted", "bare", "continued",
+                              "a need_file after another command", "after a quoted #", "a second call on its line",
+                              "need, which no rule reads"])
+def test_a_guard_called_in_another_form_is_caught(new):
+    """P0.4's verifier, round 2, N2: each of these passed every rule, a need_env's variable misspelt, and the
+    need_file's path missing; round 3: and so did a call after a quoted `#` (R3-1), a second call on one line, and
+    a call of need."""
+    planted = RUNNER.replace('need_env QRO_SHACL_PYTHON "', new + chr(10) + 'need_env QRO_SHACL_PYTHON "', 1)
+    assert planted != RUNNER and guards_off_form(planted) == [new.split(chr(10))[0]], guards_off_form(planted)
+
+
+def test_a_comment_line_naming_a_guard_is_no_call():
+    """P0.4's verifier, round 3: no comment of the runner names a guard, so the stripping of a comment line was
+    held by nothing."""
+    planted = RUNNER.replace('need_env QRO_SHACL_PYTHON "', '  # need_env QRO_SHACL_PYTHO "x"' + chr(10)
+                             + 'need_env QRO_SHACL_PYTHON "', 1)
+    assert planted != RUNNER and guards_off_form(planted) == []
 
 
 def one_line_stages(runner_text):
@@ -418,15 +498,18 @@ def test_each_parcel_stage_guards_the_directory_it_runs():
 @pytest.mark.parametrize("old, new", [('need_file tests/p1 "', 'need_file tests/p2 "'),
                                       ('need_file tools/gen_profile.py "', 'need_file tools/gen_vocabulary.py "'),
                                       ('need_env QRO_SHACL_PYTHON "', 'need_env QRO_SHACL_PYTHO "'),
+                                      ('need_env QRO_SHACL_PYTHON "', 'need_env QRO_MOTH_ROOT "'),
                                       ("tests/p1" + chr(10) + chr(10) + "need_file tests/p2",
                                        "tests/p2" + chr(10) + chr(10) + "need_file tests/p2"),
                                       ('[ -e "$1" ]', '[ -f "$1" ]'),
+                                      ('[ -n "${!1:-}" ]', '[ -z "${!1:-}" ]'),
                                       ('need_file tests/p1 "P1, the adapter, is not built yet: there is no tests/p1"'
                                        + chr(10) + "stage p1 ",
                                        'need_file tests/p2 "another\'s"' + chr(10) + "# a comment between" + chr(10)
                                        + chr(10) + "stage p1 ")],
                          ids=["the guard another's", "a tool's guard another's", "a variable misspelt",
-                              "the stage another's", "files only", "a comment between"])
+                              "a variable another stage's", "the stage another's", "files only",
+                              "a variable's guard inverted", "a comment between"])
 def test_a_guard_that_is_not_its_stages_is_caught(old, new):
     planted = RUNNER.replace(old, new, 1)
     assert planted != RUNNER and len(guard_problems(planted)) == 1, guard_problems(planted)
@@ -436,6 +519,109 @@ def test_a_tools_stage_is_guarded_by_its_script_run_with_or_without_isolation():
     """P0.3: P4's profile stage runs a tool, and its guard names the tool's script, `python -I` or not."""
     isolated = RUNNER.replace("  python tools/gen_profile.py --check", "  python -I tools/gen_profile.py --check", 1)
     assert isolated != RUNNER and guard_problems(isolated) == []
+
+
+@pytest.mark.parametrize("comment", ["# ", ": # ", ":" + chr(9) + "# ", "true;# ", "true&&# ", "true|# ", "(# ",
+                                     "true)# ", "true<# ", "true># "],
+                         ids=["a comment line", "a trailing comment", "after a tab", "after a semicolon",
+                              "after two ampersands", "after a bar", "after an opening parenthesis",
+                              "after a closing parenthesis", "after a less-than", "after a greater-than"])
+def test_a_variable_the_runner_names_only_in_a_comment_is_read_nowhere(comment):
+    """P0.3's verifier, round 2: the rule took the engine's name in a comment for a read of it; P0.4's, round 1: a
+    trailing comment, after a command that does nothing, still counted; round 2, N1: so did one after a
+    metacharacter with no blank, which bash takes for a comment too; round 3: each such metacharacter is held."""
+    planted = chr(10).join((comment + line) if "QRO_SHACL_PYTHON" in line and not line.startswith("need_env ")
+                           else line for line in RUNNER.splitlines())
+    assert planted != RUNNER and guard_problems(planted) == [
+        "need_env QRO_SHACL_PYTHON names a variable the runner reads nowhere else"]
+
+
+PACKAGES = re.search(r"^PACKAGES='([^']*)'$", RUNNER, re.M)
+
+
+def test_the_package_list_reads_a_distribution_with_no_name(tmp_path):
+    """P0.4's verifier, round 1, D1: the runner's expression for the engine's packages raised on a distribution with
+    no METADATA, and the runner hashed the traceback, so a package added to the engine went unseen by --resume.
+    The expression is read from the runner's own text, which both the interpreter's packages and the engine's
+    read, and run on such a distribution."""
+    import subprocess
+    import sys
+    assert PACKAGES, "the runner names no PACKAGES"
+    body = re.search(r"^fingerprint \(\) \{\n(.*?)^\}", RUNNER, re.M | re.S).group(1)
+    assert '  echo "packages=$(packages python)"' in body.splitlines(), body
+    assert '  echo "shacl-engine=$(shacl_engine)"' in body.splitlines(), body
+    (tmp_path / "nameless-1.0.dist-info").mkdir()
+    code = "import sys; sys.path.insert(0, " + repr(str(tmp_path)) + "); " + PACKAGES.group(1)
+    r = subprocess.run([sys.executable, "-I", "-c", code], capture_output=True, text=True)
+    assert r.returncode == 0 and "None==None" in r.stdout, (r.stdout, r.stderr)
+
+
+def test_the_package_list_reads_metadata_that_raises_on_a_missing_key():
+    """P0.4's verifier, round 2, N6: indexing a missing key returns None with a warning in Python 3.12 and 3.13, and
+    raises KeyError in importlib_metadata 8, as the standard library is to; and a distribution's metadata may be
+    None there. The expression reads each with .get, here on metadata of each kind."""
+    import contextlib
+    import email.message
+    import io
+    import types
+
+    class Strict(email.message.Message):
+        def __getitem__(self, key):
+            if self.get(key) is None:
+                raise KeyError(key)
+            return self.get(key)
+
+    named = Strict()
+    named["Name"], named["Version"] = "a", "1.0"
+    dists = [types.SimpleNamespace(metadata=md) for md in (named, Strict(), None)]
+    out = io.StringIO()
+    with contextlib.redirect_stdout(out):
+        exec(PACKAGES.group(1).replace("import importlib.metadata as m; ", "", 1),
+             {"m": types.SimpleNamespace(distributions=lambda: dists)})
+    assert out.getvalue() == "['None==None', 'None==None', 'a==1.0']" + chr(10)
+
+
+def test_the_engines_line_changes_with_its_packages(tmp_path):
+    """P0.4's verifier, round 2, N7: the tests above hold the expression, and nothing held the pipeline that hashes
+    what it prints, nor the interpreter run isolated (round 1, mutants 21 and 22). The runner's own packages and
+    shacl_engine run here, in Git Bash, on an engine that is this interpreter, run only with -I, a directory of
+    distributions first on its path: its line is the engine and 16 hexadecimal digits, which change as a
+    distribution is added, one with no name among them. And a listing that fails, here a METADATA not in UTF-8,
+    hashes differently each time, so --resume refuses it (round 3). The engine is written LF and executable, as a
+    POSIX shell runs it (round 3, R3-2: written as text, it failed on POSIX, Permission denied)."""
+    import subprocess
+    import sys
+    funcs = "".join(re.search(rf"^{name} \(\) \{{.*?\n^\}}\n", RUNNER, re.M | re.S).group(0)
+                    for name in ("packages", "shacl_engine"))
+    dists, engine = tmp_path / "dists", tmp_path / "engine"
+    dists.mkdir()
+    engine.write_bytes(chr(10).join([
+        "#!/bin/sh", '[ "$1" = -I ] && [ "$2" = -c ] || exit 7',
+        'exec "' + pathlib.Path(sys.executable).as_posix() + '" -I -c "import sys; sys.path.insert(0, '
+        + repr(dists.as_posix()) + '); $3"', ""]).encode("utf-8"))     # LF: write_text writes CRLF on Windows
+    engine.chmod(0o755)
+
+    def line():
+        r = subprocess.run([runner_bash(), "-c", PACKAGES.group(0) + chr(10) + funcs + "shacl_engine"],
+                           capture_output=True, text=True, env=dict(os.environ, QRO_SHACL_PYTHON=engine.as_posix()))
+        assert r.returncode == 0 and re.fullmatch(re.escape(engine.as_posix()) + " [0-9a-f]{16}", r.stdout.strip()), (
+            r.stdout, r.stderr)
+        return r.stdout
+    seen = [line()]
+    assert line() == seen[0], "a listing that holds the same packages hashes the same"
+    for name in ("qro-probe-a-1.0", "qro-probe-b-1.0"):
+        (dists / (name + ".dist-info")).mkdir()
+        (dists / (name + ".dist-info") / "METADATA").write_text(
+            "Metadata-Version: 2.1" + chr(10) + "Name: " + name[:-4] + chr(10) + "Version: 1.0" + chr(10),
+            encoding="utf-8")
+        seen.append(line())
+    (dists / "nameless-1.0.dist-info").mkdir()
+    seen.append(line())
+    assert len(set(seen)) == 4, seen
+    (dists / "latin-1.0.dist-info").mkdir()
+    (dists / "latin-1.0.dist-info" / "METADATA").write_bytes(b"Name: latin\nVersion: 1.0\nAuthor: caf\xe9\n")
+    failed = [line(), line()]
+    assert failed[0] != failed[1] and not set(failed) & set(seen), failed
 
 
 def quick_problems(runner_text):

@@ -7,3 +7,4 @@ Every report a verifier returned on this repository's work, kept so that the doc
 - [P0.1/](P0.1/README.md): P0.1's verifier.
 - [P0.2/](P0.2/README.md): P0.2's verifier.
 - [P0.3/](P0.3/README.md): P0.3's verifier.
+- [P0.4/](P0.4/README.md): P0.4's verifier.
