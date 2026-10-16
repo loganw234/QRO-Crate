@@ -24,6 +24,11 @@ on Moth's Atlas emulator.
   and tests go in files of its own, and P1's, P2's and P4's stages are
   already written. Each round of its verifier, what it found and what was
   fixed, is in docs/VALIDATION.md, and each report in docs/reviews/P0.1/.
+  Its fourth verifier found it READY, and it was committed on 2026-10-15.
+- P0.2, the lead's, takes that verifier's notes, past a verifier of its
+  own, before the parcels build. P1's, P2's and P4's designs are
+  approved; P0.3, the lead's, prepares the shared files their builds
+  need.
 - Nothing else is built: no adapter, no measures, no comparison, no profile
   crate, no contributor kit. A crate holding a field that steps 4 to 8 of
   the checker would check is refused `step-unbuilt`.

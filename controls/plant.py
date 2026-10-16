@@ -12,6 +12,8 @@ import tempfile
 from pathlib import Path
 
 from controls.registry import plants, twin
+from qro import checker
+from qro.__main__ import escape
 from qro.__main__ import main as qro
 
 
@@ -33,5 +35,18 @@ def main(argv):
         return qro(args)
 
 
+def run(argv):
+    """main(), with the command's own failure as exit 3 and one line on stderr: a plants module that raised
+    SystemExit(0) as it loaded ended the command with exit 0, unrun, so the twin's stage passed (P0.1's verifier,
+    round 4, N4). The line says "this is not a verdict", not "nothing was checked": the temporary directory's
+    removal can fail after the checker has written its own line (P0.2)."""
+    try:
+        return main(argv)
+    except BaseException as x:
+        print(escape(f"FAILED: the plant command itself failed, {checker.describe(x)}; this is not a verdict"),
+              file=sys.stderr)
+        return 3
+
+
 if __name__ == "__main__":
-    sys.exit(main(sys.argv[1:]))
+    sys.exit(run(sys.argv[1:]))

@@ -80,7 +80,9 @@ def test_the_privacy_gate_finds_nothing_in_text_without_a_plant():
 def no_git_of_the_users(monkeypatch, tmp_path_factory):
     """Every test here, and every git it starts, runs with none of the user's git: no GIT_ variable (GIT_DIR, set by
     a hook, sent the test repositories' commits into the repository it named; GIT_CONFIG_COUNT set a signer), no
-    global configuration and no system's (P0.1's verifier, rounds 1 and 2, notes 4.2 and 4.1.8)."""
+    global configuration and no system's (P0.1's verifier, rounds 1 and 2, notes 4.2 and 4.1.8), and no global
+    ignore or attributes file, which git reads from XDG_CONFIG_HOME whatever GIT_CONFIG_GLOBAL names (P0.2's
+    verifier, round 2: a global ignore file listing build/ failed a test here)."""
     import os
     for k in [k for k in os.environ if k.upper().startswith("GIT_")]:
         monkeypatch.delenv(k)
@@ -88,6 +90,7 @@ def no_git_of_the_users(monkeypatch, tmp_path_factory):
     empty.write_text("", encoding="utf-8")
     monkeypatch.setenv("GIT_CONFIG_GLOBAL", str(empty))
     monkeypatch.setenv("GIT_CONFIG_NOSYSTEM", "1")
+    monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path_factory.mktemp("xdg")))
 
 
 def hermetic_git(tmp_path):
@@ -100,6 +103,7 @@ def hermetic_git(tmp_path):
 def test_the_tests_git_is_none_of_the_users():
     import os
     assert os.environ["GIT_CONFIG_NOSYSTEM"] == "1" and Path(os.environ["GIT_CONFIG_GLOBAL"]).read_text() == ""
+    assert not list(Path(os.environ["XDG_CONFIG_HOME"]).iterdir())
     assert not [k for k in os.environ if k.upper().startswith("GIT_") and k not in ("GIT_CONFIG_GLOBAL",
                                                                                     "GIT_CONFIG_NOSYSTEM")]
 
@@ -132,7 +136,7 @@ def test_the_gate_reads_every_commit_message(tmp_path):
                  message="a note" + chr(10) + chr(10) + privacy.PLANTS["named:QISKIT_IBM_TOKEN"])
     bad, summary = privacy.check(r)
     assert "1 commit messages read" in summary
-    assert [b for b in bad if b.startswith("commit ")], bad
+    assert [b for b in bad if b.startswith("commit ") and ": a key (" in b], bad
     assert privacy.run(r) == 1
 
 
@@ -153,6 +157,118 @@ def test_an_unreadable_tracked_file_fails_the_gate(tmp_path):
     (r / "gone.md").unlink()
     bad, _ = privacy.check(r)
     assert [b for b in bad if b.startswith("gone.md: unreadable")], bad
+
+
+def test_the_gate_reads_its_own_repository_whatever_repository_gits_variables_name(tmp_path, monkeypatch):
+    """P0.2's verifier, round 1, G5: with GIT_DIR and GIT_WORK_TREE naming another repository, git listed that
+    one's files, which the gate read in its own tree, and that one's commit messages: a key in a file the other
+    does not hold, and in a message, passed."""
+    key = privacy.PLANTS["named:QISKIT_IBM_TOKEN"]
+    other = git_tree(tmp_path / "other", {"notes.md": "nothing to see" + chr(10)})
+    planted = git_tree(tmp_path / "planted", {"notes.md": "nothing to see" + chr(10), "keys.md": key + chr(10)},
+                       message="a note" + chr(10) + chr(10) + key)
+    monkeypatch.setenv("GIT_DIR", str(other / ".git"))
+    monkeypatch.setenv("GIT_WORK_TREE", str(other))
+    (other / "garbage-index").write_bytes(b"not an index")
+    monkeypatch.setenv("GIT_INDEX_FILE", str(other / "garbage-index"))         # round 2: more than the two
+    monkeypatch.setenv("GIT_OBJECT_DIRECTORY", str(other / ".git" / "objects"))
+    monkeypatch.setenv("GIT_COMMON_DIR", str(other / ".git"))
+    bad, _ = privacy.check(planted)
+    assert [b for b in bad if b.startswith("keys.md: ")] and [b for b in bad if b.startswith("commit ") and (
+        ": a key (" in b)], bad      # a key found in a message, never "commit messages: unread" (round 3)
+
+
+def test_the_gates_controls_init_their_own_copies_whatever_repository_gits_variables_name(tmp_path, monkeypatch):
+    """P0.2's verifier, round 1, G5: the controls run `git init` in each copy they plant into. With GIT_DIR naming
+    another repository, that init was the other's: git re-initialises it, and writes back a template file it lacks."""
+    other = git_tree(tmp_path / "other", {"notes.md": "nothing to see" + chr(10)})
+    r = git_tree(tmp_path / "planted", {"notes.md": "nothing to see" + chr(10),
+                                        "tools/check_privacy.py": "# a stand-in" + chr(10)})
+    (other / ".git" / "description").unlink()
+    monkeypatch.setenv("GIT_DIR", str(other / ".git"))
+    monkeypatch.setenv("GIT_WORK_TREE", str(other))
+    assert privacy.control(r) == 0
+    assert not (other / ".git" / "description").exists()
+
+
+@pytest.mark.parametrize("given", [(("GIT_CONFIG_COUNT", "1"), ("GIT_CONFIG_KEY_0", "safe.directory"),
+                                      ("GIT_CONFIG_VALUE_0", "*")),
+                                     (("GIT_CONFIG_PARAMETERS", "'safe.directory'='*'"),)],
+                         ids=["as a count", "as git -c gives it to a hook"])
+def test_the_gate_keeps_the_configuration_git_is_given_in_the_environment(tmp_path, monkeypatch, given):
+    """P0.2's verifier, round 2: git_env dropped GIT_CONFIG_COUNT too, so a checkout git trusts only through a
+    safe.directory given that way was refused, and the gate raised. GIT_TEST_ASSUME_DIFFERENT_OWNER is git's own
+    switch for treating a checkout as another user's."""
+    r = git_tree(tmp_path, {"notes.md": "nothing to see" + chr(10)})
+    for k, v in (("GIT_TEST_ASSUME_DIFFERENT_OWNER", "1"),) + given:
+        monkeypatch.setenv(k, v)
+    bad, summary = privacy.check(r)
+    assert bad == [] and summary.startswith("1 files and 1 commit messages read"), (bad, summary)
+
+
+def test_the_gate_fails_loudly_where_git_cannot_list_its_files(tmp_path):
+    """A broken index is git's failure, raised, never an empty list that passes (P0.2's verifier, round 2)."""
+    r = git_tree(tmp_path, {"notes.md": "nothing to see" + chr(10)})
+    (r / ".git" / "index").write_bytes(b"not an index")
+    with pytest.raises(subprocess.CalledProcessError):
+        privacy.check(r)
+
+
+def test_a_history_git_cannot_read_is_a_finding_and_no_history_is_none(tmp_path):
+    """P0.2's verifier, round 2: with HEAD naming a commit whose object is gone, git log failed, and the gate said
+    it read no message and passed; round 3: so it did for an emptied branch ref and a corrupt packed-refs. A
+    repository with no commit yet has no message to read, and passes; so the controls' fresh copies are not
+    caught by this."""
+    import os
+    import stat
+    env = hermetic_git(tmp_path)
+
+    def head_ref(r):
+        return subprocess.run(["git", "-C", str(r), "symbolic-ref", "HEAD"], capture_output=True, text=True,
+                              check=True, env=env).stdout.strip()
+
+    def tip_gone(r):
+        head = subprocess.run(["git", "-C", str(r), "rev-parse", "HEAD"], capture_output=True, text=True,
+                              check=True, env=env).stdout.strip()
+        obj = r / ".git" / "objects" / head[:2] / head[2:]
+        os.chmod(obj, stat.S_IREAD | stat.S_IWRITE)
+        obj.unlink()
+
+    def ref_emptied(r):
+        (r / ".git" / head_ref(r)).write_bytes(b"")
+
+    def packed_refs_corrupt(r):
+        subprocess.run(["git", "-C", str(r), "pack-refs", "--all"], check=True, env=env)
+        assert not (r / ".git" / head_ref(r)).exists()
+        (r / ".git" / "packed-refs").write_bytes(b"not a packed-refs file" + bytes([10]))
+    for name, fault in (("a", tip_gone), ("b", ref_emptied), ("c", packed_refs_corrupt)):
+        r = git_tree(tmp_path / name, {"notes.md": "nothing to see" + chr(10)})
+        fault(r)
+        assert "commit messages: unread, as git log failed" in privacy.check(r)[0], name
+    fresh = tmp_path / "fresh"
+    fresh.mkdir()
+    (fresh / "notes.md").write_text("nothing to see" + chr(10), encoding="utf-8")
+    subprocess.run(["git", "-C", str(fresh), "init", "-q"], check=True, env=hermetic_git(tmp_path))
+    bad, summary = privacy.check(fresh)
+    assert bad == [] and summary.startswith("1 files and 0 commit messages read"), (bad, summary)
+
+
+def test_a_file_whose_name_is_not_ascii_is_read_by_its_name(tmp_path):
+    """git quotes such a name unless asked for -z; the gate reads it by its own name (P0.2's verifier, round 3: with
+    -z dropped, every test passed, the controls' caught by the file unread)."""
+    key = privacy.PLANTS["named:QISKIT_IBM_TOKEN"]
+    r = git_tree(tmp_path, {"caf" + chr(0xE9) + ".md": key + chr(10)})
+    assert [b for b in privacy.check(r)[0] if b.startswith("caf" + chr(0xE9) + ".md: a key (")]
+
+
+def test_a_commit_message_not_in_utf8_is_read_not_a_crash(tmp_path):
+    """P0.2's verifier, round 3: with i18n.logOutputEncoding set, git log wrote a message the gate could not decode,
+    and it raised. It reads the message, its bad bytes replaced."""
+    r = git_tree(tmp_path, {"notes.md": "nothing to see" + chr(10)}, message="caf" + chr(0xE9))
+    subprocess.run(["git", "-C", str(r), "config", "i18n.logOutputEncoding", "ISO-8859-1"], check=True,
+                   env=hermetic_git(tmp_path))
+    bad, summary = privacy.check(r)
+    assert bad == [] and "1 commit messages read" in summary, (bad, summary)
 
 
 def test_the_gates_command_line_exits_as_its_verdict_in_both_modes(tmp_path):
@@ -195,6 +311,40 @@ def test_a_file_control_that_catches_nothing_fails_the_controls(tmp_path, monkey
                                                                            lambda root: None)])
     assert privacy.control(r) == 1
     assert re.search(r"control +a plant that plants nothing +NOT CAUGHT", capsys.readouterr().out)
+
+
+def test_a_file_control_caught_only_by_a_file_unread_fails_the_controls(tmp_path, monkeypatch, capsys):
+    """P0.2's verifier, round 3: a file control counted any finding as caught, so a name git quoted, which the gate
+    could not open, passed for the key in it. A file listed and gone is such a plant: only a key or a path counts."""
+    r = git_tree(tmp_path, {"notes.md": "nothing to see" + chr(10), "tools/check_privacy.py": "# a stand-in" + chr(10)})
+
+    def gone(root):
+        (root / "gone.md").write_text("nothing" + chr(10), encoding="utf-8")
+        subprocess.run(["git", "-C", str(root), "add", "gone.md"], check=True, env=hermetic_git(tmp_path))
+        (root / "gone.md").unlink()
+    monkeypatch.setattr(privacy, "FILE_CONTROLS", privacy.FILE_CONTROLS + [("a file listed and gone", gone)])
+    assert privacy.control(r) == 1
+    assert re.search(r"control +a file listed and gone +NOT CAUGHT", capsys.readouterr().out)
+
+
+def test_a_virtual_environment_in_the_tree_is_not_read(tmp_path):
+    """P0.1's verifier, round 4, N5: with the repository's .gitignore, a worktree's own environment is no file git
+    would commit, so the gate does not read a third party's address in it; nor in what a build makes at the root
+    (P0.2's verifier, round 1, G2). Below the root, a directory of those names is read."""
+    r = git_tree(tmp_path, {"notes.md": "nothing to see" + chr(10), ".gitignore": (ROOT / ".gitignore").read_text(
+        encoding="utf-8")})
+    nested = ["sub/" + n for n in (".tox", ".venv", "build", "dist", "env", "venv")]
+    for env in [".venv", "venv", "env", "build", "dist", ".tox"] + nested:
+        (r / env / "Lib" / "pkg").mkdir(parents=True)
+        (r / env / "Lib" / "pkg" / "about.py").write_text("author = 'someone" + "@" + "personal-domain.net'" + chr(10),
+                                                          encoding="utf-8")
+    for egg in ("pkg.egg-info", "sub/pkg.egg-info"):
+        (r / egg).mkdir(parents=True, exist_ok=True)
+        (r / egg / "PKG-INFO").write_text("Author-email: someone" + "@" + "personal-domain.net" + chr(10),
+                                          encoding="utf-8")
+    bad, summary = privacy.check(r)
+    assert [b.split(":")[0] for b in bad] == [n + "/Lib/pkg/about.py" for n in nested] and summary.startswith(
+        "8 files and"), (bad, summary)
 
 
 def test_a_binary_file_is_listed_by_name_and_not_read(tmp_path):
@@ -302,12 +452,63 @@ def test_a_control_naming_no_refusal_or_no_outcome_is_a_contradiction(monkeypatc
 
 
 def test_a_name_planted_twice_is_a_contradiction_not_a_crash(monkeypatch):
-    """P0.1's verifier, round 2, note 4.3.5: it was a traceback, exit 1, where a contradiction is exit 2."""
-    def twice():
-        raise RuntimeError("controls.plants_zz plants ['shot-moved'], which another module already plants")
-    monkeypatch.setattr(gen.C, "plants", twice)
+    """P0.1's verifier, round 2, note 4.3.5: it was a traceback, exit 1, where a contradiction is exit 2. The clash
+    is the registry's own, raised by its merge."""
+    from types import SimpleNamespace
+    twice = SimpleNamespace(__name__="controls.plants_zz", PLANTS={"shot-moved": None})
+    monkeypatch.setattr(gen.C, "plants", lambda: gen.C.merged(gen.C.PLANTS, [twice]))
     assert gen.problems() == ["controls.plants_zz plants ['shot-moved'], which another module already plants"]
     assert gen.main(["--check"]) == 2
+
+
+@pytest.mark.parametrize("error", [RuntimeError, ImportError, SyntaxError, OSError, ValueError])
+def test_any_other_failure_of_the_plants_is_the_generators_own_in_one_escaped_line(monkeypatch, capsys, error):
+    """P0.2's verifier, round 1, D1: problems() took any RuntimeError out of the plants for a contradiction, exit 2,
+    and the generator's line was not escaped. Only the registry's clash is a contradiction, whatever else a plants
+    module raises (round 2: a bad import is the likeliest)."""
+    def failing():
+        raise error("fixture file missing" + chr(10) + "REFUSED forged at x: y")
+    monkeypatch.setattr(gen.C, "plants", failing)
+    assert gen.main(["--check"]) == 3
+    assert capsys.readouterr() == ("", "FAILED: the generator itself failed, " + error.__name__ + ": fixture file "
+                                   "missing" + chr(92) + "nREFUSED forged at x: y; this is not a verdict" + chr(10))
+
+
+def test_each_contradiction_is_one_escaped_line(monkeypatch, capsys):
+    """P0.2's verifier, round 2: a plant's name holding a line feed wrote a second line, free to begin REFUSED."""
+    monkeypatch.setattr(gen.C, "plants", lambda: {"zz" + chr(10) + "REFUSED forged": None})
+    assert gen.main(["--check"]) == 2
+    assert capsys.readouterr().err == ("the definitions contradict themselves:" + chr(10) + "  plant zz" + chr(92)
+                                       + "nREFUSED forged names no control" + chr(10))
+
+
+def test_the_generators_failure_while_writing_names_the_files_it_wrote(tmp_path):
+    """P0.2's verifier, round 1, D1: with docs/CONTROLS.md not writable, --write wrote three files and then said
+    "nothing was checked". Here CONTROLS.md is a directory, which no write replaces on any host; and the generator
+    runs as a process in a copy, its two streams in one, as the runner logs a stage. Its line names what it wrote
+    itself, so it is true where its stdout is gone (round 2)."""
+    import os
+    for pkg in ("qro", "controls", "tools"):
+        shutil.copytree(ROOT / pkg, tmp_path / pkg, ignore=shutil.ignore_patterns("__pycache__"))
+    (tmp_path / "docs" / "CONTROLS.md").mkdir(parents=True)
+    env = {k: v for k, v in os.environ.items() if k != "PYTHONPATH"}
+    r = subprocess.run([sys.executable, "tools/gen_vocabulary.py", "--write"], cwd=tmp_path, env=env,
+                       stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
+    *wrote, last = r.stdout.splitlines()
+    before = list(gen.OUTPUTS)[:list(gen.OUTPUTS).index("docs/CONTROLS.md")]
+    assert r.returncode == 3 and wrote == [f"wrote {rel}" for rel in before], r.stdout
+    assert last.startswith("FAILED: the generator itself failed, ") and last.endswith(
+        "; it had finished writing " + ", ".join(before)), last
+    assert all((tmp_path / rel).is_file() for rel in before)
+
+
+def test_write_renders_every_file_before_it_writes_any(tmp_path, monkeypatch, capsys):
+    """P0.2: a definition that fails to render leaves every file as it was."""
+    def broken():
+        raise ValueError("a render that fails")
+    monkeypatch.setitem(gen.OUTPUTS, "docs/CONTROLS.md", broken)
+    assert gen.main(["--write"], tmp_path) == 3 and not list(tmp_path.iterdir())
+    assert capsys.readouterr().out == ""
 
 
 def test_the_vocabularys_contradiction_exits_2_and_writes_nothing(tmp_path, monkeypatch, capsys):

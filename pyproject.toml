@@ -10,6 +10,18 @@ pythonpath = ["."]
 testpaths = ["tests"]
 addopts = "-p no:cacheprovider"
 norecursedirs = []
+# Four of pytest's warnings that a test is not held, as errors (P0.1's verifier, round 4, N1; P0.2's, round 1, G1):
+# a class it cannot collect, a test that returns a value where it should assert, an assert on a tuple, which is
+# always true, and a mark it does not know. Stated limits: the others still pass with a warning (an exception in a
+# thread or in __del__, a coroutine never awaited); a test's own filterwarnings mark, or a module's pytestmark,
+# lifts the pin on a returned value, which pytest raises as the test runs, and none of the other three, which it
+# raises as it imports or collects the module (P0.2's verifier, round 2, MEASURED); and pytest warns of the tuple
+# only as it rewrites the module, so a stage that loads a rewrite cached by a run with no filter does not see it
+# (MEASURED, pytest 9.1.1). A fresh checkout holds no cached rewrite. And a test module is code: a warnings
+# filter it sets as it is imported, or one a helper it imports sets, lifts any of the four for the modules
+# imported after it (P0.2's verifier, round 3, MEASURED).
+filterwarnings = ["error::pytest.PytestCollectionWarning", "error::pytest.PytestReturnNotNoneWarning",
+                  "error::pytest.PytestUnknownMarkWarning", "error::pytest.PytestAssertRewriteWarning"]
 
 [tool.ruff]
 line-length = 120

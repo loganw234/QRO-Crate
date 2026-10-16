@@ -131,14 +131,19 @@ def test_two_crates_are_misuse_even_when_the_first_is_accepted(tmp_path):
     assert (code, out) == (2, b"")
 
 
-@pytest.mark.parametrize("what", ["a crate", "a log", "a record"])
+@pytest.mark.parametrize("what", ["a crate", "a log", "a record", "a log and a record"])
 def test_a_path_that_is_not_there_is_misuse(tmp_path, what):
+    """The line names the path that is not there (P0.1's verifier, round 4, N7: which one it named was unasserted);
+    of two, the first (P0.2's verifier, round 1, T4)."""
+    from qro.__main__ import escape
     data = two_lines()
     argv = {"a crate": ["check", str(tmp_path / "nowhere")],
             "a log": ["custody", str(tmp_path / "no.log")],
-            "a record": ["custody", *custody_files(tmp_path, data), str(tmp_path / "no.json")]}[what]
+            "a record": ["custody", *custody_files(tmp_path, data), str(tmp_path / "no.json")],
+            "a log and a record": ["custody", str(tmp_path / "no.log"), str(tmp_path / "no.json")]}[what]
+    named = argv[1] if what == "a log and a record" else argv[-1]
     code, out, err = run(tmp_path, argv)
-    assert (code, out) == (2, b"") and b"no such" in err
+    assert (code, out) == (2, b"") and err.decode("ascii").startswith(escape(named) + ": no such"), err
 
 
 # -- the line: printable ASCII, whatever the crate holds --------------------------------------------------------

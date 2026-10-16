@@ -1501,3 +1501,389 @@ item 6; Logan, 2026-10-15). Every report is in docs/reviews/P0.1/.
 **Next:** Logan's word on P0.1's commit and push. Then P1's design goes out,
 and P0.2 takes round 4's notes, past its own verifier before P1 and P2
 build.
+
+## 2026-10-15 - P0.1 committed; P0.2: P0.1's fourth verifier's notes
+
+**P0.1 is committed** as 8858978 and pushed to origin main, by Logan's word
+of 2026-10-15: "Go ahead and commit and push, then start P1 and P0.2". The
+round's ledger is open, outside every worktree, and P1's design was
+dispatched on Sonnet the same hour, in its own worktree at 8858978.
+
+**P0.2, the lead's,** takes the notes of P0.1's fourth verifier
+(docs/reviews/P0.1/round4.md), before P1 and P2 build:
+- **N1:** pyproject.toml makes three of pytest's warnings errors: a test
+  class it cannot collect, a test that returns a value where it should
+  assert, and a mark it does not know. Each passed its stage with "1
+  warning". The registry pins them with the other options, and a test runs
+  the stage script on each: the stage fails, and the same tree passes with
+  pytest's warnings plugin off, so the plant bites through the filter
+  alone. Every stage passed with the three as errors before they were set
+  (MEASURED).
+- **N2:** the registry reports a test file outside tests/, which no stage
+  runs, and tests in a module pytest never collects, a parcel's `p2_*.py`
+  helper among them, among the files git would commit. Its first sentence,
+  "every test file is run by some stage", is now what it holds.
+- **N3:** `python -m controls.run` writes each line as the command line
+  writes its own, printable ASCII; a test feeds it a detail holding a line
+  feed and a character a console cannot encode.
+- **N4:** the plant command and the generator answer their own failure, a
+  plants module that exits 0 as it loads among the causes, as exit 3 and
+  one line, as the controls' run already did. A test runs all three as
+  processes on a copy of the packages holding such a module; the
+  generator's `--help` still exits 0.
+- **N5:** .gitignore names `.venv/`, `venv/` and `*.egg-info/`. A test runs
+  the privacy gate on a repository with the project's .gitignore and a
+  third party's address in each: it reads none of them.
+- **N7:** the command line's misuse line is held to name the path that is
+  not there; the reader's refusal of the root before the descriptor, to its
+  place; and the controls' run's WRONG line, to its "section 11 says".
+- **N8:** CLAUDE.md says a test's fixture shaped like a key, a CRN, an
+  address or a home path is built at run time, in pieces, as the gate's
+  plants are; and what fails a stage or the registry besides.
+- **Not taken:** N6, the `pytest_plugins` scan's reading of lines, is the
+  class the registry already states as a limit; and N7's equivalent
+  survivors, and those killed by a stage, stay as they are.
+
+**Measured, by the lead:**
+- **The runner:** `QRO_MOTH_ROOT=<moth-quantum> bash verify/run.sh`, run
+  `20261015-151318-54240-8858978+dirty`, on the tree as frozen but for this
+  entry: **17 stages passed, 3 skipped by name** (p1, p2 and p4), none
+  failed.
+  - docs: 128 passed; tool-tests: 89; vocab-tests: 8; format: 663;
+    custody: 23; control-tests: 31. That is 942 tests;
+  - controls-run: 9 of 9, 21 pending;
+  - study-plants: 68 faults refused, 6 right variants accepted;
+  - privacy: 247 files and 2 commit messages, nothing found;
+  - privacy-controls: 37 of 37 caught;
+  - instruments: 5 of 5 reproduced;
+  - check-docs: 10 documents, 29 other markdown files, 35 source files;
+  - the twin: ACCEPTED `ff3fe486…`, unchanged;
+  - the negative control: refused `raw-digest at data/raw.counts.json`.
+  - It took 118 s while P1's design ran beside it; CLAUDE.md's ~100 s is
+    the idle figure.
+- **10 hand mutants of P0.2's code** (in the lead's scratch, m_p02.py):
+  10 killed.
+- **The lead's simulation of P1 and P2 building at once:** 19 stages
+  passed, and p4 skipped by name.
+
+**The lead's slips, caught on the way:**
+- The test of the three warnings first planted a misspelt parametrize,
+  which fails as a missing fixture with or without the filter, and read
+  "2 passed" where a failing test leaves it; both were rewritten so the
+  filter alone decides.
+- The test of the run's printing first raised from the plant, which the run
+  calls outside its catch; it feeds the outcome instead.
+- The generator's catch first wrapped argparse, so `--help` would have
+  exited 3; it wraps only the work after the arguments.
+
+**Next:** P0.2's verifier, on Sonnet and the full bar: it is a parcel of
+its own, with a count of its own.
+
+## 2026-10-16 - P0.2's first verifier: NOT READY, D1 and D2, and the fixes
+
+**The verdict** (docs/reviews/P0.2/round1.md): NOT READY, on two defects, neither of them a wrong acceptance. It is
+P0.2's first send-back, 1 of the cap's 3 (CLAUDE.md item 6). Every figure in the P0.2 entry reproduced, round 4's
+I01, I02, I03 and I08 are now refused, and the verifier found no wrong acceptance that P0.2 introduced.
+
+**D1, the generator's answer to its own failure: fixed.**
+- **The clash is its own class.** Two modules planting one name raise `PlantClash`, a `RuntimeError`, in
+  controls/registry.py. The generator takes that alone for a contradiction (exit 2). Any other failure of a plants
+  module is the generator's own (exit 3): a `RuntimeError` among them, which was exit 2.
+- **The generator's FAILED line is escaped,** as the command line escapes its own. It is one line whatever the
+  failure's text holds; a line feed in it had made two, the second free to begin `REFUSED`.
+- **Its ending is true in each mode.** After `--check` it says "this is not a verdict". After `--write` it says "the
+  files it finished writing, if any, are named above". `--write` now renders every file before it writes any, and
+  flushes each "wrote" line, so in a log of both streams each file written stands above the line.
+- **The plant command's line** said "nothing was checked", and now says "this is not a verdict". Removing its
+  temporary directory can fail after the checker has written its own line.
+- **Tests.** The three commands, in five forms, run as processes on a copy holding a plants module that raises a
+  `RuntimeError` with a line feed and a forged `REFUSED` line: each exits 3 with exactly one escaped line, and
+  `--write` writes nothing. In process, a plain `RuntimeError` is exit 3 in one escaped line, and the clash, raised by
+  the registry's own merge, is exit 2. `--write` runs as a process in a copy where docs/CONTROLS.md is a directory: the
+  three files before it are named, then the line. A render that fails writes nothing.
+
+**D2, two sentences wider than the code: fixed.**
+- **CLAUDE.md** now says "tests in a module under tests/ that pytest does not collect".
+- **pyproject.toml's comment** now says its warnings are four of pytest's, and states what still passes.
+
+**Corrections to the entries above** (append-only, so restated here):
+- The P0.2 entry's N2 bullet says the registry reports "tests in a module pytest never collects". It reads only
+  modules under tests/, by design: a module elsewhere may name a function `test_*` that is no test.
+- The P0.2 entry's N4 bullet says "exit 3 and one line". That held for the plant command and the controls' run, and
+  for the generator only as D1 now makes it.
+
+**The notes taken:**
+- **G1.** `PytestAssertRewriteWarning`, an assert on a tuple that is always true, is an error too. It is pinned with
+  the others and planted in the stage's test.
+  - MEASURED (the lead's scratch, probe_rewrite.py, pytest 9.1.1): pytest warns of the tuple only as it rewrites a
+    module. Once a run with no filter has cached the rewrite, a filtered run passes the module. So the stage test's
+    unfiltered run writes no bytecode.
+  - pyproject.toml states that limit, and the others: an exception in a thread or in `__del__`, or a coroutine never
+    awaited, still passes with a warning, and a test's own `filterwarnings` mark overrides these.
+- **G2.** .gitignore's entries are anchored at the root, so a test's own `build/` under tests/ is still read and run.
+  It adds `env/`, `build/`, `dist/` and `.tox/`. The lint's directory check reads the files git would commit, so an
+  ignored `venv/` holding Python no longer fails the docs stage.
+- **G3.** CLAUDE.md says that pytest's naming decides what is a test, and that a class named `Test*` that is no test
+  sets `__test__ = False`. The registry's docstring states the stray check's limits.
+- **G4.** The stray check skips a file that git lists but is not there. It reads a module not in UTF-8 with its bad
+  bytes replaced.
+- **G5.** Every git that the registry and the privacy gate run drops the variables git lists as pointing it at a
+  repository. The list is read at run time from `git rev-parse --local-env-vars`, so no list is kept here.
+  - The gate is tested on its own repository with GIT_DIR and GIT_WORK_TREE naming another, and a key in a file the
+    other lacks and in a commit message. Both are found.
+  - The gate's controls are tested with GIT_DIR naming another repository, which is no longer re-initialised.
+  - The registry is tested in a repository with the same variables.
+- **T1, T2.** A stray-test plant now runs in a real repository. It holds a test below an import, a test file git has
+  not been told of, a tracked helper deleted, a module not in UTF-8, and an ignored environment holding Python.
+- **T4.** With two paths missing, the misuse line names the first.
+- **P2.** The controls' run's FAILED line changed in P0.2, from "no control was judged" to "this is not a verdict on
+  the controls". The new wording is the true one: after a plant that exits as it runs, controls have already run (the
+  verifier MEASURED it).
+
+**Not taken:**
+- **G6, I07.** A `check_it` function holding a failing assert is not a test by pytest's naming, so no stage runs it.
+  The stage holds tests as pytest names them.
+- **P3.** CLAUDE.md's times stay P0.1's round-4 idle figures. None can be re-measured idle while the owner's PC is in
+  use.
+
+**Measured, by the lead:**
+- **The runner:** `QRO_MOTH_ROOT=<moth-quantum> bash verify/run.sh`, run
+  `20261015-173744-20167-8858978+dirty`, on the tree as frozen but for this
+  entry: **17 stages passed, 3 skipped by name** (p1, p2 and p4), none
+  failed.
+  - docs: 130 passed; tool-tests: 94; vocab-tests: 8; format: 664;
+    custody: 23; control-tests: 32. That is 951 tests, 9 more than the
+    P0.2 entry's;
+  - controls-run: 9 of 9, 21 pending;
+  - study-plants: 68 faults refused, 6 right variants accepted;
+  - privacy: 249 files and 2 commit messages, nothing found;
+  - privacy-controls: 37 of 37 caught;
+  - instruments: 5 of 5 reproduced;
+  - check-docs: 10 documents, 31 other markdown files, 35 source files;
+  - the twin: ACCEPTED `ff3fe486…`, unchanged;
+  - the negative control: refused `raw-digest at data/raw.counts.json`.
+  - It took about 26 minutes with the owner's PC at full load. None of it
+    is a timing figure.
+- **31 hand mutants of this round's changes** (the lead's scratch,
+  m_p02_r2.py, run by hm_t.py against the test meant to kill each): 30
+  were killed by their test. The 31st, the gate's controls running
+  `git init` with the user's variables, survived its first target. A test
+  was added for it, the controls under GIT_DIR naming another repository,
+  and it kills that mutant.
+
+**The lead's slips, caught on the way:**
+- A first runner pass failed docs and check-docs on the lead's own new
+  test in tests/tools/, which named a `build` directory two levels under
+  tests/. check_docs reads such a name as a path in the repository, and
+  that one does not exist. The test now plants `sub/build`, and the run
+  above is the second.
+- A first fix script, written through a Git Bash heredoc, lost a
+  backslash (CLAUDE.md's trap 1). It was rewritten with the editor before
+  it ran.
+
+**Next:** P0.2's verifier, round 2, on Sonnet and the full bar.
+
+## 2026-10-15 - P0.2's second verifier: NOT READY, a sentence and a test, and the fixes
+
+**The verdict** (docs/reviews/P0.2/round2.md): NOT READY, on a sentence and a test. Neither is a wrong acceptance.
+It is P0.2's second send-back, 2 of the cap's 3 (CLAUDE.md item 6), each narrower than the one before. D1's fix
+held in what the code does, every note the lead took held, and the entry before's figures and the lead's 31 mutants
+reproduced.
+
+**Defect 1, what a mark lifts: fixed.**
+- pyproject.toml said a test's own `filterwarnings` mark, or a module's `pytestmark`, overrides the four pins. It
+  lifts one, the pin on a returned value, which pytest raises as the test runs.
+- The other three are raised as pytest imports or collects the module, before any mark applies. The verifier
+  MEASURED this on pytest 9.1.1.
+- The comment now says so. CLAUDE.md now says that the tuple is caught only where pytest rewrites the module afresh.
+
+**Defect 2, a test that read the user's global git ignore file: fixed.**
+- git reads a global ignore file from XDG_CONFIG_HOME, or from ~/.config/git/ignore, whatever GIT_CONFIG_GLOBAL
+  names. One listing `build/` failed the test that the gate reads a nested `build/`.
+- The tools tests' git now runs with XDG_CONFIG_HOME an empty directory. The test that the tests' git is none of the
+  user's holds it.
+- The registry's test in a repository reads none of the user's configuration or ignore files either.
+
+**Corrections to the entries above** (append-only, so restated here):
+- The entry before says a test's own `filterwarnings` mark, or a module's `pytestmark`, overrides the four pins. It
+  lifts one (defect 1).
+- The entry before says .gitignore's entries are anchored at the root. All are but `*.egg-info/`, which an install
+  makes beside its package, wherever that is. .gitignore's comment now says so.
+- The entry before is headed 2026-10-16. It was written on 2026-10-15, local time, as this ledger dates its
+  entries.
+
+**The notes taken:**
+- **[code] git's configuration is kept.** git_env dropped every variable git lists as local, its configuration's
+  among them (GIT_CONFIG_COUNT, GIT_CONFIG_PARAMETERS).
+  - So a checkout that git trusts only through a `safe.directory` given that way was refused, and the gate and the
+    registry raised.
+  - Both now drop the location variables, and keep GIT_CONFIG and those beginning GIT_CONFIG_.
+  - Tested with git's own GIT_TEST_ASSUME_DIFFERENT_OWNER, and no configuration of the user's.
+- **[code] The generator's line names what `--write` wrote.**
+  - Into a pipe whose reader had gone, `--write` stopped after its first file. Its line said the files it wrote
+    were named above, where nothing could be read.
+  - The line now names them itself: "it had finished writing" and the files, or "no file".
+  - Its exit there is Python's own, 120. The docstring says so.
+- **[code] Each contradiction is one escaped line.** A plant named with a line feed wrote a second line, free to
+  begin `REFUSED`.
+- **[code, from before P0.2] A history git cannot read is a finding.**
+  - With HEAD naming a commit whose object is gone, git log failed, and the gate said it read no message and
+    exited 0.
+  - Now that is a finding. A repository with no commit yet still has no message to read, so the controls' fresh
+    copies are not caught by it.
+- **[test reach]**
+  - The D1 test runs over five kinds of exception.
+  - Every anchored name of .gitignore's is read when it is nested.
+  - The stray scan's edges are planted: a `testing...` name, a helper outside a parcel's directory, a test in a file
+    that is no module, and a test outside tests/.
+  - A broken index and another object store sit under the git variables, so only dropping the whole list passes.
+  - git failing to list files is raised, never read as an empty list, in the gate and in the registry.
+  - The older exit-0 test holds its one line.
+- **[prose]**
+  - The README's status.
+  - CLAUDE.md's `__test__ = False` advice now names a class outside tests/.
+  - .gitignore's comment.
+- **P3, taken.** With the owner's PC clear, CLAUDE.md's times were measured again (below): ~70 s and ~125 s.
+
+**Not taken:**
+- **The `git init` in the gate's file controls.** Removing it changes no control's verdict: a copy without .git is
+  walked, and every plant is still read. The controls then do not exercise git's listing, which the gate's own tests
+  do.
+- **The generator's drift report and success lines** stay unasserted, as cosmetic.
+
+**Measured, by the lead,** with nothing else of the lead's running:
+- **The runner:** `QRO_MOTH_ROOT=<moth-quantum> bash verify/run.sh`, run
+  `20261015-192244-47503-8858978+dirty`, on the tree as frozen but for this entry and CLAUDE.md's two times:
+  **17 stages passed, 3 skipped by name** (p1, p2 and p4), none failed, in **126 s**. The CPU stood at 2% before it
+  started.
+  - docs: 132 passed; tool-tests: 102; vocab-tests: 8; format: 664; custody: 23; control-tests: 32. That is 961
+    tests, 10 more than the entry before's;
+  - controls-run: 9 of 9, 21 pending;
+  - study-plants: 68 faults refused, 6 right variants accepted;
+  - privacy: 250 files and 2 commit messages, nothing found;
+  - privacy-controls: 37 of 37 caught;
+  - instruments: 5 of 5 reproduced;
+  - check-docs: 10 documents, 32 other markdown files, 35 source files;
+  - the twin: ACCEPTED `ff3fe486…`, unchanged;
+  - the negative control: refused `raw-digest at data/raw.counts.json`.
+- **The quick budget,** `bash verify/run.sh --budget quick`, alone: 14 passed and 3 skipped, in **68 s**.
+  CLAUDE.md now says ~70 s and ~125 s. The verifier measured 67 s, 65 s and 125 s on round 2's tree.
+- **21 hand mutants of this round's changes** (the lead's scratch, m_p02_r3.py, run by hm_t.py): 21 killed, each by
+  the test meant to kill it.
+
+**Next:** P0.2's verifier, round 3, on Sonnet and the full bar. A third NOT READY would make the fourth verifier
+block only on what the code does.
+
+## 2026-10-15 - P0.2's third verifier: NOT READY, a broken branch ref, and the fixes; the cap reached
+
+**The verdict** (docs/reviews/P0.2/round3.md): NOT READY, on one defect in what the code does, and narrow. It is
+P0.2's third send-back. The three were each narrower than the one before: an exit code and a line; then a sentence
+and a test; now one shape of a history git cannot read. So Logan's loose cap is reached (CLAUDE.md item 6), and the
+next verifier blocks only on what the code does. Both round-2 defects held, and so did the notes taken, but for the
+one this defect is.
+
+**The defect: a broken branch ref read as no history. Fixed.**
+- Round 2 made a history git cannot read a finding, and told it from a repository with no commit by
+  `git rev-parse --verify HEAD`. That command fails for a branch ref emptied, garbage or NUL-filled, and for a
+  corrupt `packed-refs`, as it fails for an unborn branch. So the gate read each of those as no history, and said
+  ok, though the key sat in a message (the verifier MEASURED four such shapes).
+- The gate now reads `git log` in the C locale, and takes its failure for a finding unless git says the branch
+  "does not have any commits yet". The test plants a commit gone, a branch ref emptied and a corrupt
+  `packed-refs`, and a fresh repository, which still has no message to read.
+- **A stated limit:** that sentence is git's own. A git whose C-locale words differ would read every unborn
+  branch as a broken one: a finding, so the gate fails closed.
+
+**Corrections to the entries above** (append-only, so restated here):
+- The entry before says "a history git cannot read is a finding". It held for a missing commit object only; it
+  holds now for every failure of `git log` but an unborn branch.
+- The entry before says that with a broken index and another object store set, "only dropping the whole list
+  passes". It was false. A filter that dropped only the variables the tests set passed, and so did one that kept
+  `GIT_COMMON_DIR`. The gate's test now sets `GIT_COMMON_DIR` too.
+- That test, and the one before it that reads every commit message, took any finding that began "commit " for the
+  key in a message. A failed `git log`'s own finding, "commit messages: unread", began so too, and passed for it.
+  Both now require a key found in a commit message (a mutant keeping `GIT_COMMON_DIR` showed it).
+
+**The notes taken:**
+- **[gate] The gate's file controls** counted any finding as caught. With `-z` dropped, the name not in ASCII was
+  quoted by git, could not be opened, and its unread file passed for the key in it. A file control now counts only
+  a key or a path found. A test plants a file listed and gone, which is caught by nothing now.
+- **[code] A commit message not in UTF-8** crashed the gate with a traceback. It is read, its bad bytes replaced.
+- **[test reach]**
+  - git's configuration kept is now tested as git -c gives it to a hook, `GIT_CONFIG_PARAMETERS`, as well as by a
+    count, in the gate and in the registry.
+  - A name not in ASCII is read by its own name.
+  - `*.egg-info/` is ignored when nested too.
+  - The registry's two newest tests read none of the user's configuration or ignore files.
+- **[prose]**
+  - pyproject.toml now states that a warnings filter a test module sets as it is imported lifts the pins for the
+    modules after it.
+  - The gate's docstring says what is a finding, and that "every git it runs on a repository" runs without the
+    location variables. Its first call, which reads git's list of them, runs in the environment as it is.
+
+**Not taken:**
+- **Stated as they are:**
+  - a test of the birth rule run in the user's environment;
+  - the generator naming a file after printing it, which only a reader gone could show;
+  - `GIT_TEMPLATE_DIR`, and an ignore pattern given through the environment that hides the planted names;
+  - git's own error held back when `ls-files` fails, which is still raised, loudly.
+- **The README's word "approved"** stands: the designs are approved, in the round's ledger.
+
+**Measured, by the lead,** with nothing else running:
+- **The runner:** `QRO_MOTH_ROOT=<moth-quantum> bash verify/run.sh`, run
+  `20261015-204141-6585-8858978+dirty`, on the tree as frozen but for this entry: **17 stages passed, 3 skipped
+  by name** (p1, p2 and p4), none failed, in **134 s**, the CPU idle before it started.
+  - docs: 133 passed; tool-tests: 106; vocab-tests: 8; format: 664; custody: 23; control-tests: 32. That is 966
+    tests, 5 more than the entry before's;
+  - controls-run: 9 of 9, 21 pending;
+  - study-plants: 68 faults refused, 6 right variants accepted;
+  - privacy: 251 files and 2 commit messages, nothing found;
+  - privacy-controls: 37 of 37 caught, under the stricter rule;
+  - instruments: 5 of 5 reproduced;
+  - check-docs: 10 documents, 33 other markdown files, 35 source files;
+  - the twin: ACCEPTED `ff3fe486…`, unchanged;
+  - the negative control: refused `raw-digest at data/raw.counts.json`.
+- **The quick budget:** `bash verify/run.sh --budget quick`, alone, just before: 14 passed and 3 skipped, in 65 s.
+- **9 hand mutants of this round's changes** (m_p02_r4.py): 9 killed, each by its target. The first run's
+  survivor, keeping `GIT_COMMON_DIR`, showed the test above passing on the wrong finding; the test was tightened,
+  and the mutant dies. A mutant dropping the C locale is equivalent on this host, whose git speaks English.
+
+**Next:** P0.2's verifier, round 4, on Sonnet and the relaxed bar: only a defect in what the code does blocks, and
+prose, test reach and other findings are notes the lead takes afterwards.
+
+## 2026-10-15 - P0.2's fourth verifier: READY, on the relaxed bar
+
+**The verdict** (docs/reviews/P0.2/round4.md): READY, on the relaxed bar the cap set. It found no defect in what
+the shipped code does.
+- **Round 3's defect is fixed.** On 47 shapes of a repository's history, the gate came out as expected for 38 of
+  the 39 that carry an expectation; the gate at 8858978 did so for 19.
+  - Round 3's four missed shapes are now findings.
+  - A fresh repository, one with files staged, and an orphan branch still pass.
+  - The same rows hold on Python 3.13.5, and in reftable and SHA-256 repositories.
+- **Every earlier fix still holds.**
+  - The runner passed in a git-initialised copy, in a clone with its real history, in a linked worktree, and in a
+    copy with no git.
+  - The generator, the plant command and the controls' run each answer their own failure as stated.
+  - The gate held under 17 settings of git's variables.
+  - The lead's 56 mutants of rounds 2 to 4 are all killed.
+
+**Its notes, for the lead's next work, P0.4:**
+- **[code, from this round] An encoding git log writes outside ASCII's kin.** An `i18n.logOutputEncoding` of
+  UTF-16 or its kin made git log write what `errors="replace"` read as no key. So the gate passed where round 3's
+  had crashed. `git log --encoding=UTF-8` closes it.
+- **[code, older] A 0x01 byte before a key in a commit message hid the key.** The gate splits git log's output
+  on that byte. `git log -z`, split on NUL, closes it, together with the note before.
+- **[code, older] A key staged, then edited out of the working file, passes.** The gate reads the working file,
+  and a plain `git commit` takes the index. The gate is to read what is staged too. Until then, the lead's commits
+  stage the whole tree, so the index is the working tree the gate reads.
+- **[code, older] An untracked nested repository** is listed by git as a directory, and fails the gate as
+  unreadable. The owner's worktrees are siblings of the checkout, not nested in it.
+- **[test reach]** No test runs the gate or the registry in a linked worktree, where `.git` is a file and where the
+  parcels build. The code is right there (the verifier MEASURED it).
+- **[prose]**
+  - pyproject.toml says a warnings filter set at import lifts any of the four pins. It lifts three; the
+    returned-value pin held in all five placements.
+  - The gate's docstring says a history git log cannot read is a finding "whatever broke it". A ref naming a tree
+    or a blob, a deleted ref, a ref replaced by a directory and an emptied `packed-refs` each read as no commit.
+
+**Next:** Logan's word on committing and pushing P0.2, and P0.3, whose second verifier found it READY beside this
+one.

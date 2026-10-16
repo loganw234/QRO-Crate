@@ -9,7 +9,12 @@ or a home-directory path, written into a tracked file or a commit message the wa
 carries one (rule 3). It does not guard against deliberate evasion, and it does not judge content.
 
 It reads every file git would commit (tracked, or untracked and not ignored; `git ls-files -z`, so no name is
-quoted away), its own source included, and every commit message on HEAD's history. A file with a byte-order mark
+quoted away), its own source included, and every commit message on HEAD's history. Every git it runs on a
+repository runs without the variables git lists as pointing it at a repository, GIT_DIR among them, and with
+git's configuration (P0.2's verifier, rounds 1 and 2). A history git log cannot read is a finding, whatever
+broke it, a commit gone, a branch ref emptied or packed-refs corrupt among the causes; only a branch git says
+has no commit yet has no message to read (rounds 2 and 3). A message not in UTF-8 is read with its bad bytes
+replaced. A file with a byte-order mark
 is read in its encoding, UTF-16 and UTF-32 included. A finding is printed masked.
 
 What it cannot see (each limit stated by the behaviour it concedes):
@@ -102,10 +107,22 @@ BOMS =((b"\x00\x00\xfe\xff", "utf-32-be"), (b"\xff\xfe\x00\x00", "utf-32-le"), (
 CHECK_MODES = ("", "--control")
 
 
+def git_env():
+    """The process's environment without the variables that point git at a repository: those git itself lists
+    (`git rev-parse --local-env-vars`) but its configuration's, GIT_CONFIG and those beginning GIT_CONFIG_, which
+    say how git reads a repository, not which. With GIT_DIR and GIT_WORK_TREE naming another repository, the gate
+    read that one's file list and commit messages (P0.2's verifier, round 1, G5); dropping the configuration's too
+    made git refuse a checkout it trusted only through them (round 2). Every git here runs in this."""
+    local = subprocess.run(["git", "rev-parse", "--local-env-vars"], capture_output=True, text=True,
+                           check=True).stdout.split()
+    drop = {k for k in local if k != "GIT_CONFIG" and not k.startswith("GIT_CONFIG_")}
+    return {k: v for k, v in os.environ.items() if k.upper() not in drop}
+
+
 def files(root):
     if (root / ".git").exists():
         out = subprocess.run(["git", "-C", str(root), "ls-files", "-z", "-co", "--exclude-standard"],
-                             capture_output=True, check=True).stdout
+                             capture_output=True, check=True, env=git_env()).stdout
         return [root / p.decode("utf-8") for p in out.split(b"\0") if p]
     skip = {".git", "__pycache__", ".pytest_cache", ".gate-state", ".ruff_cache"}
     return [Path(d) / f for d, ds, fs in os.walk(root) for f in fs if not (set(Path(d).relative_to(root).parts) & skip)]
@@ -158,7 +175,11 @@ def check(root):
     msgs = 0
     if (root / ".git").exists():
         r = subprocess.run(["git", "-C", str(root), "log", "--format=%H%x00%B%x01"], capture_output=True, text=True,
-                           encoding="utf-8")
+                           encoding="utf-8", errors="replace", env=dict(git_env(), LC_ALL="C"))
+        # Only an unborn branch is no history, as git says it in the C locale; anything else that fails git log is
+        # a finding (P0.2's verifier, round 3: HEAD's rev-parse fails for a broken ref as for an unborn one).
+        if r.returncode != 0 and "does not have any commits yet" not in r.stderr:
+            bad.append("commit messages: unread, as git log failed")
         for entry in r.stdout.split("\x01") if r.returncode == 0 else []:
             if "\x00" not in entry:
                 continue
@@ -247,9 +268,10 @@ def control(root):
         with tempfile.TemporaryDirectory() as td:
             r = _copy(root, Path(td) / "copy")
             if (root / ".git").exists():
-                subprocess.run(["git", "-C", str(r), "init", "-q"], check=True)
+                subprocess.run(["git", "-C", str(r), "init", "-q"], check=True, env=git_env())
             plant(r)
-            ok = bool(check(r)[0])
+            ok = any(": a " in b for b in check(r)[0])   # a key or a path found, never a file unread (P0.2's
+            # verifier, round 3: with -z dropped, the name not in ASCII was unreadable, and that passed for caught)
         print(f"control  {what:42} {'caught' if ok else 'NOT CAUGHT'}")
         caught += ok
     total = len(PLANTS) + len(FILE_CONTROLS)

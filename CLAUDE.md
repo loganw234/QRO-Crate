@@ -6,8 +6,8 @@ README says what this project is; this file says what will bite you.
 ## Start here: one command answers "does it still hold?"
 
 ```
-bash verify/run.sh --budget quick   # ~45 s: all but study-plants, privacy-controls and instruments
-bash verify/run.sh                  # ~100 s, every stage; instruments skips BY NAME without QRO_MOTH_ROOT
+bash verify/run.sh --budget quick   # ~70 s: all but study-plants, privacy-controls and instruments
+bash verify/run.sh                  # ~125 s, every stage; instruments skips BY NAME without QRO_MOTH_ROOT
 bash verify/run.sh --list           # every stage, with * on what a budget selects
 ```
 
@@ -24,7 +24,16 @@ that reading cannot see.
   conftest.py, no other configuration file, and a `pytest_plugins` line is
   refused before pytest starts. It enters every directory under tests/
   but `__pycache__` and a virtual environment's, `build/` and dot-directories
-  among them (P0.1's verifier, rounds 1 to 3).
+  among them. A test class it cannot collect, a test that returns a value
+  where it should assert, an assert on a tuple and an unknown mark each
+  fail the stage, the tuple only where pytest rewrites the module afresh
+  (pyproject.toml says when it does not); a test file outside tests/, or
+  tests in a module under tests/ that pytest does not collect, fail the
+  registry (P0.1's verifier, rounds 1 to 4; P0.2's, rounds 1 and 2).
+  pytest's naming decides what is a test: a helper under tests/ names no
+  function `test*` and no class `Test*`. A class so named outside tests/
+  that is no test, a `TestStatistic` in qro/ say, sets `__test__ = False`,
+  or pytest tries to collect it in each test module that imports it.
 - **The study has its own gate.** Before every freeze of
   docs/studies/QRO-0.md, run both
   `python -I docs/studies/qro0/check_study.py docs/studies/QRO-0.md` and
@@ -82,7 +91,10 @@ that reading cannot see.
    ids and accounts, named keys, bearer tokens, JWTs, Moth keys, presigned
    URLs, personal addresses and home paths. It reads every file git would
    commit, UTF-16 included, and every commit message, and lists any binary
-   file it could not read by name.
+   file it could not read by name. So a test's fixture shaped like a key, a
+   CRN, an address or a home path is built at run time, in pieces, as the
+   gate's own plants are (`"QISKIT_IBM_" + "TOKEN="`), never written whole in
+   a file (P0.1's verifier, round 4, N8).
 4. **Real QPU work is Logan's word, and is held until the M1 prototype
    exists** (study QRO-0, section 13). Read-only use of the key is cleared.
 5. **Nothing is committed or pushed without Logan's word.**

@@ -11,5 +11,5 @@
   generated.
 - [VALIDATION.md](VALIDATION.md): the ledger of runs that established
   something.
-- [reviews/](reviews/README.md): every verifier's report, the study's, P0's
-  and P0.1's.
+- [reviews/](reviews/README.md): every verifier's report, the study's, P0's,
+  P0.1's and P0.2's.

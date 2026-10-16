@@ -211,13 +211,18 @@ PLANTS = {
 }
 
 
+class PlantClash(RuntimeError):
+    """A name two modules plant: the definitions contradict themselves. Its own class, so that the generator
+    answers it alone as a contradiction, and any other failure as its own (P0.2's verifier, round 1, D1)."""
+
+
 def merged(plants, modules):
     """P0's plants, and each parcel module's PLANTS dict. A name planted twice is refused, never overwritten."""
     out = dict(plants)
     for module in modules:
         clash = sorted(set(module.PLANTS) & set(out))
         if clash:
-            raise RuntimeError(f"{module.__name__} plants {clash}, which another module already plants")
+            raise PlantClash(f"{module.__name__} plants {clash}, which another module already plants")
         out.update(module.PLANTS)
     return out
 

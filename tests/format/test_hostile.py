@@ -539,6 +539,14 @@ def test_paths_along_files_that_differ_only_by_case_are_refused(tmp_path, names,
     assert (r.detail, r.where) == (detail, where)
 
 
+def test_the_root_before_the_descriptor_is_refused_at_the_graph(tmp_path):
+    """P0.1's verifier, round 4, N7: the order's own refusal was unasserted, since later checks refuse the same graph
+    elsewhere."""
+    c = rewrite(crate(tmp_path), lambda md: md["@graph"].__setitem__(slice(0, 2), md["@graph"][1::-1]))
+    r = refused("graph-form", lambda: reader.read((c / canonical.DESCRIPTOR).read_bytes()))
+    assert (r.where, r.detail) == ("@graph", "the descriptor first, then the root")
+
+
 def test_a_root_that_is_also_an_action_is_refused(tmp_path):
     """Round 6, 8.3 item 2."""
     c = rewrite(crate(tmp_path), lambda md: md["@graph"][1].update(

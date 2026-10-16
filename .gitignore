@@ -3,3 +3,15 @@
 __pycache__/
 .pytest_cache/
 .ruff_cache/
+# A virtual environment, and what an install or a build makes, at a worktree's root: a parcel's own tools, never
+# the record (P0.1's verifier, round 4, N5: the privacy gate read one, and failed on a third party's address; P0.2's
+# verifier, round 1, G2: env/, build/ and .tox/ still did). Anchored at the root, all but *.egg-info/, which an
+# install makes beside its package, wherever that is: so a directory of the other names below the root, a test's
+# build/ under tests/ say, is still read, and still run.
+/.venv/
+/venv/
+/env/
+/build/
+/dist/
+/.tox/
+*.egg-info/

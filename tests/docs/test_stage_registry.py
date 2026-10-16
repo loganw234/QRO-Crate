@@ -33,12 +33,22 @@ lines are the pinned ones (round 3, note 7), its refusal of a `pytest_plugins` l
 parcel's test files carry its prefix, so two parcels' never share a name (round 1, D3). Each `need_file` guards
 the next stage the runner calls, which runs the directory it guards, and the quick budget is every stage but the
 three CLAUDE.md names (round 2, note 4.1.2; round 3, note 5).
+A test no stage runs is reported among the files git would commit (stray_tests; P0.1's verifier, round 4, N2): a
+test file outside tests/, and a module under tests/ that pytest does not collect but that holds a line beginning
+`def test` or `class Test`, pytest's own naming. git runs here as in the privacy gate, without the variables git
+lists as pointing it at a repository, its configuration's kept (P0.2's verifier, rounds 1 and 2, G5); a file it
+lists that is not there is not
+read (G4); and the lint must name every top-level directory holding a .py file git would commit (G2).
 Stated limits (P0's verifier, round 4, notes 1 to 3): this reads the runner's text, not its run. So it cannot see
 a stage the shell never reaches (inside `if false`, after an `exit 0`), a tool's own flag that masks its exit
 (`--exit-zero`, `--help`), or the runner's own exit status. Each run prints a line for every stage it ran, and
 the negative control shows on every run that the runner can still fail. And a test module is code pytest runs:
 one written to reach into pytest's own state, past the stage script's refusal of `pytest_plugins`, can take
-tests out of its stage, and no pin here can stop it (P0.1's verifier, round 3, G3).
+tests out of its stage, and no pin here can stop it (P0.1's verifier, round 3, G3). stray_tests reads lines, not
+code: a test written `async def test`, `def  test` or after a byte-order mark on the first line is not seen; it
+reads only tests/, since a module elsewhere may name a function test_* that is no test; and a helper module under
+tests/ that names a function `test*` or a class `Test*`, as pytest names tests, is reported though it holds none
+(P0.2's verifier, round 1, G3).
 The study's five analysis instruments are run by tools/check_instruments.py, which must name exactly them. Its
 three IBM tools (ibm_*.py) need the owner's key, so no stage runs them: a stated limit.
 """
@@ -147,6 +157,149 @@ def test_every_test_file_is_run_by_a_stage():
     assert orphans(ROOT, dirs) == []
 
 
+def git_env():
+    """The process's environment without the variables that point git at a repository: those git itself lists
+    (`git rev-parse --local-env-vars`) but its configuration's, GIT_CONFIG and those beginning GIT_CONFIG_. With
+    GIT_DIR and GIT_WORK_TREE naming another repository, committed_files listed that one's files, and a stray test
+    passed (P0.2's verifier, round 1, G5); dropping the configuration's too made git refuse a checkout it trusted
+    only through them (round 2). As the privacy gate's."""
+    import subprocess
+    local = subprocess.run(["git", "rev-parse", "--local-env-vars"], capture_output=True, text=True,
+                           check=True).stdout.split()
+    drop = {k for k in local if k != "GIT_CONFIG" and not k.startswith("GIT_CONFIG_")}
+    return {k: v for k, v in os.environ.items() if k.upper() not in drop}
+
+
+def committed_files(root):
+    """Every file git would commit, as the privacy gate reads them, but one git lists that is not there (P0.2's
+    verifier, round 1, G4: a tracked helper deleted, its deletion not yet added); with no .git, every file below
+    the root but those in a dot-directory or __pycache__."""
+    import subprocess
+    if (root / ".git").exists():
+        out = subprocess.run(["git", "-C", str(root), "ls-files", "-z", "-co", "--exclude-standard"],
+                             capture_output=True, check=True, env=git_env()).stdout
+        return sorted(p for p in (root / q.decode("utf-8") for q in out.split(b"\0") if q) if p.is_file())
+    return sorted(p for p in root.rglob("*") if p.is_file() and not any(
+        part.startswith(".") or part == "__pycache__" for part in p.relative_to(root).parts))
+
+
+TEST_FILE = re.compile(r"test_.*[.]py|.*_test[.]py")
+
+
+def stray_tests(root):
+    """Tests no stage runs, outside what orphans() reads (P0.1's verifier, round 4, N2): a test file outside
+    tests/, in qro/ say, which no stage's directory holds; and, under tests/, test functions or classes in a module
+    pytest never collects, a parcel's p2_*.py helper among them."""
+    out = []
+    for f in committed_files(root):
+        rel = f.relative_to(root)
+        if TEST_FILE.fullmatch(f.name) and rel.parts[0] != "tests":
+            out.append(f"{rel.as_posix()}: a test file outside tests/, which no stage runs")
+        elif f.suffix == ".py" and rel.parts[0] == "tests" and not TEST_FILE.fullmatch(f.name) and re.search(
+                r"^(def test|class Test)", f.read_bytes().decode("utf-8", errors="replace"), re.M):
+            out.append(f"{rel.as_posix()}: tests in a module pytest never collects")
+    return out
+
+
+def test_no_test_is_where_no_stage_runs_it():
+    assert stray_tests(ROOT) == []
+
+
+def test_a_test_where_no_stage_runs_it_is_caught(tmp_path):
+    for rel, text in (("qro/test_x.py", ""), ("tools/y_test.py", ""), ("tests/p2/p2_hidden.py", "def test_a():"),
+                      ("tests/p2/p2_cases.py", "class TestCases:"), ("tests/p2/p2_helpers.py", "def helper():"),
+                      ("tests/p2/test_p2_ok.py", "def test_b():"), (".venv/Lib/site-packages/pkg/test_z.py", "")):
+        (tmp_path / rel).parent.mkdir(parents=True, exist_ok=True)
+        (tmp_path / rel).write_text(text + chr(10), encoding="utf-8")
+    assert stray_tests(tmp_path) == ["qro/test_x.py: a test file outside tests/, which no stage runs",
+                                     "tests/p2/p2_cases.py: tests in a module pytest never collects",
+                                     "tests/p2/p2_hidden.py: tests in a module pytest never collects",
+                                     "tools/y_test.py: a test file outside tests/, which no stage runs"]
+
+
+def test_a_test_where_no_stage_runs_it_is_caught_in_a_repository_as_git_lists_its_files(tmp_path, monkeypatch):
+    """P0.2's verifier, round 1: every plant above sits where there is no .git, so git's listing was held by none
+    (T1), and each test was on its module's first line (T2). Here, in a repository: a test below an import; a test
+    file git has not been told of; a tracked helper deleted, its deletion not added, and one not in UTF-8 (G4); an
+    ignored environment holding Python, which the lint need not name (G2); and git's variables naming another
+    repository and a broken index (G5). After round 2, the scan's own edges too: a test named `testing...`, a
+    helper outside a parcel's directory, a test in a file that is no module, and one outside tests/. Its gits read
+    none of the user's configuration or ignore files."""
+    import subprocess
+    empty = tmp_path / "gitconfig-empty"
+    empty.write_text("", encoding="utf-8")
+    for k, v in (("GIT_CONFIG_GLOBAL", str(empty)), ("GIT_CONFIG_NOSYSTEM", "1"),
+                 ("XDG_CONFIG_HOME", str(tmp_path / "xdg"))):
+        monkeypatch.setenv(k, v)
+    repo, other = tmp_path / "repo", tmp_path / "other"
+    for rel, text in (("tests/p2/p2_hidden.py", chr(10).join(["import os", "", "def test_a():", "    pass", ""])),
+                      ("tests/p2/p2_gone.py", "def helper():" + chr(10)), (".gitignore", "/venv/" + chr(10)),
+                      ("tests/p2/p2_latin.py", "# caf" + chr(0xE9) + chr(10)),
+                      ("tests/p2/p2_named.py", "def testing_dir():" + chr(10)),
+                      ("tests/p2/p2_notes.txt", "def test_a():" + chr(10)),
+                      ("tests/helpers/common.py", "class TestBase:" + chr(10)),
+                      ("qro/helper.py", "def test_x():" + chr(10)),
+                      ("venv/Lib/site-packages/pkg/test_z.py", "def test_z():" + chr(10))):
+        (repo / rel).parent.mkdir(parents=True, exist_ok=True)
+        (repo / rel).write_bytes(text.encode("latin-1"))
+    other.mkdir()
+    for r in (repo, other):
+        subprocess.run(["git", "-C", str(r), "init", "-q"], check=True, env=git_env())
+    subprocess.run(["git", "-C", str(repo), "add", "-A"], check=True, env=git_env())
+    (repo / "tests" / "p2" / "p2_gone.py").unlink()
+    (repo / "qro" / "test_x.py").write_text("", encoding="utf-8")
+    (other / "garbage-index").write_bytes(b"not an index")
+    monkeypatch.setenv("GIT_DIR", str(other / ".git"))
+    monkeypatch.setenv("GIT_WORK_TREE", str(other))
+    monkeypatch.setenv("GIT_INDEX_FILE", str(other / "garbage-index"))
+    assert stray_tests(repo) == ["qro/test_x.py: a test file outside tests/, which no stage runs",
+                                 "tests/helpers/common.py: tests in a module pytest never collects",
+                                 "tests/p2/p2_hidden.py: tests in a module pytest never collects",
+                                 "tests/p2/p2_named.py: tests in a module pytest never collects"]
+    assert shape_problems(repo, RUNNER) == []
+
+
+@pytest.mark.parametrize("given", [(("GIT_CONFIG_COUNT", "1"), ("GIT_CONFIG_KEY_0", "safe.directory"),
+                                      ("GIT_CONFIG_VALUE_0", "*")),
+                                     (("GIT_CONFIG_PARAMETERS", "'safe.directory'='*'"),)],
+                         ids=["as a count", "as git -c gives it to a hook"])
+def test_committed_files_keep_the_configuration_git_is_given_in_the_environment(tmp_path, monkeypatch, given):
+    """P0.2's verifier, round 2: git_env dropped GIT_CONFIG_COUNT too, so a checkout git trusts only through a
+    safe.directory given that way was refused, and the registry raised. GIT_TEST_ASSUME_DIFFERENT_OWNER is git's
+    own switch for treating a checkout as another user's; no configuration of the user's trusts it here."""
+    import subprocess
+    empty = tmp_path / "gitconfig-empty"
+    empty.write_text("", encoding="utf-8")
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    (repo / "a.py").write_text("", encoding="utf-8")
+    for k, v in (("GIT_CONFIG_GLOBAL", str(empty)), ("GIT_CONFIG_NOSYSTEM", "1"),
+                 ("XDG_CONFIG_HOME", str(tmp_path / "xdg"))):
+        monkeypatch.setenv(k, v)
+    subprocess.run(["git", "-C", str(repo), "init", "-q"], check=True, env=git_env())
+    for k, v in (("GIT_TEST_ASSUME_DIFFERENT_OWNER", "1"),) + given:
+        monkeypatch.setenv(k, v)
+    assert committed_files(repo) == [repo / "a.py"]
+
+
+def test_committed_files_fail_loudly_where_git_cannot_list_them(tmp_path, monkeypatch):
+    """A broken index is git's failure, raised, never an empty list that passes (P0.2's verifier, round 2). Its
+    git reads none of the user's configuration or ignore files (round 3)."""
+    import subprocess
+    empty = tmp_path / "gitconfig-empty"
+    empty.write_text("", encoding="utf-8")
+    for k, v in (("GIT_CONFIG_GLOBAL", str(empty)), ("GIT_CONFIG_NOSYSTEM", "1"),
+                 ("XDG_CONFIG_HOME", str(tmp_path / "xdg"))):
+        monkeypatch.setenv(k, v)
+    (tmp_path / "repo").mkdir()
+    tmp_path = tmp_path / "repo"
+    (tmp_path / "a.py").write_text("", encoding="utf-8")
+    subprocess.run(["git", "-C", str(tmp_path), "init", "-q"], check=True, env=git_env())
+    (tmp_path / ".git" / "index").write_bytes(b"not an index")
+    with pytest.raises(subprocess.CalledProcessError):
+        committed_files(tmp_path)
+
+
 def test_every_tool_check_is_run_by_a_stage():
     assert tools(ROOT), "no tools found"
     assert unstaged(ROOT, RUNNER) == []
@@ -185,7 +338,7 @@ def shape_problems(root, runner_text):
                                                                   for w in rest[1:]):
                 out.append(f"a pytest stage with another option: {line.strip()}")
     lint = [line for line in stage_lines(runner_text) if "ruff check" in line]
-    python_dirs = {f.relative_to(root).parts[0] for f in root.rglob("*.py")} - {"docs"}
+    python_dirs = {f.relative_to(root).parts[0] for f in committed_files(root) if f.suffix == ".py"} - {"docs"}
     python_dirs = {d for d in python_dirs if not d.startswith(".")}
     if len(lint) != 1 or not python_dirs <= set(lint[0].split()):
         out.append(f"the lint does not name every directory holding Python: {sorted(python_dirs)}")
@@ -283,7 +436,10 @@ def test_a_stage_dropped_from_the_quick_budget_or_renamed_is_caught():
     assert quick_problems(RUNNER.replace("stage p4 ", "stage p44 ", 1)) == ["p4", "p44"]
 
 
-PYTEST_OPTIONS = {"pythonpath": ["."], "testpaths": ["tests"], "addopts": "-p no:cacheprovider", "norecursedirs": []}
+PYTEST_OPTIONS = {"pythonpath": ["."], "testpaths": ["tests"], "addopts": "-p no:cacheprovider", "norecursedirs": [],
+                  "filterwarnings": ["error::pytest.PytestCollectionWarning", "error::pytest.PytestReturnNotNoneWarning",
+                                     "error::pytest.PytestUnknownMarkWarning",
+                                     "error::pytest.PytestAssertRewriteWarning"]}
 # pytest 9.1.1's own configuration file names, in the order it looks for them (_pytest/config/findpaths.py,
 # locate_config, READ): the names refused below, and the plants.
 PYTEST_FILES = ("pytest.toml", ".pytest.toml", "pytest.ini", ".pytest.ini", "pyproject.toml", "tox.ini", "setup.cfg")
@@ -486,6 +642,31 @@ def test_the_stage_script_runs_a_test_below_a_directory_pytest_skips_by_default(
                                                                encoding="utf-8")
     staged = stage(root, env)
     assert staged.returncode == 1 and "1 failed, 2 passed" in staged.stdout, staged.stdout[-500:]
+
+
+@pytest.mark.parametrize("name, text", [
+    ("test_c.py", chr(10).join(["class TestHeld:", "    def __init__(self):", "        pass", "", "",
+                                "    def test_it(self):", "        assert False", ""])),
+    ("test_c.py", chr(10).join(["def test_it():", "    return 1 == 2", ""])),
+    ("test_c.py", chr(10).join(["import pytest", "", "", "@pytest.mark.slowish", "def test_it():", "    pass", ""])),
+    ("test_c.py", chr(10).join(["def test_it():", "    assert (1 == 2, 'always true')", ""]))],
+    ids=["a class pytest cannot collect", "a test that returns where it should assert", "a mark unknown",
+         "an assert on a tuple"])
+def test_the_stage_fails_on_each_warning_that_a_test_is_not_held(tmp_path, name, text):
+    """P0.1's verifier, round 4, N1: each passed its stage with "1 warning"; and P0.2's, round 1, G1, the tuple.
+    Without pytest's warnings plugin, so with no filter, the same tree passes: the plant bites through the filter
+    alone. That run writes no bytecode: pytest warns of the tuple only as it rewrites the module, and a rewrite
+    cached by a run with no filter hides it from the stage (MEASURED, pytest 9.1.1; pyproject.toml says so)."""
+    import subprocess
+    import sys
+    root, env = two_tests(tmp_path)
+    (root / "tests" / "x" / name).write_text(text, encoding="utf-8")
+    unfiltered = subprocess.run([sys.executable, "-m", "pytest", "-c", "pyproject.toml", "--noconftest", "--color=no",
+                                 "-q", "-p", "no:warnings", "tests/x"], cwd=root, capture_output=True, text=True,
+                                env=dict(env, PYTHONDONTWRITEBYTECODE="1"))
+    assert unfiltered.returncode == 0, unfiltered.stdout[-500:]
+    staged = stage(root, env)
+    assert staged.returncode == 1, staged.stdout[-500:]
 
 
 def test_the_stage_script_refuses_a_pytest_plugins_line_before_pytest_runs(tmp_path):
