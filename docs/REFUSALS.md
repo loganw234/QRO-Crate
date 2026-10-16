@@ -7,8 +7,8 @@ Every name the checker, the comparison, the kit or the custody check refuses by,
 | name | where | effect | owner | meaning |
 |---|---|---|---|---|
 | `spelling` | step 1 | refused | P0 | the bytes are not canonical JSON, or a value is not in its term's one spelling |
-| `context` | step 1 | refused | P0 | the @context is not this profile version's |
-| `graph-form` | step 1; step 3 | refused | P0 | the graph's shape: the top level; a @graph that is not a list of two entities or more; an entity without @id or @type; a repeated @id; two paths along files, the descriptor among them, whose names differ only by case, or a path both a file and a directory; the order; the descriptor; the root, its type, never an action, and every term it must carry; the root's conformsTo, which is Process Run Crate 0.6 and this profile; the root's mentions; a reference that names no entity; a term on an entity its domain does not admit; and, at step 3, a raw result that is not a File the crate holds |
+| `context` | step 1 | refused | P0 | the @context, or the version a profile's contextual entity declares, is not the one this reader reads |
+| `graph-form` | step 1; step 3 | refused | P0 | the graph's shape: the top level; a @graph that is not a list of two entities or more; an entity without @id or @type; a repeated @id; two paths along files, the descriptor among them, whose names differ only by case, or a path both a file and a directory; the order; the descriptor; the root, its type, never an action, and every term it must carry; the root's conformsTo, which is Process Run Crate 0.6 and this profile; each one's contextual entity, but its version, and no Profile entity besides; the root's mentions; a reference that names no entity; a term on an entity its domain does not admit; and, at step 3, a raw result that is not a File the crate holds |
 | `term-unknown` | step 1 | refused | P0 | a key that neither this vocabulary nor RO-Crate 1.3's context names, or a type this vocabulary does not list |
 | `field-kind` | step 1 | refused | P0 | a key RO-Crate's context defines but this vocabulary gives no kind (rule 9) |
 | `file-missing` | step 2 | refused | P0 | a listed file is not in the crate |
@@ -20,8 +20,8 @@ Every name the checker, the comparison, the kit or the custody check refuses by,
 | `count-unpaid` | step 3 | refused | P0 | a stated count is not the count the raw bytes hold |
 | `commitment` | step 4 | refused | P1 | a commitment does not recompute, or is not the one the provider echoed |
 | `known-answer` | step 5; kit intake | refused | P1 | the decode does not read the known answer: bit order is not held |
-| `measure-class` | step 6 | refused | P2 | a measure's value or declared class does not re-derive |
-| `compile-uncontrolled` | step 7 | refused | P2 | a gate list does not pass the exact hold |
+| `measure-class` | step 6 | refused | P2 | a measure's value, interval or class, or the law they rest on, does not re-derive |
+| `compile-uncontrolled` | step 7 | refused | P2 | a gate list does not pass the exact hold, or a compile's hold is not what its gate lists give |
 | `calibration-link` | step 8 | refused | P1 | a calibration link or values-digest does not hold |
 | `metadata-generated` | step 9 | refused | P0 | the metadata is not what its generator makes from the records, the header normalised |
 | `step-unbuilt` | seam | refused | P0 | a CHECKED field, a raw form or a generator whose checker step is not built yet |

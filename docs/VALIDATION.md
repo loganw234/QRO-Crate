@@ -1887,3 +1887,208 @@ the shipped code does.
 
 **Next:** Logan's word on committing and pushing P0.2, and P0.3, whose second verifier found it READY beside this
 one.
+
+## 2026-10-15 - P0.3: the shared files for P1's, P2's and P4's builds
+
+**What P0.3 is.** It is the lead's edit of the shared files that three approved parcel designs need before they
+build:
+- P1's, the adapter, approved 2026-10-15;
+- P2's, the golden measures, and P4's, the profile, both approved 2026-10-16.
+
+The designs, and the lead's decisions on them, are in the round's ledger: P1.md, P2.md, P4.md, and lead.md at
+22:58:30Z and 2026-10-16T00:24:00Z. This entry folds in what each design measured that changed a shared file.
+P0.3 was made by two scripts, kept in the lead's scratch (p03_edits.py, then p03b_edits.py), followed by
+`python tools/gen_vocabulary.py --write` and a regeneration of the twin's golden files.
+
+**The table** (qro/vocabulary.py, and the pages generated from it):
+- **P1's rows** (its design, item 7):
+  - 15 new terms, among them Process Run Crate's `instrument`, `object` and `result`;
+  - 9 rows narrowed to their types;
+  - 5 types: `qro:Job`, `qro:Pub`, `qro:Decode`, `qro:Compile` and `qro:Snapshot`;
+  - 2 word sets: `role` and `bit-order`.
+- **P2's rows** (its design, item 10):
+  - 19 terms, on steps 6 and 7;
+  - 4 types: `qro:Measuring`, `qro:Contrast`, `qro:Measurement` and `qro:Hold`;
+  - 4 word sets: `twin`, `class`, `measure` and `exact-hold`;
+  - `measure-class` and `compile-uncontrolled` widened to what the steps refuse.
+  - The audit stage `exact-hold` is retired. P2's design measured the exact hold crate-only, on the standard
+    library, so it is step 7's, and the audit record's `stages` now names "any of the three".
+- **P4's rows** (its design, R3):
+  - the type `Profile`, and the term `version` (CHECKED, step 1, domain `Profile`);
+  - `profile_entities()` and `descriptor()`;
+  - `PROFILE_NAME`, `PRC_NAME`, and `PRC_VERSION`, which is read from Process Run Crate's IRI, never written
+    twice.
+  - `context` is widened to a version a profile's entity declares.
+- **The profile's IRI** is now its description page, the README.md that P4's build writes in profile/ (P4's R2).
+  Until that build is pushed, it resolves to nothing; FORMAT.md item 2 says so.
+- **The naming rule.** `sanity()` refuses two `qro:` names, terms or types, that are equal but for case. GitHub
+  lowercases a page's anchors, so the two would share one (P4's found 8; P2's found 4).
+
+**The reader and the fixture** (P4's R3 and R-B, and D10):
+- **The gap, and who found it.** RO-Crate 1.3 requires a contextual entity for each profile in `conformsTo`, and
+  the study's section 3 says so. P0 wrote none, and its reader required none. P4's design found it; P0's six
+  verifiers had not.
+- **What the reader holds now.** At step 1, each profile's entity must be exactly the table's. A missing or
+  misshapen one is `graph-form`, and one declaring another version is `context`. The fixture writes both. The
+  descriptor is now one function of the table, which the reader and the fixture both read.
+- **P0's twin's identity moves** from `ff3fe486…` to `21fafec5…`. The twin now carries the two entities and the
+  profile's new IRI. Three golden files are regenerated: tests/format/golden/twin-metadata.json, twin-body.json
+  and twin-identity.txt. The custody log's and the audit record's goldens are unchanged. One P0 test, the smallest
+  accepted crate, now holds four entities where it held two.
+
+**`qro.spelling.PATTERNS`** (P4's R-C) is the public pattern of each spelling that has one. `problem()` reads the
+same objects, so P4's shapes and the checker cannot hold two patterns.
+
+**The runner and the registry:**
+- **New stages:**
+  - `p1-crates` and `p2-crates`, guarded by `QRO_MOTH_ROOT` and their directories;
+  - `profile`, guarded by `tools/gen_profile.py` and in the quick budget;
+  - `p4-shacl`, guarded by `QRO_SHACL_PYTHON` and its directory.
+- **The guard rule** now reads a tool's stage as running its script, with or without `-I`. So P4's tool can be
+  guarded by its path.
+- **The quick budget** is every stage but study-plants, privacy-controls, instruments, p1-crates, p2-crates and
+  p4-shacl.
+- **A parcel's directory** may carry letters after its number (`p1crates`, `p4shacl`), and its files their prefix.
+
+**The five P0 test carriers** (P1's finding of 22:44:32Z). A narrowed term can no longer be planted on the raw
+result. `fixture.with_entity` adds a carrier of the right type, `#pub` or `#snapshot`.
+
+**The documents:**
+- **CLAUDE.md:** the quick budget's lines. In item 7, a parcel's own page under docs/ is its own, with its one
+  line in docs/README.md: check_docs fails a page with no line and a line with no page.
+- **FORMAT.md:** items 2 and 9, a new item 21, and the stated limits.
+- **LICENSE-docs.md:** it names `profile/` (CC BY 4.0), applying Logan's rule of 2026-10-14.
+- **The study:**
+  - the `qpy-only` row;
+  - section 9's compile row is now CHECKED (step 7);
+  - section 10 lists three checks that need more than the crate;
+  - two dated entries in section 17.
+
+**Where it was made.** P0.3 was applied to a copy of the tree P0.2's third verifier reads (its frozen packet,
+`c459136c…`), so that the two verifiers run side by side. If that round changes P0.2, the lead applies P0.3 again
+and says here what moved. In the real checkout, P0.3 is applied only after P0.2's verdict.
+
+**Measured, by the lead,** in that copy, `git init`-ed with no commit, with nothing else of the lead's running:
+- **The runner:** `QRO_MOTH_ROOT=<moth-quantum> bash verify/run.sh`, run `20261015-192935-48857-nocommit+dirty`,
+  on the tree as frozen but for this entry: **17 stages passed, 7 skipped by name** (p1, p2, p4, p1-crates,
+  p2-crates, profile and p4-shacl), none failed, in **133 s**.
+  - docs: 134 passed; tool-tests: 102; vocab-tests: 10; format: 674; custody: 23; control-tests: 32. That is 975
+    tests, 14 more than P0.2's: the profiles' eight, the version's domain, the patterns, the naming rule, the
+    profiles' entities, a tool's guard and its isolation;
+  - controls-run: 9 of 9, 21 pending;
+  - study-plants: 68 faults refused, 6 right variants accepted, on the amended study; `check_study.py` accepts it;
+  - privacy: 250 files and 0 commit messages, nothing found. The copy has no commit, so no history to read;
+  - privacy-controls: 37 of 37 caught;
+  - instruments: 5 of 5 reproduced;
+  - check-docs: 10 documents, 32 other markdown files, 35 source files;
+  - the twin: ACCEPTED `21fafec5…`, its new identity;
+  - the negative control: refused `raw-digest at data/raw.counts.json`.
+- **The quick budget,** alone: 14 passed and 4 skipped by name, in 68 s.
+- **26 hand mutants of P0.3's code** (the lead's scratch, m_p03.py, run by hm_t.py): 26 killed. 25 died to the test
+  meant to kill each. The 26th, the reader's descriptor rule dropped, died to P0's own descriptor plants elsewhere
+  in the suite.
+
+**The lead's slips, caught on the way:**
+- The first build named the profile's planned README by its path, in FORMAT.md and in qro/vocabulary.py's comment.
+  check_docs refused both, since no such file exists until P4's build. Both now describe it without naming the path.
+- A test of P0's built the smallest accepted crate by hand, of the descriptor and the root alone. R3 refused it
+  until the test carried the two profiles' entities.
+- The guard test's parameters carry an `ids` list. The first script added a case without its id, and was corrected
+  before it ran.
+
+**Next:** P0.3's verifier, round 1, on Sonnet and the full bar, beside P0.2's round 3. Then Logan's word on
+committing P0.2 and P0.3, and the builds: P1.1 and P4 on Sonnet, then P2.1 on Opus.
+
+## 2026-10-15 - P0.3's first verifier: NOT READY, one sentence, and the fixes
+
+**The verdict** (docs/reviews/P0.3/round1.md): NOT READY, on one sentence. The code, the gates and the table held.
+It is P0.3's first send-back, 1 of the cap's 3. The verifier checked:
+- every row against the designs' own tables, with 0 differences;
+- P1's own design graph, which the reader accepts;
+- about 60 hostile shapes and 30,000 fuzzed crates, with 0 crashes;
+- `problem()` over 474,110 values, the same as P0.2's;
+- stand-in parcels for P1.1, P2 and P4, which passed every stage they meet.
+
+**The defect, fixed.** The study's section 9.2 said an audit record names "any of section 10's four" checks that
+need more than the crate, and "the anchor re-fetch is among those four". Section 10 now lists three. Both now say
+three.
+
+**The notes taken:**
+- **[gate] A term and a type of one name.** `sanity()` refused two `qro:` names equal but for case, but not a term
+  and a type of the very same name, which share an anchor too. It refuses both now.
+- **[gate] `need_env`.** The registry's guard rule now holds each `need_env` to name a variable the runner reads
+  elsewhere. Before, a misspelt one would have skipped its stage by name for ever, unseen by any test. A truncated
+  name is planted.
+- **[gate] The runner's fingerprint** now holds the SHACL engine `QRO_SHACL_PYTHON` names: its path, and a digest
+  of the packages it holds. So a run resumed under another engine is not taken for this one's. The fingerprint's
+  line is held by no test; the registry's new rule holds that the runner reads the variable.
+- **[test reach]**
+  - The reader's order is pinned twice. The root's conformsTo comes before the profiles' entities, and those come
+    before the references.
+  - Another version with another name is `graph-form`, not `context`.
+  - A lettered parcel directory, `tests/p2crates`, is held to its prefix.
+- **[prose]**
+  - The study's section 10 said the law is held to its sum, digest and support. It now adds that step 6 holds it to
+    the question's own law circuit.
+  - FORMAT.md item 19 said the golden bytes do not move. It now says they move with what they hold, as P0.3's
+    did.
+  - FORMAT.md item 21, the `graph-form` row and this ledger now say that a `Profile` entity for no profile the root
+    conformsTo is `graph-form`.
+  - P4's shapes are spoken of in the future tense until P4 lands.
+  - The study's amendment gives the exact hold's cost as P2 measured it for v0's IBM crate: 33 s for its 124 gate
+    lists, on a loaded machine. It no longer gives one gate list's reading.
+  - The registry's docstring says what a guarded stage runs.
+- **The dates.** P0.3's study entry and its comments were dated 2026-10-16, the UTC date of the ledger's approval
+  entries. This ledger and the study date by local time, and it was 2026-10-15, so they now say so.
+
+**Not taken:**
+- **The study's section 10 is amended in place, as section 9's compile row is,** with the dated entry in section
+  17 saying why. The verifier asked whether a note would do; the lead keeps both.
+- **The P1.1 and P4 briefs** already say that `version` on a `SoftwareApplication` is `graph-form`. The lead's old
+  simulation of parcels in its scratch, which plants a commitment on the raw result, is the lead's to update, and
+  is no part of the tree.
+
+**Where it now sits.** P0.2's third verifier found one more defect, and P0.2's fourth round reads the tree
+`c104d2b4…`. P0.3 is applied to that tree by its three scripts: p03_edits.py, p03b_edits.py with these fixes, and
+p03c_records.py, which places P0.3's review and its two ledger entries. None of their anchors moved.
+
+**Measured, by the lead,** on that copy, `git init`-ed with no commit, with nothing else running:
+- **The runner:** run `20261015-204447-7156-nocommit+dirty`, on the tree as frozen but for this entry: 17 stages
+  passed and 7 skipped by name, none failed, in 141 s.
+  - docs: 136 passed; tool-tests: 106; vocab-tests: 11; format: 676; custody: 23; control-tests: 32. That is 984
+    tests: P0.2's 966, and P0.3's 18;
+  - privacy: 253 files and 0 commit messages, nothing found;
+  - check-docs: 10 documents, 35 other markdown files, 35 source files;
+  - the twin stays `21fafec5…`;
+  - both study gates accept the study.
+- **With `QRO_SHACL_PYTHON` naming the engine,** the fingerprint's line is the interpreter's path and `804204a1…`.
+- **8 hand mutants of these fixes** (m_p03_r1.py): 8 killed, each by the test meant to kill it.
+
+**Next:** P0.3's verifier, round 2, on Sonnet and the full bar, beside P0.2's fourth.
+
+## 2026-10-15 - P0.3's second verifier: READY
+
+**The verdict** (docs/reviews/P0.3/round2.md): READY, on the full bar, with no defect.
+- **P0.3's three scripts reproduce the tree.** On P0.2's round-4 tree, the verifier's own copy came out
+  byte-identical to the frozen one.
+- **The table holds.** Its 15 and 19 new rows and 9 changed ones compare to the designs' own tables with no
+  difference. It reproduced every figure in the entry before.
+- **The reader holds.** 200,000 random graphs went through the profiles' rule against an oracle written from D1
+  and D10, and 100,000 edits of the twin through the reader. There were no differences, no crash and no wrong
+  acceptance.
+- **The stand-in parcels pass.** With stand-ins for P1.1, P2 and P4, and both variables set, all 24 stages passed.
+
+**Its notes, to take after the commit**, as P0.1's last notes were taken by P0.2:
+- **The `need_env` rule reads a variable's name anywhere,** comments included. It catches a misspelt name, its
+  stated purpose. It does not catch a guard deleted, or one pointed at another variable the runner reads.
+- **The fingerprint's engine line, and the reader's order** between the root's mentions and the references, are
+  held by no test. So is an extra `Profile` entity typed otherwise. The code is right in each.
+- **The first entry's date.** It says P2's and P4's designs were "approved 2026-10-16", the ledger's UTC date. By
+  this ledger's local dates it was 2026-10-15, as the entry after it says.
+- **`qro:lawCircuit`'s meaning** drops P2's "and its coherences".
+- **The study's qpy-only paragraph** cites `bundle.py:7` for the commitment binding the QPY's digest. At 3a73823
+  that sentence is at line 17.
+- **The runner's prose** about its fingerprint does not name the engine.
+- **CLAUDE.md's ~125 s** sits a little below this round's full runs: 133 s to 141 s by the lead, nothing else
+  running.
+- **A version given as the JSON number 0.1** is refused `context` with a detail that reads as if it agreed.

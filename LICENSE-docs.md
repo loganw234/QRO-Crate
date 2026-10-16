@@ -8,7 +8,8 @@ the same day, after the providers' terms were read ([NOTICE.md](NOTICE.md)).
   `docs/studies/qro0/`.
 - **Documents and data are under Creative Commons Attribution 4.0
   International (CC BY 4.0):** https://creativecommons.org/licenses/by/4.0/
-  - That covers the study and the profile's text under `docs/`.
+  - That covers the study and the profile's text under `docs/`, and the
+    profile under `profile/` (P0.3).
   - In the records under `records/`, and in every QRO crate, it covers what
     Logan made:
     - the text;

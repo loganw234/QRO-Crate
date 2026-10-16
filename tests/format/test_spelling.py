@@ -1,6 +1,7 @@
 """Each spelling's examples, accepted and refused, walked both ways, and its writers (study QRO-0, section 9: one
 spelling per value). tests/format/test_sweep.py holds the string spellings to statements of their rules over
 strings one change from its own examples, over the characters its docstring lists."""
+import re
 from datetime import datetime, timezone
 from fractions import Fraction
 
@@ -226,3 +227,15 @@ def test_the_time_writer_refuses_every_time_not_in_utc():
 
 def test_the_time_writer_keeps_every_microsecond():
     assert S.time(datetime(2026, 10, 14, 0, 0, 0, 5, tzinfo=timezone.utc)) == "2026-10-14T00:00:00.000005Z"
+
+
+def test_each_pattern_the_profile_publishes_is_the_one_its_spelling_is_held_to(monkeypatch):
+    """P4's design, R-C (P0.3): PATTERNS is each spelling's pattern, which P4's shapes read, and problem() reads the
+    same: a pattern changed there changes the spelling, so no pattern is written twice."""
+    good = {"size": "12", "digest": "a" * 64, "commit": "b" * 40, "rational": "1/3", "binary64": S.binary64(0.5),
+            "time": "2026-10-14T01:00:00Z", "date": "2026-10-14", "iri": "https://example.org/x"}
+    assert set(S.PATTERNS) == set(good) and set(good) <= set(V.SPELLINGS)
+    for name, value in good.items():
+        assert S.PATTERNS[name].fullmatch(value) and S.problem(name, value) is None, name
+        monkeypatch.setitem(S.PATTERNS, name, re.compile("(?!)"))
+        assert S.problem(name, value) is not None, name

@@ -11,7 +11,7 @@ can hold each one to the study.
 | rule | written in |
 |---|---|
 | terms, types, kinds, spellings, words, refusals, the custody and audit fields | qro/vocabulary.py, rendered as [VOCABULARY.md](VOCABULARY.md) and [REFUSALS.md](REFUSALS.md) |
-| each spelling's one form | qro/spelling.py |
+| each spelling's one form | qro/spelling.py; the pattern of each that has one in its `PATTERNS`, for P4's shapes to read |
 | the canonical bytes, the body and the crate's identity | qro/canonical.py, its docstring |
 | the strict reader's order of decisions (step 1) | qro/reader.py, its docstring |
 | the checker's steps 2, 3 and 9, the seam for steps 4 to 8, and its loading of each parcel's registrations (item 20) | qro/checker.py |
@@ -23,9 +23,14 @@ can hold each one to the study.
 1. **The context is inline:** RO-Crate 1.3's, then one object defining the
    prefix `qro`. A profile term is always written `qro:` and its name, so
    none can collide with, or silently redefine, an RO-Crate term.
-2. **The namespace is provisional** (question 6): the generated vocabulary
-   page, each term at its anchor. It resolves once the repository is public
-   (question 10), and changing it is one row of qro/vocabulary.py.
+2. **The namespace and the profile's IRI are provisional** (question 6).
+   The namespace is the generated vocabulary page, each term at its
+   anchor, and resolves since the repository is public (question 10). The
+   profile's IRI is its description, the README.md that P4 writes in
+   profile/; until P4's build is pushed it resolves to nothing (P0.3). GitHub
+   lowercases a page's anchors, so a camelCase term's fragment may not land
+   on its row, and no two `qro:` names may be equal but for case. Changing
+   either IRI is one row of qro/vocabulary.py.
 3. **A term's kind is the table's, not written beside each value.** That is
    CERT-V2's field table, where a field's audit kind is the table's
    (cft-fp256's docs/studies/CERT-V2.md section 5, READ), and rule 9's "the
@@ -65,7 +70,8 @@ can hold each one to the study.
    reader. `qro:shots` stands only on a raw result, so a count on any other
    entity is refused at step 1 by its domain (item 13). A parcel whose
    entities carry a count of their own declares its rule in its module's
-   `COUNTS`, which the checker loads (item 20).
+   `COUNTS`, which the checker loads (item 20), or re-derives the count in
+   its own CHECKED step, as P2's `qro:inScope` is at step 6 (P0.3).
 10. **The root names its generator** (`qro:generator`). Step 9 runs it on the
     records and compares bodies byte for byte. The name carries no version,
     so changing a generator changes the bodies it makes: a crate written by
@@ -172,7 +178,9 @@ can hold each one to the study.
 19. **The canonical bytes are held to golden copies,** tests/format/golden/:
     the twin's metadata and identity, a custody log and its head, and an
     audit record. The writer and the reader share qro/canonical.py, so a
-    change to it would move both together; the golden bytes do not move.
+    change to it would move both together; the golden bytes do not. They
+    move only with what they hold, in the change that moves it, with its
+    reason in the ledger: P0.3's two profile entities moved the twin's three.
 20. **A parcel registers its checker code in a module of its own,**
     `qro.register_<parcel>`, so that parcels building at once never edit
     P0's files (P0.1, after its verifier's round 1, D3).
@@ -198,22 +206,29 @@ can hold each one to the study.
     - A parcel's registered code runs on every crate the checker reads, P0's
       fixture and every other parcel's crates among them: a step must
       accept a crate that carries none of its terms.
+21. **Each profile the root conformsTo has its contextual entity,** as
+    RO-Crate 1.3 requires and the study's section 3 says: exactly its
+    `@id`, `@type` `["CreativeWork", "Profile"]`, `name` and `version`, as
+    `profile_entities()` in qro/vocabulary.py states them, for this profile
+    and for Process Run Crate. The reader holds both at step 1: a missing or
+    misshapen one is `graph-form`, and so is a `Profile` entity for no
+    profile the root conformsTo; one declaring another version is
+    `context` (P0.3; P4's design, found 1, R3 and D10). The descriptor is
+    likewise one function of the table, `descriptor()`.
 
 ## Stated limits of P0's format
 
 - **RO-Crate's optional `ro-crate-preview.html`** is refused as
   `file-unlisted`, and so is platform litter such as `.DS_Store`. A crate
   holds only what it lists.
-- **The profile's version** is in neither the context nor the profile's
-  IRI, so the `context` refusal cannot tell two versions apart. P4, the
-  profile, owns that.
-- **RO-Crate's `Profile` type** is not in the table yet, so a crate
-  describing its profile as a contextual entity is refused `term-unknown`
-  until P4 adds it.
-- **Process Run Crate's action terms,** `instrument`, `object`, `result`
-  and `agent`, are not in the table yet. RO-Crate's context defines them,
-  so a `CreateAction` carrying any of them is refused `field-kind` until
-  P1, which writes the actions, adds them.
+- **The profile's version is held in the graph,** by each profile's
+  contextual entity, and in neither the context nor the namespace: a term
+  keeps one IRI across versions, and a changed meaning is a new term. The
+  reader reads exactly one version of each profile (P0.3).
+- **Process Run Crate's `agent`** is not in the table yet. RO-Crate's
+  context defines it, so a `CreateAction` carrying it is refused
+  `field-kind`. P1's design added `instrument`, `object` and `result`
+  (P0.3).
 - **What the walk cannot see is not checked.** The checker reads what the
   host lists. A directory it cannot list is raised, never passed over
   (round 5, note 1). The command line answers a want of permission as

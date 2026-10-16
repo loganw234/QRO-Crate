@@ -6,8 +6,10 @@ README says what this project is; this file says what will bite you.
 ## Start here: one command answers "does it still hold?"
 
 ```
-bash verify/run.sh --budget quick   # ~70 s: all but study-plants, privacy-controls and instruments
-bash verify/run.sh                  # ~125 s, every stage; instruments skips BY NAME without QRO_MOTH_ROOT
+bash verify/run.sh --budget quick   # ~70 s: all but study-plants, privacy-controls, instruments, p1-crates,
+                                    #   p2-crates and p4-shacl
+bash verify/run.sh                  # ~125 s, every stage; instruments, p1-crates and p2-crates skip BY NAME
+                                    #   without QRO_MOTH_ROOT, p4-shacl without QRO_SHACL_PYTHON
 bash verify/run.sh --list           # every stage, with * on what a budget selects
 ```
 
@@ -113,16 +115,19 @@ that reading cannot see.
    - its tests, in tests/<parcel>/, every file named `test_<parcel>_*.py`
      or `<parcel>_*.py`, so that no two parcels' names meet;
    - its ledger notes, in its own file outside the worktrees, which the lead
-     merges into docs/VALIDATION.md.
+     merges into docs/VALIDATION.md;
+   - its own page, docs/<parcel>.md, and that page's one line in the index,
+     docs/README.md, added in the same change: check_docs fails a page with
+     no line and a line with no page, so only the parcel can add both (P0.3).
 
    The lead's, which a parcel asks for:
    - a vocabulary row;
-   - a stage (P1's, P2's and P4's are already in verify/run.sh, each
-     skipped by name until its directory exists), and with it a tool's,
-     and a new top-level directory's place in the lint line;
+   - a stage (P1's, P2's and P4's are already in verify/run.sh, with
+     p1-crates, p2-crates, profile and p4-shacl, each skipped by name until
+     its directory or tool exists), and with it a tool's, and a new
+     top-level directory's place in the lint line;
    - a command of the command line;
-   - a document directly under docs/, which the index, docs/README.md,
-     must list;
+   - any other document directly under docs/;
    - the names of its modules under qro/, given in its approved design, so
      that two parcels' never meet;
    - any other outcome for the controls' run than refused by a name or

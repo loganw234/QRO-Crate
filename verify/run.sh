@@ -31,7 +31,8 @@
 #
 # USAGE
 #   bash verify/run.sh                     every stage
-#   bash verify/run.sh --budget quick      the everyday cut: all but study-plants, privacy-controls, instruments
+#   bash verify/run.sh --budget quick      the everyday cut: all but study-plants, privacy-controls, instruments,
+#                                          p1-crates, p2-crates, p4-shacl
 #   bash verify/run.sh --only format,twin  by name (refuses unknown names)
 #   bash verify/run.sh --require-all       a skipped stage FAILS the run
 #   bash verify/run.sh --list              stages, with * on what would run
@@ -48,7 +49,7 @@ export PYTHONIOENCODING=utf-8
 ONLY=""; SKIP=""; REQUIRE_ALL=0; LIST=0; RESUME=""; FRESH=0; BUDGET=""
 
 # Named cuts, checked against the derived stage list below.
-BUDGET_QUICK=lint,docs,check-docs,vocabulary,tool-tests,vocab-tests,format,custody,p1,p2,p4,control-tests,controls-run,twin,controls,study,privacy
+BUDGET_QUICK=lint,docs,check-docs,vocabulary,tool-tests,vocab-tests,format,custody,p1,p2,p4,profile,control-tests,controls-run,twin,controls,study,privacy
 
 die () { echo "FATAL: $*" >&2; exit 2; }
 
@@ -183,6 +184,14 @@ fingerprint () {
   echo "import-path=PYTHONPATH:${PYTHONPATH:-} PYTHONSAFEPATH:${PYTHONSAFEPATH:-} PYTHONHOME:${PYTHONHOME:-}"
   echo "machine=$(python -c 'import platform; print(platform.platform(), platform.machine())' 2>&1)"
   echo "moth-quantum=$moth"
+  echo "shacl-engine=$(shacl_engine)"
+}
+
+# The SHACL engine of P4's p4-shacl stage, by its interpreter and the packages it holds, so that a run resumed
+# under another engine is not taken for this one's (P0.3's verifier, round 1).
+shacl_engine () {
+  if [ -z "${QRO_SHACL_PYTHON:-}" ]; then echo absent; return; fi
+  echo "$QRO_SHACL_PYTHON $("$QRO_SHACL_PYTHON" -I -c 'import importlib.metadata as m; print(sorted(f"{d.metadata["Name"]}=={d.version}" for d in m.distributions()))' 2>&1 | sha256sum | cut -c1-16)"
 }
 if [ -z "$RESUME" ]; then
   # Two fresh runs in one second once shared a directory, and the second read
@@ -322,6 +331,32 @@ stage p2 "P2, the golden measures: measures, twins, floor, certified intervals, 
 need_file tests/p4 "P4, the profile, is not built yet: there is no tests/p4"
 stage p4 "P4, the profile: the Profile Crate, the context, the shapes and the examples" -- \
   bash verify/pytest-stage.sh tests/p4
+
+# P1's second stage (its design, approved 2026-10-15): its two crates built from moth-quantum's records, so
+# out of the quick budget, and skipped by name without moth-quantum or before the directory exists.
+need_env QRO_MOTH_ROOT "moth-quantum's checkout is not named (QRO_MOTH_ROOT, clean at 3a73823)"
+need_file tests/p1crates "P1's crates are not built yet: there is no tests/p1crates"
+stage p1-crates "P1's two crates built from moth-quantum's records and accepted; the controls and sweeps on the real IBM crate" -- \
+  bash verify/pytest-stage.sh tests/p1crates
+
+# P2's second stage (its design, approved 2026-10-15): v0's two crates' measures, intervals and exact holds, so
+# out of the quick budget, as P1's is.
+need_env QRO_MOTH_ROOT "moth-quantum's checkout is not named (QRO_MOTH_ROOT, clean at 3a73823)"
+need_file tests/p2crates "P2's crate-level tests are not built yet: there is no tests/p2crates"
+stage p2-crates "P2 on v0's two crates: every gate list held, the measures and section 6.1's intervals reproduced" -- \
+  bash verify/pytest-stage.sh tests/p2crates
+
+# P4's generator, and its engine's stage (its design, approved 2026-10-15). The generated profile is checked in
+# the quick budget once the tool exists. The engine's stage needs a SHACL engine outside the tree, named by
+# QRO_SHACL_PYTHON, which only Logan allows, so it is out of the quick budget.
+need_file tools/gen_profile.py "P4's generator is not built yet: there is no tools/gen_profile.py"
+stage profile "the profile's generated files regenerate byte for byte; the Profile Crate holds what RO-Crate 1.3 asks" -- \
+  python tools/gen_profile.py --check
+
+need_env QRO_SHACL_PYTHON "no SHACL engine is named (QRO_SHACL_PYTHON: a Python with pyshacl 0.40.1, outside the tree)"
+need_file tests/p4shacl "P4's engine stage is not built yet: there is no tests/p4shacl"
+stage p4-shacl "a SHACL engine reads P4's shapes and judges each example as the evaluator does" -- \
+  bash verify/pytest-stage.sh tests/p4shacl
 
 stage control-tests "the controls' registry walked both ways; each built control comes out as section 11 says" -- \
   bash verify/pytest-stage.sh tests/controls

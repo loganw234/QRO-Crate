@@ -54,11 +54,10 @@ def parcels(tmp_path, monkeypatch):
 
 
 def committed(d):
-    """The fixture, its raw result carrying a step-4 term: refused `step-unbuilt` unless step 4 is registered."""
+    """The fixture with a PUB carrying a step-4 term: refused `step-unbuilt` unless step 4 is registered."""
     c = fixture.make(Path(d) / "crate")
     p = c / canonical.DESCRIPTOR
-    md = json.loads(p.read_bytes())
-    next(e for e in md["@graph"] if e["@id"] == RAW)["qro:commitment"] = "a" * 64
+    md = fixture.with_entity(json.loads(p.read_bytes()), {"@id": "#pub", "@type": "qro:Pub", "qro:commitment": "a" * 64})
     p.write_bytes(canonical.dumps(md))
     return c
 
@@ -161,7 +160,7 @@ def test_the_command_line_loads_every_parcel_before_it_checks(parcels, tmp_path,
     """Unloaded, the crate is refused step-unbuilt; loaded, by the parcel's own step."""
     c = committed(tmp_path)
     assert main(["check", "--fixtures", str(c)]) == 1
-    assert capfd.readouterr().out.startswith("REFUSED step-unbuilt at data/raw.counts.json qro:commitment")
+    assert capfd.readouterr().out.startswith("REFUSED step-unbuilt at #pub qro:commitment")
     parcels("P1", SOURCE)
     assert main(["check", "--fixtures", str(c)]) == 1
     assert capfd.readouterr().out == "REFUSED commitment at data/raw.counts.json: the provider echoed another" + NL

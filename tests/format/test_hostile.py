@@ -13,6 +13,7 @@ import pathlib
 import pytest
 
 from qro import canonical, checker, custody, fixture, reader, spelling
+from qro import vocabulary as V
 from qro.refusal import Refused
 
 RAW = "data/raw.counts.json"
@@ -425,18 +426,19 @@ def test_a_web_based_part_with_no_entity_is_passed_over_not_crashed_on(tmp_path,
     assert canonical.body_digest(checker.check(c))
 
 
-def test_a_crate_of_the_descriptor_and_the_root_alone_is_accepted(tmp_path, monkeypatch):
-    """Round 3, row 14: the smallest graph the reader takes is two entities."""
+def test_a_crate_of_the_descriptor_the_root_and_the_profiles_alone_is_accepted(tmp_path, monkeypatch):
+    """Round 3, row 14: the smallest graph the reader takes. It was the descriptor and the root; since P0.3 it
+    holds each profile's contextual entity too (P4's design, R3), so four entities."""
     own_generator(monkeypatch)
 
     def bare(md):
-        md["@graph"] = md["@graph"][:2]
+        md["@graph"] = md["@graph"][:2] + V.profile_entities()
         md["@graph"][1]["hasPart"] = [{"@id": "https://example.org/remote.json"}]
     c = rewrite(crate(tmp_path), bare)
     for f in (c / "data").iterdir():
         f.unlink()
     (c / "data").rmdir()
-    assert len(checker.check(c)["@graph"]) == 2
+    assert len(checker.check(c)["@graph"]) == 4
 
 
 @pytest.mark.parametrize("c", "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ")
@@ -616,7 +618,7 @@ def test_a_registered_step_that_accepts_lets_the_crate_through(tmp_path, monkeyp
     own_generator(monkeypatch)
     ran = []
     monkeypatch.setitem(checker.STEPS, 4, lambda c, md: ran.append(4))
-    c = rewrite(crate(tmp_path), lambda md: entity(md, RAW).update({"qro:commitment": "a" * 64}))
+    c = rewrite(crate(tmp_path), lambda md: fixture.with_entity(md, {"@id": "#pub", "@type": "qro:Pub", "qro:commitment": "a" * 64}))
     assert canonical.body_digest(checker.check(c)) and ran == [4]
     monkeypatch.setitem(checker.STEPS, 4, None)
     refused("step-unbuilt", lambda: checker.check(c))

@@ -38,7 +38,8 @@ CONTROLS = (
     Control("bits-mirrored", "the decode told the mirrored order", "refused", "known-answer", "P1", "`known-answer`"),
     Control("compile-broken", "a gate-list change that moves a Z-basis probability, digests recomputed", "refused",
             "compile-uncontrolled", "P2", "`compile-uncontrolled`"),
-    Control("qpy-only", "one QPY byte changed, digests and commitment recomputed, gate list left", "accepted", None,
+    Control("qpy-only", "one QPY byte changed, with its digest, the commitment, IBM's echo of it inside the raw "
+            "result and every digest recomputed, the gate list left", "accepted", None,
             "P1", "accepted by the crate-only checker. Refused by the QPY stage or by the anchor's re-fetch, where "
                   "the provider's copy differs"),
     Control("calibration-late", "a snapshot stamped or measured after the first shot, claimed "

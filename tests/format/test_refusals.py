@@ -108,7 +108,7 @@ def metadata_generated(c):
 
 
 def step_unbuilt(c):
-    return edit(c, lambda md: entity(md, RAW).update({"qro:commitment": "a" * 64}))     # step 4's field
+    return edit(c, lambda md: fixture.with_entity(md, {"@id": "#pub", "@type": "qro:Pub", "qro:commitment": "a" * 64}))     # step 4's field
 
 
 def link(path, target):
@@ -175,9 +175,10 @@ def test_the_bytes_refused_before_anything_is_read(data, why):
 def test_steps_4_to_8_each_refuse_their_fields_until_built(tmp_path, monkeypatch):
     """Unbuilt by the test itself, so it holds once the parcels' steps are loaded too (P0.1)."""
     monkeypatch.setattr(checker, "STEPS", {n: None for n in range(4, 9)})
-    fields = {4: ("qro:commitment", "a" * 64), 8: ("qro:valuesDigest", "b" * 64)}
-    for n, (k, v) in fields.items():
-        c = edit(fixture.make(tmp_path / f"c{n}"), lambda md: entity(md, RAW).update({k: v}))
+    fields = {4: ("#pub", "qro:Pub", "qro:commitment", "a" * 64),
+              8: ("#snapshot", "qro:Snapshot", "qro:valuesDigest", "b" * 64)}
+    for n, (i, t, k, v) in fields.items():
+        c = edit(fixture.make(tmp_path / f"c{n}"), lambda md: fixture.with_entity(md, {"@id": i, "@type": t, k: v}))
         with pytest.raises(Refused) as r:
             checker.check(c)
         assert (r.value.name, r.value.detail) == ("step-unbuilt", f"step {n} is not built yet")
@@ -209,3 +210,54 @@ def test_custody_refusals_are_planted_elsewhere():
     from controls.registry import CONTROLS
     assert CUSTODY <= {c.refusal for c in CONTROLS if c.owner == "P0"}
     assert custody.EMPTY == "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+
+
+# -- each profile's contextual entity (P4's design, found 1, R3 and D10; P0.3) -----------------------------------
+PRC = V.PROCESS_RUN_CRATE
+OTHER = {"@id": "https://example.org/another-profile", "@type": ["CreativeWork", "Profile"], "name": "another",
+         "version": "1.0"}
+
+
+@pytest.mark.parametrize("fault, refusal, where", [
+    (lambda md: md["@graph"].remove(entity(md, V.PROFILE)), "graph-form", V.PROFILE),
+    (lambda md: md["@graph"].remove(entity(md, PRC)), "graph-form", PRC),
+    (lambda md: entity(md, V.PROFILE).update(version="0.2"), "context", V.PROFILE + " version"),
+    (lambda md: entity(md, PRC).update(version="0.5"), "context", PRC + " version"),
+    (lambda md: entity(md, V.PROFILE).pop("version"), "graph-form", V.PROFILE),
+    (lambda md: entity(md, V.PROFILE).update(description="a profile"), "graph-form", V.PROFILE),
+    (lambda md: entity(md, PRC).update({"@type": "Profile"}), "graph-form", PRC),
+    (lambda md: fixture.with_entity(md, dict(OTHER)), "graph-form", OTHER["@id"]),
+    (lambda md: entity(md, V.PROFILE).update(version="0.2", name="another"), "graph-form", V.PROFILE)],
+    ids=["this profile's entity missing", "Process Run Crate's missing", "this profile at another version",
+         "Process Run Crate at another version", "no version", "a key more", "typed Profile alone",
+         "a Profile entity for no profile the root conformsTo", "another version and another name"])
+def test_each_profile_the_root_conforms_to_has_its_contextual_entity_exactly(tmp_path, fault, refusal, where):
+    """RO-Crate 1.3 requires a contextual entity for each profile in conformsTo, and the study's section 3 says so;
+    P0 wrote none (P4's design, found 1). The reader holds both to the table's, and names another version
+    `context`."""
+    with pytest.raises(Refused) as e:
+        checker.check(edit(crate(tmp_path), fault))
+    assert (e.value.name, e.value.where) == (refusal, where)
+
+
+def test_a_version_on_any_entity_but_a_profile_is_refused(tmp_path):
+    with pytest.raises(Refused) as e:
+        checker.check(edit(crate(tmp_path), lambda md: entity(md, RAW).update(version="0.1")))
+    assert e.value.name == "graph-form" and e.value.where.startswith(RAW), e.value
+
+
+def test_the_profiles_are_held_after_the_roots_conformsto_and_before_its_references(tmp_path):
+    """The reader's order (P0.3's verifier, round 1): the root's conformsTo, then each profile's entity, then the
+    references. Each crate here carries two faults, and the one first in that order is the one named."""
+    def wrong_conformance(md):
+        md["@graph"].remove(entity(md, V.PROFILE))
+        md["@graph"][1]["conformsTo"] = [{"@id": PRC}]
+
+    def dangling(md):
+        md["@graph"].remove(entity(md, V.PROFILE))
+        md["@graph"][1]["hasPart"] = sorted(md["@graph"][1]["hasPart"] + [{"@id": "data/none.txt"}],
+                                            key=lambda r: r["@id"])
+    for name, fault, where in (("a", wrong_conformance, "./ conformsTo"), ("b", dangling, V.PROFILE)):
+        with pytest.raises(Refused) as e:
+            checker.check(edit(fixture.make(tmp_path / name), fault))
+        assert (e.value.name, e.value.where) == ("graph-form", where), name

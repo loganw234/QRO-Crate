@@ -1138,7 +1138,7 @@ v0 makes two crates:
 | the pre-registration | `CreativeWork` | the file as committed, its commit and push | REPORTED |
 | a device | `IndividualProduct` | name, processor, qubits; `qro:deviceKind` | REPORTED |
 | a bundle | `Dataset` | the manifest, the bundle's identity; the frozen circuits | CHECKED |
-| a compile | `CreateAction` | the transpiler at its version; logical circuits, snapshot, level and seed; the frozen circuits; the exact hold's verdict | CHECKED where the stage runs |
+| a compile | `CreateAction` | the transpiler at its version; logical circuits, snapshot, level and seed; the frozen circuits; the exact hold's verdict | CHECKED (step 7) |
 | a calibration snapshot | `File` | the provider's text; its values-digest; `qro:calibrationLink`; stamp; when read | REPORTED |
 | a prediction | `CreateAction` | the simulator, circuits, snapshot and seed; counts and measures | REPORTED: a seeded reference |
 | a job | `CreateAction` | the provider's program; `qro:device`; circuits, options and shots; the raw result; the job id; `startTime` and `endTime` with their clock; per-PUB `qro:role` and `qro:commitment`; the job line and its commit; the producing kit's commit | REPORTED, and ANCHORED once re-fetched |
@@ -1538,8 +1538,8 @@ different group:
   - the crate's body digest;
   - the checker, and its commit;
   - the verdict: accepted, or the refusal's name;
-  - which stages ran: crate-only, and any of section 10's four that need
-    more. The anchor re-fetch is among those four, and for IBM's jobs
+  - which stages ran: crate-only, and any of section 10's three that need
+    more. The anchor re-fetch is among those three, and for IBM's jobs
     only their owner can make it;
   - the auditor's public handle (rule 3), and the date on the auditor's
     clock. Both are REPORTED;
@@ -1688,8 +1688,9 @@ PROPOSED, except where a source is named.
 **Two authorities, kept apart.**
 - **The physics: the exact law.**
   - A crate carries the law as a table of rationals with its digest.
-  - QRO-Crate does not re-derive it. It checks the sum, the digest and
-    the support.
+  - QRO-Crate does not re-derive it from a kernel. It checks the sum,
+    the digest and the support, and step 6 holds it to the question's own
+    law circuit by simulating that circuit (see section 17).
   - The instruments recompute the 4x4 law from its integer kernel as a
     check: 1,360 forbidden of 4,368, weights {0, 1, 4, 9} × 256, summing
     to 16^5. Draft 2's re-check held them to `compare.exact_law` on all
@@ -1735,7 +1736,7 @@ this order. It refuses at the first failure, by name and location
 9. the generated metadata: regenerated, the header normalised, and
    compared byte for byte.
 
-**Four checks that need more than the crate.** Each is a stage that
+**Three checks that need more than the crate.** Each is a stage that
 skips by name without its tools:
 - **the compile, re-derived** through the named qiskit. That is
   "a function of the circuit, the target (the day's calibration), the
@@ -1743,9 +1744,6 @@ skips by name without its tools:
   READ);
 - **each QPY's gate list**, re-derived through qiskit and held to the
   held gate list. bundle.check only hashes the QPY (R12);
-- **the exact hold, re-derived** as a binary64 statevector. Quantum-Film
-  measured its rounding at 6.3e-17 against a tolerance of 1e-10
-  (isa.py:31-49, READ);
 - **the anchors**, re-fetched from the provider with the owner's key,
   while it keeps the jobs (section 4.5).
 
@@ -1763,7 +1761,7 @@ PROPOSED.
 | job-reattributed | one IBM job's raw result filed under another's id | `commitment`; or `count-unpaid` first, where the two jobs' shot counts differ |
 | bits-mirrored | the decode told the mirrored order | `known-answer` |
 | compile-broken | a gate-list change that moves a Z-basis probability, digests recomputed | `compile-uncontrolled` |
-| qpy-only | one QPY byte changed, digests and commitment recomputed, gate list left | accepted by the crate-only checker. Refused by the QPY stage or by the anchor's re-fetch, where the provider's copy differs |
+| qpy-only | one QPY byte changed, with its digest, the commitment, IBM's echo of it inside the raw result and every digest recomputed, the gate list left | accepted by the crate-only checker. Refused by the QPY stage or by the anchor's re-fetch, where the provider's copy differs |
 | calibration-late | a snapshot stamped or measured after the first shot, claimed `history-at-first-shot` | `calibration-link` |
 | calibration-gap | a job linked `history-at-first-shot` whose first shot falls after a newer carried snapshot's stamp and newest value date | `calibration-link`: the link is `history-in-gap` |
 | calibration-restamped | two snapshots with equal values and different stamps | not a refusal: their values-digests are EQUAL |
@@ -3351,3 +3349,41 @@ a public repo, I will ask Moth directly about the data licensing situation
 when available." So the repository is made public at its first push, once
 P0's verifier finds P0 ready. That day IBM's two service descriptions were
 read again, both unchanged (NOTICE.md).
+
+**A correction to control `qpy-only`, 2026-10-15, from P1's design.**
+Section 11's row said the plant recomputes the digests and the
+commitment and leaves the gate list. In moth-quantum, the commitment
+binds the QPY file's own digest (quantum_film/ibm/bundle.py:7), and
+IBM's echo of the commitment sits inside the raw result. P1's design
+found, on kingston's morning known-answer job, that a step 4 held to the
+echo refuses the plant as the row worded it, `commitment`, and accepts
+it only when the echo inside the raw result is rewritten and its digest
+recomputed too. The row now says so. The control's verdict, accepted by
+the crate-only checker as a stated limit, is unchanged. The round's
+ledger holds the design; docs/VALIDATION.md records it (P0.3).
+
+**Four amendments, 2026-10-15, from P2's and P4's designs.** Both designs
+are in the round's ledger; docs/VALIDATION.md records them (P0.3).
+- **The exact hold is step 7, on the crate alone.** Section 9's compile
+  row said CHECKED where the stage runs, and section 10 listed the exact
+  hold among four checks that need more than the crate. P2's design held
+  v0's 124 gate lists, 12 of them distinct, to their logical circuits on
+  the standard library alone, the worst at 5.4e-17 against 1e-10, in
+  33 s on a loaded machine. So the row now says CHECKED
+  (step 7), section 10 lists three checks, and the audit stage
+  `exact-hold` is retired. Quantum-Film measured its rounding at 6.3e-17
+  (isa.py:31-49, READ).
+- **Step 6 holds the law table to the question's own law circuit,** by
+  simulating it, besides its sum, digest and support. Without that, a law
+  table edited with every digest recomputed would pass a crate with no
+  compile. Nothing is derived from a kernel, so section 10's rule stands.
+- **Section 6.1's intervals are narrower than the sets they claim,** by at
+  most 1.9e-15. `isolation_v0.py`'s float bisection returns the last point
+  it judged inside, and P2's design measured that 82 of its 140 endpoints
+  lie inside the KL set. No figure moves at four places. QRO-Crate's
+  certified intervals are P2's, rounded outward in integer arithmetic.
+- **Each declared profile's contextual entity, as section 3 says.** P0
+  wrote none, and its reader required none: P4's design found it. The
+  reader now holds both, this profile's and Process Run Crate's, with
+  their versions. The profile's IRI is now its description page, the
+  README.md that P4 writes in profile/.

@@ -54,20 +54,41 @@ The prefix `qro` is `https://github.com/loganw234/QRO-Crate/blob/main/docs/VOCAB
 | calibration-link | `read-after-run` | read after the shots; never presented as the state at execution |
 | clock | `provider` | the provider's clock |
 | clock | `local` | the producer's machine's clock |
+| role | `known-answer` | a control whose result is known, so it holds the decode's bit order |
+| role | `law` | the shelf's law circuit |
+| role | `coherence` | the law's circuit with basis rotations on two qubits |
+| bit-order | `msb-first` | a sampler string's leftmost character is classical bit M-1: quantum_film.ibm.decode/v1 |
+| bit-order | `lsb-first` | msb-first's mirror |
+| bit-order | `atlas-register` | a count string is little-endian over the setting's non-I qubits ascending, then the rest: quantum_film.atlas.decode/v1 |
+| bit-order | `circuit-order` | position p holds qubit M-1-p |
+| twin | `uniform` | every N-site layout at 1/D, and every coherence 0: a classical mixture |
+| twin | `dephased` | the law's own layouts, and every coherence 0: the law's state dephased in Z |
+| class | `signal` | the law's expected value differs from the twin's |
+| class | `integrity` | the law's expected value equals the twin's, exactly |
+| measure | `n-crystal-share` | the share of a law PUB's shots that hold exactly N crystals |
+| measure | `forbidden-share` | the share of its N-crystal shots on a layout the law forbids |
+| measure | `linear-xeb` | the linear cross-entropy benchmark over its N-crystal shots |
+| measure | `tvd` | the total variation distance to the law over its N-crystal shots: a statistic |
+| measure | `nn-pair-correlation` | the nearest-neighbour pairs' occupation against their sites': a ratio |
+| measure | `x0x1` | the parity of qubits 0 and 1, read in X on a coherence PUB |
+| measure | `y0y1` | the parity of qubits 0 and 1, read in Y on a coherence PUB |
+| measure | `crystals-per-shot` | how many crystals each shot holds: a class only, in v1 |
+| measure | `one-site-occupations` | each site's occupation: a class only, in v1 |
+| measure | `pair-occupations` | each pair of sites' occupation: a class only, in v1 |
+| exact-hold | `holds` | every gate list the compile's manifest names is carried, and passes the exact hold |
 | custody-event | `received` | a crate received, from where and when |
 | custody-event | `withdrawn` | a crate withdrawn: its bytes removed, its received line kept |
 | audit-stage | `crate-only` | the checker's nine steps, on the crate alone |
 | audit-stage | `compile` | the compile, re-derived through the named qiskit |
 | audit-stage | `qpy` | each QPY's gate list, re-derived and held to the held one |
-| audit-stage | `exact-hold` | the exact hold, re-derived as a binary64 statevector |
 | audit-stage | `anchors` | the anchors, re-fetched from the provider with the owner's key |
 | independence | `producer-build` | the producer's own checker build |
 | independence | `same-source` | the same checker source, built independently at a tagged commit |
 | independence | `independent-implementation` | an independent implementation, written from this profile |
 | verdict | `accepted` | every stage that ran accepted the crate |
 | verdict | `spelling` | the bytes are not canonical JSON, or a value is not in its term's one spelling |
-| verdict | `context` | the @context is not this profile version's |
-| verdict | `graph-form` | the graph's shape: the top level; a @graph that is not a list of two entities or more; an entity without @id or @type; a repeated @id; two paths along files, the descriptor among them, whose names differ only by case, or a path both a file and a directory; the order; the descriptor; the root, its type, never an action, and every term it must carry; the root's conformsTo, which is Process Run Crate 0.6 and this profile; the root's mentions; a reference that names no entity; a term on an entity its domain does not admit; and, at step 3, a raw result that is not a File the crate holds |
+| verdict | `context` | the @context, or the version a profile's contextual entity declares, is not the one this reader reads |
+| verdict | `graph-form` | the graph's shape: the top level; a @graph that is not a list of two entities or more; an entity without @id or @type; a repeated @id; two paths along files, the descriptor among them, whose names differ only by case, or a path both a file and a directory; the order; the descriptor; the root, its type, never an action, and every term it must carry; the root's conformsTo, which is Process Run Crate 0.6 and this profile; each one's contextual entity, but its version, and no Profile entity besides; the root's mentions; a reference that names no entity; a term on an entity its domain does not admit; and, at step 3, a raw result that is not a File the crate holds |
 | verdict | `term-unknown` | a key that neither this vocabulary nor RO-Crate 1.3's context names, or a type this vocabulary does not list |
 | verdict | `field-kind` | a key RO-Crate's context defines but this vocabulary gives no kind (rule 9) |
 | verdict | `file-missing` | a listed file is not in the crate |
@@ -79,8 +100,8 @@ The prefix `qro` is `https://github.com/loganw234/QRO-Crate/blob/main/docs/VOCAB
 | verdict | `count-unpaid` | a stated count is not the count the raw bytes hold |
 | verdict | `commitment` | a commitment does not recompute, or is not the one the provider echoed |
 | verdict | `known-answer` | the decode does not read the known answer: bit order is not held |
-| verdict | `measure-class` | a measure's value or declared class does not re-derive |
-| verdict | `compile-uncontrolled` | a gate list does not pass the exact hold |
+| verdict | `measure-class` | a measure's value, interval or class, or the law they rest on, does not re-derive |
+| verdict | `compile-uncontrolled` | a gate list does not pass the exact hold, or a compile's hold is not what its gate lists give |
 | verdict | `calibration-link` | a calibration link or values-digest does not hold |
 | verdict | `metadata-generated` | the metadata is not what its generator makes from the records, the header normalised |
 | verdict | `step-unbuilt` | a CHECKED field, a raw form or a generator whose checker step is not built yet |
@@ -106,6 +127,7 @@ A term stands only on the entities its domain admits: `*` any, `./` the root, th
 | `license` | REPORTED | ref | no | - | body | - | `*` | P0 | the crate's licence; CC BY 4.0 (question 18) |
 | `name` | REPORTED | text | no | - | body | - | `*` | P0 | a name for a person to read |
 | `description` | REPORTED | text | no | - | body | - | `*` | P0 | a description for a person to read |
+| `version` | CHECKED | text | no | - | body | 1 | `Profile` | P0 | a profile's version: the reader holds each profile's contextual entity to the table's |
 | `hasPart` | CHECKED | ref | yes | - | body | 2 | `Dataset` | P0 | a Dataset's list of the files it holds; every file is reached from the root, and every listed file is there |
 | `sha256` | CHECKED | digest | no | - | body | 2 | `local-file` | P0 | a file's SHA-256 |
 | `contentSize` | CHECKED | size | no | - | body | 2 | `local-file` | P0 | a file's length in bytes |
@@ -119,15 +141,49 @@ A term stands only on the entities its domain admits: `*` any, `./` the root, th
 | <a id="implementation"></a>`qro:implementation` | REPORTED | text | yes | - | header | - | `*` | P0 | an implementation and its version, for a definition whose version is in the body |
 | <a id="signature"></a>`qro:signature` | REPORTED | slot | no | `none` | header | - | `./` | P0 | the signature slot, `none` in v0 (section 9.2) |
 | <a id="trustedTime"></a>`qro:trustedTime` | REPORTED | slot | no | `none` | header | - | `./` | P0 | the trusted-time slot, `none` in v0 (section 9.2) |
-| <a id="deviceKind"></a>`qro:deviceKind` | REPORTED | word:device-kind | no | - | body | - | `*` | P1 | whether a device is a quantum processor |
-| <a id="device"></a>`qro:device` | REPORTED | ref | no | - | body | - | `*` | P1 | the device a job ran on |
-| <a id="commitment"></a>`qro:commitment` | CHECKED | digest | no | - | body | 4 | `*` | P1 | a job's commitment, recomputed and held to the one the provider echoed |
-| <a id="calibrationLink"></a>`qro:calibrationLink` | CHECKED | word:calibration-link | no | `unknown` | body | 8 | `*` | P1 | how a job's calibration snapshot is tied to its shots (section 6) |
-| <a id="valuesDigest"></a>`qro:valuesDigest` | CHECKED | digest | no | - | body | 8 | `*` | P1 | the SHA-256 of a calibration's values, every date excluded |
-| <a id="historyAtRunning"></a>`qro:historyAtRunning` | REPORTED | ref | no | `unknown` | body | - | `*` | P1 | the snapshot the history returns at the job's running time, carried beside the link |
-| <a id="clock"></a>`qro:clock` | REPORTED | word:clock | no | - | body | - | `*` | P1 | the clock an entity's times are on |
-| `startTime` | ANCHORED | time | no | `unknown` | body | - | `*` | P1 | when a job's shots began |
-| `endTime` | ANCHORED | time | no | `unknown` | body | - | `*` | P1 | when a job's shots ended |
+| `instrument` | REPORTED | ref | no | - | body | - | `CreateAction` | P1 | what an action ran: Process Run Crate's instrument (a program, a transpiler, a decode rule) |
+| `object` | REPORTED | ref | yes | - | body | - | `CreateAction`, `qro:Question` | P1 | what an action took as input; what a question is made of |
+| `result` | REPORTED | ref | yes | - | body | - | `CreateAction` | P1 | what an action made, or left beside it |
+| <a id="deviceKind"></a>`qro:deviceKind` | REPORTED | word:device-kind | no | - | body | - | `IndividualProduct` | P1 | whether a device is a quantum processor |
+| <a id="device"></a>`qro:device` | REPORTED | ref | no | - | body | - | `qro:Job`, `qro:Snapshot` | P1 | the device a job ran on, or a snapshot is of |
+| <a id="jobId"></a>`qro:jobId` | REPORTED | text | no | - | body | - | `qro:Job` | P1 | the provider's job id |
+| <a id="line"></a>`qro:line` | READ | ref | no | - | body | - | `qro:Job` | P1 | the job line: Quantum-Film's record of a job and its commitments, written before any result was read |
+| <a id="kitCommit"></a>`qro:kitCommit` | REPORTED | commit | no | `unknown` | body | - | `qro:Job` | P1 | the commit of the code that submitted the job |
+| <a id="role"></a>`qro:role` | READ | word:role | no | - | body | - | `qro:Pub` | P1 | what a PUB's circuit was for |
+| <a id="basis"></a>`qro:basis` | READ | text | no | - | body | - | `qro:Pub` | P1 | the basis each qubit is read in, qubit 0 first |
+| <a id="record"></a>`qro:record` | REPORTED | ref | no | - | body | - | `qro:Pub` | P1 | the PUB's decoded record: Quantum-Film's device-run file |
+| <a id="commitment"></a>`qro:commitment` | CHECKED | digest | no | `none` | body | 4 | `qro:Pub` | P1 | a PUB's commitment, recomputed and held to the one the provider echoed; `none` where no provider held one |
+| <a id="decodeRule"></a>`qro:decodeRule` | CHECKED | text | no | - | body | 5 | `qro:Decode` | P1 | the rule a raw result is read through; step 5 re-decodes under it |
+| <a id="bitOrder"></a>`qro:bitOrder` | READ | word:bit-order | no | - | body | - | `qro:Decode` | P1 | the order the decode is told the provider's bits come in; held by the known answer |
+| <a id="knownAnswer"></a>`qro:knownAnswer` | CHECKED | ref | no | - | body | 5 | `qro:Decode` | P1 | the known-answer PUB whose verdict holds this decode's order |
+| <a id="calibrationLink"></a>`qro:calibrationLink` | CHECKED | word:calibration-link | no | `unknown`, `unexposed` | body | 8 | `qro:Job` | P1 | how a job's calibration snapshot is tied to its shots (section 6) |
+| <a id="calibration"></a>`qro:calibration` | CHECKED | ref | yes | - | body | 8 | `qro:Job` | P1 | the snapshot or snapshots a job's calibration link names |
+| <a id="valuesDigest"></a>`qro:valuesDigest` | CHECKED | digest | no | - | body | 8 | `qro:Snapshot` | P1 | the SHA-256 of a calibration's values, every date excluded |
+| <a id="stamp"></a>`qro:stamp` | CHECKED | time | no | - | body | 8 | `qro:Snapshot` | P1 | a snapshot's own stamp, read from its text |
+| <a id="newestValue"></a>`qro:newestValue` | CHECKED | time | no | - | body | 8 | `qro:Snapshot` | P1 | the newest measurement date inside a snapshot, read from its text |
+| <a id="historyAtRunning"></a>`qro:historyAtRunning` | REPORTED | ref | no | `unknown` | body | - | `qro:Job` | P1 | the snapshot the history returns at the job's running time, carried beside the link |
+| <a id="clock"></a>`qro:clock` | REPORTED | word:clock | no | - | body | - | `qro:Job`, `qro:Snapshot` | P1 | the clock an entity's times are on |
+| `startTime` | ANCHORED | time | no | `unknown` | body | - | `qro:Job` | P1 | when a job's shots began |
+| `endTime` | ANCHORED | time | no | `unknown` | body | - | `qro:Job` | P1 | when a job's shots ended |
+| <a id="law"></a>`qro:law` | CHECKED | ref | no | - | body | 6 | `qro:Question` | P2 | the law table: a File in qro-law/1 form, held to its sum, its support and the question's law circuit |
+| <a id="lawCircuit"></a>`qro:lawCircuit` | CHECKED | ref | no | - | body | 6 | `qro:Question` | P2 | the question's circuit that lays the law; step 6 simulates it and holds the law table to it |
+| <a id="twins"></a>`qro:twins` | CHECKED | word:twin | yes | - | body | 6 | `qro:Question` | P2 | the classical twins the question names |
+| <a id="measureSet"></a>`qro:measureSet` | CHECKED | text | no | - | body | 6 | `qro:Question` | P2 | the measure set's definition and version |
+| <a id="alpha"></a>`qro:alpha` | CHECKED | rational | no | - | body | 6 | `qro:Measuring` | P2 | the crate's certified intervals hold together with probability at least 1 - alpha |
+| <a id="family"></a>`qro:family` | CHECKED | integer | no | - | body | 6 | `qro:Measuring` | P2 | how many certified intervals the crate carries: the union bound's count |
+| <a id="measure"></a>`qro:measure` | CHECKED | word:measure | no | - | body | 6 | `qro:Contrast`, `qro:Measurement` | P2 | which measure of the set |
+| <a id="twin"></a>`qro:twin` | CHECKED | word:twin | no | - | body | 6 | `qro:Contrast` | P2 | the twin a class is computed against |
+| <a id="class"></a>`qro:class` | CHECKED | word:class | no | - | body | 6 | `qro:Contrast` | P2 | the law's expected value against the twin's: computed, never declared |
+| <a id="lawValue"></a>`qro:lawValue` | CHECKED | rational | no | - | body | 6 | `qro:Contrast` | P2 | a scalar measure's expected value under the law |
+| <a id="twinValue"></a>`qro:twinValue` | CHECKED | rational | no | - | body | 6 | `qro:Contrast` | P2 | its expected value under the twin |
+| <a id="measuredPub"></a>`qro:measuredPub` | CHECKED | ref | no | - | body | 6 | `qro:Measurement` | P2 | the PUB whose shots are measured |
+| <a id="inScope"></a>`qro:inScope` | CHECKED | integer | no | - | body | 6 | `qro:Measurement` | P2 | the shots in the measure's domain, counted from the raw bytes |
+| <a id="value"></a>`qro:value` | CHECKED | rational | no | `none` | body | 6 | `qro:Measurement` | P2 | the measure's value, an exact ratio of whole counts; none when no shot is in scope |
+| <a id="lower"></a>`qro:lower` | CHECKED | rational | no | - | body | 6 | `qro:Measurement` | P2 | the certified interval's lower end, rounded outward |
+| <a id="upper"></a>`qro:upper` | CHECKED | rational | no | - | body | 6 | `qro:Measurement` | P2 | the certified interval's upper end, rounded outward |
+| <a id="heldCompile"></a>`qro:heldCompile` | CHECKED | ref | no | - | body | 7 | `qro:Hold` | P2 | the compile whose gate lists are held |
+| <a id="holdRule"></a>`qro:holdRule` | CHECKED | text | no | - | body | 7 | `qro:Hold` | P2 | the exact hold's rule and version |
+| <a id="exactHold"></a>`qro:exactHold` | CHECKED | word:exact-hold | no | `withheld`, `unexposed` | body | 7 | `qro:Hold` | P2 | holds: every gate list the compile's manifest names is carried and passes the exact hold |
 
 ## Types
 
@@ -135,11 +191,21 @@ A term stands only on the entities its domain admits: `*` any, `./` the root, th
 |---|---|---|---|
 | `Dataset` | no | P0 | the root, and a bundle |
 | `File` | no | P0 | a file the crate holds |
-| `CreativeWork` | no | P0 | the metadata descriptor, the question, a pre-registration |
+| `CreativeWork` | no | P0 | the metadata descriptor, the question, a pre-registration, a profile |
+| `Profile` | no | P0 | a profile the root conformsTo, as its contextual entity (RO-Crate 1.3) |
 | `CreateAction` | yes | P1 | a compile, a job, a prediction, a decode, the measures |
 | `IndividualProduct` | no | P1 | a device |
 | `SoftwareApplication` | no | P1 | a program, a transpiler, a simulator |
 | <a id="Question"></a>`qro:Question` | no | P1 | the question: circuits, law, twins, decode rule and measure set |
+| <a id="Job"></a>`qro:Job` | no | P1 | a provider's job: one submission |
+| <a id="Pub"></a>`qro:Pub` | no | P1 | one circuit of a job: its role, basis, commitment and decoded record |
+| <a id="Decode"></a>`qro:Decode` | no | P1 | a job's raw result read through a named rule |
+| <a id="Compile"></a>`qro:Compile` | no | P1 | a bundle's compile: the logical circuits frozen into the circuits sent |
+| <a id="Snapshot"></a>`qro:Snapshot` | no | P1 | a calibration snapshot: the provider's text |
+| <a id="Measuring"></a>`qro:Measuring` | no | P2 | the measuring of a crate's PUBs by its question's measure set |
+| <a id="Contrast"></a>`qro:Contrast` | no | P2 | one measure's class against one twin |
+| <a id="Measurement"></a>`qro:Measurement` | no | P2 | one measure's value on one PUB, with its certified interval |
+| <a id="Hold"></a>`qro:Hold` | no | P2 | the exact hold of one compile's gate lists |
 | <a id="RawResult"></a>`qro:RawResult` | no | P0 | a raw result: the provider's bytes, fixed before anything decodes them |
 
 ## The custody log's lines and the audit record (section 9.2)
@@ -164,6 +230,6 @@ A term stands only on the entities its domain admits: `*` any, `./` the root, th
 | audit record | `independence` | REPORTED | word:independence | no | - | the audit's degree of independence |
 | audit record | `logHead` | CHECKED | digest | no | `none` | the auditor's custody-log head when it wrote the record; `none` with no log, which pins nothing |
 | audit record | `signature` | REPORTED | slot | no | `none` | the signature slot, `none` in v0 |
-| audit record | `stages` | REPORTED | word:audit-stage | yes | - | which stages ran: crate-only, and any of the four |
+| audit record | `stages` | REPORTED | word:audit-stage | yes | - | which stages ran: crate-only, and any of the three |
 | audit record | `trustedTime` | REPORTED | slot | no | `none` | the trusted-time slot, `none` in v0 |
 | audit record | `verdict` | REPORTED | word:verdict | no | - | accepted, or the refusal's name |

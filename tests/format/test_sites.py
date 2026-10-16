@@ -204,7 +204,7 @@ def test_a_registered_count_rule_is_run(tmp_path):
 def test_a_registered_step_is_run_in_place_of_step_unbuilt(tmp_path, monkeypatch):
     """Registered by monkeypatch: set directly, the step stayed registered for every later test in the process
     (P0.1)."""
-    c = rewrite(crate(tmp_path), lambda md: entity(md, RAW).update({"qro:commitment": "a" * 64}))
+    c = rewrite(crate(tmp_path), lambda md: fixture.with_entity(md, {"@id": "#pub", "@type": "qro:Pub", "qro:commitment": "a" * 64}))
 
     def step4(crate_dir, md):
         raise Refused("commitment", RAW, "the provider echoed another")

@@ -23,7 +23,7 @@
       "@type": "Dataset",
       "conformsTo": [
         {
-          "@id": "https://github.com/loganw234/QRO-Crate/blob/main/docs/VOCABULARY.md"
+          "@id": "https://github.com/loganw234/QRO-Crate/blob/main/profile/README.md"
         },
         {
           "@id": "https://w3id.org/ro/wfrun/process/0.6"
@@ -67,6 +67,24 @@
       "qro:rawForm": "qro-fixture-counts",
       "qro:shots": 8,
       "sha256": "5721802cb700ccbf26384808669e4be1ea6fcaaa23acdf602f7d1fb87a7fb73e"
+    },
+    {
+      "@id": "https://github.com/loganw234/QRO-Crate/blob/main/profile/README.md",
+      "@type": [
+        "CreativeWork",
+        "Profile"
+      ],
+      "name": "QRO-Crate",
+      "version": "0.1"
+    },
+    {
+      "@id": "https://w3id.org/ro/wfrun/process/0.6",
+      "@type": [
+        "CreativeWork",
+        "Profile"
+      ],
+      "name": "Process Run Crate",
+      "version": "0.6"
     }
   ]
 }

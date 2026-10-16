@@ -51,8 +51,7 @@ def generate(crate):
     crate = Path(crate)
     paths = sorted(p.relative_to(crate).as_posix() for p in crate.rglob("*")
                    if p.is_file() and p.name != canonical.DESCRIPTOR)
-    graph = [{"@id": canonical.DESCRIPTOR, "@type": "CreativeWork", "about": {"@id": canonical.ROOT},
-              "conformsTo": [{"@id": V.ROCRATE}]},
+    graph = [V.descriptor(),
              dict({"@id": canonical.ROOT, "@type": "Dataset", "name": "QRO-Crate P0 fixture",
                    "description": "The smallest crate every one of P0's checker steps reads — the controls' "
                                   "twin.",
@@ -71,7 +70,16 @@ def generate(crate):
             except checker.RawFormError:
                 pass
         graph.append(e)
+    graph[2:] = sorted(graph[2:] + V.profile_entities(), key=lambda e: e["@id"])   # P0.3: P4's design, R3
     return {"@context": V.context(), "@graph": graph}
+
+
+def with_entity(md, entity):
+    """The metadata with `entity` added in the graph's @id order: a test's carrier of a parcel's term, an entity
+    of the type the term's domain admits (P0.3: a term narrowed to its type is refused anywhere else, at step 1)."""
+    graph = md["@graph"]
+    md["@graph"] = graph[:2] + sorted(graph[2:] + [entity], key=lambda e: e["@id"])
+    return md
 
 
 def register():

@@ -36,6 +36,11 @@ _SEGMENT = re.compile(r"[A-Za-z0-9._~!$&'()+,;=@-]+", re.ASCII)
 SEGMENT_MAX = 255             # the longest name NTFS, ext4 and APFS each hold
 # Text: no control character but the line feed (C0, DEL and C1: Unicode's category Cc), and no lone surrogate.
 _TEXT_BAD = re.compile(r"[\x00-\x09\x0b-\x1f\x7f-\x9f\ud800-\udfff]")
+# Each spelling's pattern, for those that have one: a value must match it whole, and problem() holds the
+# rest (a size's bound, a rational's lowest terms, a binary64's exact decimal, a real time or date). P4's
+# shapes are to read these, so that no pattern is written twice (P4's design, R-C; P0.3).
+PATTERNS = {"size": _DECIMAL, "digest": _HEX64, "commit": _HEX40, "rational": _RATIONAL, "binary64": _BINARY64,
+            "time": _TIME, "date": _DATE, "iri": IRI}
 
 
 def exact_decimal(bits):
@@ -94,21 +99,21 @@ def problem(spelling, value):
     if not isinstance(value, str):
         return "not a string"
     if spelling == "size":
-        ok = _DECIMAL.fullmatch(value) and len(value) <= 19 and int(value) <= MAX
+        ok = PATTERNS["size"].fullmatch(value) and len(value) <= 19 and int(value) <= MAX
         return None if ok else "not a decimal byte count of at most 2^63 - 1"
     if spelling == "digest":
-        return None if _HEX64.fullmatch(value) else "not 64 lowercase hex digits"
+        return None if PATTERNS["digest"].fullmatch(value) else "not 64 lowercase hex digits"
     if spelling == "commit":
-        return None if _HEX40.fullmatch(value) else "not 40 lowercase hex digits"
+        return None if PATTERNS["commit"].fullmatch(value) else "not 40 lowercase hex digits"
     if spelling == "rational":
-        if not _RATIONAL.fullmatch(value):
+        if not PATTERNS["rational"].fullmatch(value):
             return "not N/D in decimal"
         n, d = value.split("/")
         if len(n.lstrip("-")) > TERM_DIGITS or len(d) > TERM_DIGITS:
             return f"a term of more than {TERM_DIGITS} digits"
         return None if gcd(abs(int(n)), int(d)) == 1 else "not in lowest terms"
     if spelling == "binary64":
-        m = _BINARY64.fullmatch(value)
+        m = PATTERNS["binary64"].fullmatch(value)
         if not m:
             return "not 16 hex digits, a space and a decimal"
         try:
@@ -116,7 +121,7 @@ def problem(spelling, value):
         except ValueError:
             return "a NaN"
     if spelling == "time":
-        m = _TIME.fullmatch(value)
+        m = PATTERNS["time"].fullmatch(value)
         if not m:
             return "not RFC 3339 UTC, with Z and no trailing zero in a fraction"
         try:
@@ -125,7 +130,7 @@ def problem(spelling, value):
             return "not a real time"
         return None
     if spelling == "date":
-        if not _DATE.fullmatch(value):
+        if not PATTERNS["date"].fullmatch(value):
             return "not YYYY-MM-DD"
         try:
             date.fromisoformat(value)
@@ -137,7 +142,7 @@ def problem(spelling, value):
             return "empty, or with space at an end"
         return "a control character other than a line feed, or a lone surrogate" if _TEXT_BAD.search(value) else None
     if spelling == "iri":
-        return None if IRI.fullmatch(value) else "not an absolute IRI"
+        return None if PATTERNS["iri"].fullmatch(value) else "not an absolute IRI"
     if spelling == "slot":
         return "a value in a slot this profile version leaves empty"
     if spelling.startswith("word:"):

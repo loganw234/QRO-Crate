@@ -91,3 +91,25 @@ def test_no_term_rides_on_rocrates_context_unkinded():
         assert t.key.startswith(V.PREFIX + ":") or t.key in reader.rocrate_terms(), t.key
     for t in V.TYPES:
         assert t.key.startswith(V.PREFIX + ":") or t.key in reader.rocrate_terms(), t.key
+
+
+def test_two_qro_names_equal_but_for_case_fail_the_sanity_check(monkeypatch):
+    """GitHub lowercases a page's anchors, so a term and a type equal but for case share one (P4's design, found 8;
+    P2's, found 4; P0.3)."""
+    monkeypatch.setattr(V, "TYPES", V.TYPES + (V.Type("qro:Shots", "P0", "a type spelt as a term is"),))
+    assert V.sanity() == ["qro:Shots: equal but for case to qro:shots, so the two share an anchor"]
+
+
+def test_each_profiles_contextual_entity_is_the_tables_and_its_version_its_iris():
+    """P4's design, R3 (P0.3): Process Run Crate's version is read from its IRI, never written twice."""
+    want = {V.PROFILE: (V.PROFILE_NAME, V.PROFILE_VERSION), V.PROCESS_RUN_CRATE: (V.PRC_NAME, "0.6")}
+    got = {e["@id"]: (e["name"], e["version"]) for e in V.profile_entities()}
+    assert got == want and [e["@id"] for e in V.profile_entities()] == sorted(want)
+    assert all(e["@type"] == ["CreativeWork", "Profile"] and len(e) == 4 for e in V.profile_entities())
+
+
+def test_a_term_and_a_type_of_one_name_fail_the_sanity_check(monkeypatch):
+    """They share an anchor too, though no two rows of one kind do (P0.3's verifier, round 1)."""
+    monkeypatch.setattr(V, "TERMS", V.TERMS + (V.Term("qro:Question", "REPORTED", "text", False, (), "body", None,
+                                                      "P0", "a term spelt as a type is"),))
+    assert V.sanity() == ["qro:Question: both a term and a type, so the two share an anchor"]

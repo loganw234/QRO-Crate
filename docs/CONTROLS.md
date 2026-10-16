@@ -10,7 +10,7 @@ Study QRO-0's section 11: each control one planted fault, refused by the name gi
 | `job-reattributed` | one IBM job's raw result filed under another's id | `commitment`; or `count-unpaid` first, where the two jobs' shot counts differ | P1 |
 | `bits-mirrored` | the decode told the mirrored order | `known-answer` | P1 |
 | `compile-broken` | a gate-list change that moves a Z-basis probability, digests recomputed | `compile-uncontrolled` | P2 |
-| `qpy-only` | one QPY byte changed, digests and commitment recomputed, gate list left | accepted by the crate-only checker. Refused by the QPY stage or by the anchor's re-fetch, where the provider's copy differs | P1 |
+| `qpy-only` | one QPY byte changed, with its digest, the commitment, IBM's echo of it inside the raw result and every digest recomputed, the gate list left | accepted by the crate-only checker. Refused by the QPY stage or by the anchor's re-fetch, where the provider's copy differs | P1 |
 | `calibration-late` | a snapshot stamped or measured after the first shot, claimed `history-at-first-shot` | `calibration-link` | P1 |
 | `calibration-gap` | a job linked `history-at-first-shot` whose first shot falls after a newer carried snapshot's stamp and newest value date | `calibration-link`: the link is `history-in-gap` | P1 |
 | `calibration-restamped` | two snapshots with equal values and different stamps | not a refusal: their values-digests are EQUAL | P1 |

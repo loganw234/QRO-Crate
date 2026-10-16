@@ -31,8 +31,9 @@ stage reads the root's pyproject.toml alone, with exactly the options the stages
 among them, and no conftest.py; none of either sits at the root or under tests/; and the stage script's command
 lines are the pinned ones (round 3, note 7), its refusal of a `pytest_plugins` line among them (round 3, G3). A
 parcel's test files carry its prefix, so two parcels' never share a name (round 1, D3). Each `need_file` guards
-the next stage the runner calls, which runs the directory it guards, and the quick budget is every stage but the
-three CLAUDE.md names (round 2, note 4.1.2; round 3, note 5).
+the next stage the runner calls, which runs what it guards, a pytest stage its directory and a tool's stage its
+script; each `need_env` names a variable the runner reads elsewhere (P0.3); and the quick budget is every stage
+but the six CLAUDE.md names (round 2, note 4.1.2; round 3, note 5; P0.3).
 A test no stage runs is reported among the files git would commit (stray_tests; P0.1's verifier, round 4, N2): a
 test file outside tests/, and a module under tests/ that pytest does not collect but that holds a line beginning
 `def test` or `class Test`, pytest's own naming. git runs here as in the privacy gate, without the variables git
@@ -370,9 +371,12 @@ NEED_FILE = 'need_file () { [ -e "$1" ] || STAGE_SKIP_REASON="$2"; }'
 
 def guard_problems(runner_text):
     """Each `need_file` guards the next stage the runner calls, as the runner reads it, whatever lines come between;
-    that stage, a pytest stage, runs the directory it guards; and `need_file` skips only while its path is missing
+    that stage runs what it guards, a pytest stage its directory and a tool's stage its script (P0.3); and
+    `need_file` skips only while its path is missing
     (P0.1's verifier, round 2, note 4.1.2: p1's guard naming tests/p2, or written with -f, skipped p1 by name after
-    tests/p1 was built, and the run passed; round 3, note 5: a comment between a guard and its stage hid both)."""
+    tests/p1 was built, and the run passed; round 3, note 5: a comment between a guard and its stage hid both).
+    And each `need_env` names a variable the runner reads elsewhere, so that a misspelt one cannot skip its stage
+    by name for ever (P0.3's verifier, round 1)."""
     out = [] if NEED_FILE in runner_text.splitlines() else ["need_file is not " + NEED_FILE]
     for m in re.finditer(r'^need_file ([\w./-]+) "', runner_text, re.M):          # a call: a path and its reason
         nxt = re.compile(r'^stage ([a-z0-9-]+) "[^"]*" -- \\\n(.*)$', re.M).search(runner_text, m.end())
@@ -381,8 +385,14 @@ def guard_problems(runner_text):
             continue
         name, words = nxt.group(1), nxt.group(2).split()
         ran = words[words.index("verify/pytest-stage.sh") + 1] if "verify/pytest-stage.sh" in words else None
+        if ran is None and "python" in words:                       # a tool's stage: python [-I] TOOL ...
+            ran = next((w for w in words[words.index("python") + 1:] if w != "-I"), None)
         if ran != m.group(1):
             out.append(f"stage {name} runs {ran}, and guards {m.group(1)}")
+    elsewhere = chr(10).join(line for line in runner_text.splitlines() if not line.startswith("need_env "))
+    for m in re.finditer(r'^need_env ([A-Za-z_][A-Za-z0-9_]*) "', runner_text, re.M):
+        if not re.search(re.escape("$") + "[{]?" + m.group(1) + "(?![A-Za-z0-9_])", elsewhere):
+            out.append(f"need_env {m.group(1)} names a variable the runner reads nowhere else")
     return out
 
 
@@ -406,6 +416,8 @@ def test_each_parcel_stage_guards_the_directory_it_runs():
 
 
 @pytest.mark.parametrize("old, new", [('need_file tests/p1 "', 'need_file tests/p2 "'),
+                                      ('need_file tools/gen_profile.py "', 'need_file tools/gen_vocabulary.py "'),
+                                      ('need_env QRO_SHACL_PYTHON "', 'need_env QRO_SHACL_PYTHO "'),
                                       ("tests/p1" + chr(10) + chr(10) + "need_file tests/p2",
                                        "tests/p2" + chr(10) + chr(10) + "need_file tests/p2"),
                                       ('[ -e "$1" ]', '[ -f "$1" ]'),
@@ -413,21 +425,30 @@ def test_each_parcel_stage_guards_the_directory_it_runs():
                                        + chr(10) + "stage p1 ",
                                        'need_file tests/p2 "another\'s"' + chr(10) + "# a comment between" + chr(10)
                                        + chr(10) + "stage p1 ")],
-                         ids=["the guard another's", "the stage another's", "files only", "a comment between"])
+                         ids=["the guard another's", "a tool's guard another's", "a variable misspelt",
+                              "the stage another's", "files only", "a comment between"])
 def test_a_guard_that_is_not_its_stages_is_caught(old, new):
     planted = RUNNER.replace(old, new, 1)
     assert planted != RUNNER and len(guard_problems(planted)) == 1, guard_problems(planted)
 
 
+def test_a_tools_stage_is_guarded_by_its_script_run_with_or_without_isolation():
+    """P0.3: P4's profile stage runs a tool, and its guard names the tool's script, `python -I` or not."""
+    isolated = RUNNER.replace("  python tools/gen_profile.py --check", "  python -I tools/gen_profile.py --check", 1)
+    assert isolated != RUNNER and guard_problems(isolated) == []
+
+
 def quick_problems(runner_text):
-    """CLAUDE.md: the quick budget is "all but study-plants, privacy-controls and instruments" (round 2, note
+    """CLAUDE.md: the quick budget is "all but study-plants, privacy-controls, instruments, p1-crates, p2-crates and
+    p4-shacl" (round 2, note
     4.1.2: a parcel's stage dropped from it, or a stage renamed, was held by no test)."""
     quick = set(re.search(r"^BUDGET_QUICK=([a-z0-9,-]+)$", runner_text, re.M).group(1).split(","))
-    want = set(stage_names(runner_text)) - {"study-plants", "privacy-controls", "instruments"}
+    want = set(stage_names(runner_text)) - {"study-plants", "privacy-controls", "instruments", "p1-crates",
+                                            "p2-crates", "p4-shacl"}
     return sorted(quick ^ want)
 
 
-def test_the_quick_budget_is_every_stage_but_three():
+def test_the_quick_budget_is_every_stage_but_those_claude_md_names():
     assert quick_problems(RUNNER) == []
 
 
@@ -880,7 +901,7 @@ def misnamed(root):
     add a test_steps.py, or a helpers.py, and stop a session over tests/ at collection (P0.1's verifier, round 1,
     D3). With the prefix, two parcels' names never meet; P0's directories carry no parcel's name."""
     out = []
-    for d in sorted(p for p in (root / "tests").iterdir() if p.is_dir() and re.fullmatch(r"p[0-9]+", p.name)):
+    for d in sorted(p for p in (root / "tests").iterdir() if p.is_dir() and re.fullmatch(r"p[0-9]+[a-z]*", p.name)):
         for f in sorted(d.rglob("*.py")):
             if not re.fullmatch(rf"(test_)?{d.name}_[A-Za-z0-9_]+\.py", f.name):
                 out.append(f.relative_to(root).as_posix())
@@ -895,8 +916,9 @@ def test_a_parcel_file_without_its_prefix_is_caught(tmp_path):
     """A nested file without the prefix too (P0.1's verifier, round 2, 4.1.5)."""
     for rel in ("tests/p1/test_p1_steps.py", "tests/p1/p1_helpers.py", "tests/p1/deep/test_p1_more.py",
                 "tests/p1/test_steps.py", "tests/p1/helpers.py", "tests/p1/__init__.py", "tests/p2/test_p1_steps.py",
-                "tests/p1/deep/helpers.py", "tests/format/test_steps.py"):
+                "tests/p1/deep/helpers.py", "tests/format/test_steps.py", "tests/p2crates/test_crates.py",
+                "tests/p2crates/test_p2crates_ok.py"):
         (tmp_path / rel).parent.mkdir(parents=True, exist_ok=True)
         (tmp_path / rel).write_text("", encoding="utf-8")
     assert misnamed(tmp_path) == ["tests/p1/__init__.py", "tests/p1/deep/helpers.py", "tests/p1/helpers.py",
-                                  "tests/p1/test_steps.py", "tests/p2/test_p1_steps.py"]
+                                  "tests/p1/test_steps.py", "tests/p2/test_p1_steps.py", "tests/p2crates/test_crates.py"]

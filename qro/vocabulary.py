@@ -17,14 +17,19 @@ import re
 from dataclasses import dataclass
 
 PROFILE_VERSION = "0.1"
+PROFILE_NAME = "QRO-Crate"
 PREFIX = "qro"
-# Provisional, by question 6: the generated vocabulary's own page, which resolves once the repository is public
-# (question 10). One row to change when w3id.org's is made.
+# Provisional, by question 6. The namespace is the generated vocabulary's own page, which resolves since the
+# repository is public (question 10). The profile is its description page, the README.md that P4 writes in
+# profile/, which resolves once P4's build is pushed (P4's design, R2; P0.3). One row each to change when
+# w3id.org's are made.
 NAMESPACE = "https://github.com/loganw234/QRO-Crate/blob/main/docs/VOCABULARY.md#"
-PROFILE = "https://github.com/loganw234/QRO-Crate/blob/main/docs/VOCABULARY.md"
+PROFILE = "https://github.com/loganw234/QRO-Crate/blob/main/profile/README.md"
 ROCRATE = "https://w3id.org/ro/crate/1.3"
 ROCRATE_CONTEXT = "https://w3id.org/ro/crate/1.3/context"
 PROCESS_RUN_CRATE = "https://w3id.org/ro/wfrun/process/0.6"
+PRC_NAME = "Process Run Crate"
+PRC_VERSION = PROCESS_RUN_CRATE.rsplit("/", 1)[1]
 # RO-Crate 1.3's context, CC0 1.0, fetched 2026-10-14 from ROCRATE_CONTEXT (qro/data/README.md), relative to
 # the package.
 ROCRATE_CONTEXT_FILE = "data/ro-crate-1.3-context.jsonld"
@@ -80,13 +85,37 @@ WORDS = {
         "read-after-run": "read after the shots; never presented as the state at execution",
     },
     "clock": {"provider": "the provider's clock", "local": "the producer's machine's clock"},
+    # P1's (its design, item 7).
+    "role": {"known-answer": "a control whose result is known, so it holds the decode's bit order",
+             "law": "the shelf's law circuit",
+             "coherence": "the law's circuit with basis rotations on two qubits"},
+    "bit-order": {"msb-first": "a sampler string's leftmost character is classical bit M-1: quantum_film.ibm.decode/v1",
+                  "lsb-first": "msb-first's mirror",
+                  "atlas-register": "a count string is little-endian over the setting's non-I qubits ascending, then "
+                                    "the rest: quantum_film.atlas.decode/v1",
+                  "circuit-order": "position p holds qubit M-1-p"},
+    # P2's (its design, items 1 to 3 and 7).
+    "twin": {"uniform": "every N-site layout at 1/D, and every coherence 0: a classical mixture",
+             "dephased": "the law's own layouts, and every coherence 0: the law's state dephased in Z"},
+    "class": {"signal": "the law's expected value differs from the twin's",
+              "integrity": "the law's expected value equals the twin's, exactly"},
+    "measure": {"n-crystal-share": "the share of a law PUB's shots that hold exactly N crystals",
+                "forbidden-share": "the share of its N-crystal shots on a layout the law forbids",
+                "linear-xeb": "the linear cross-entropy benchmark over its N-crystal shots",
+                "tvd": "the total variation distance to the law over its N-crystal shots: a statistic",
+                "nn-pair-correlation": "the nearest-neighbour pairs' occupation against their sites': a ratio",
+                "x0x1": "the parity of qubits 0 and 1, read in X on a coherence PUB",
+                "y0y1": "the parity of qubits 0 and 1, read in Y on a coherence PUB",
+                "crystals-per-shot": "how many crystals each shot holds: a class only, in v1",
+                "one-site-occupations": "each site's occupation: a class only, in v1",
+                "pair-occupations": "each pair of sites' occupation: a class only, in v1"},
+    "exact-hold": {"holds": "every gate list the compile's manifest names is carried, and passes the exact hold"},
     # Section 9.2: the custody log and the audit record.
     "custody-event": {"received": "a crate received, from where and when",
                       "withdrawn": "a crate withdrawn: its bytes removed, its received line kept"},
     "audit-stage": {"crate-only": "the checker's nine steps, on the crate alone",
                     "compile": "the compile, re-derived through the named qiskit",
                     "qpy": "each QPY's gate list, re-derived and held to the held one",
-                    "exact-hold": "the exact hold, re-derived as a binary64 statevector",
                     "anchors": "the anchors, re-fetched from the provider with the owner's key"},
     "independence": {"producer-build": "the producer's own checker build",
                      "same-source": "the same checker source, built independently at a tagged commit",
@@ -141,6 +170,8 @@ TERMS = (
     Term("license", "REPORTED", "ref", False, (), B, None, "P0", "the crate's licence; CC BY 4.0 (question 18)"),
     Term("name", "REPORTED", "text", False, (), B, None, "P0", "a name for a person to read"),
     Term("description", "REPORTED", "text", False, (), B, None, "P0", "a description for a person to read"),
+    Term("version", "CHECKED", "text", False, (), B, 1, "P0",
+         "a profile's version: the reader holds each profile's contextual entity to the table's", ("Profile",)),
     # Files (step 2).
     Term("hasPart", "CHECKED", "ref", True, (), B, 2, "P0",
          "a Dataset's list of the files it holds; every file is reached from the root, and every listed file is "
@@ -168,45 +199,136 @@ TERMS = (
          "the signature slot, `none` in v0 (section 9.2)", (ROOT,)),
     Term("qro:trustedTime", "REPORTED", "slot", False, ("none",), H, None, "P0",
          "the trusted-time slot, `none` in v0 (section 9.2)", (ROOT,)),
-    # Some of the terms the study names, for the parcels that write them (section 6 and section 9's table). Their
-    # domains are the parcels' to narrow; the rest, `qro:role` among them, come with their parcel's design.
+    # P1's: the jobs, their circuits, decodes and calibrations (section 6 and section 9's table; P1's design, item 7,
+    # approved 2026-10-15). Each CHECKED term stands on one type, every entity of which its step visits.
+    Term("instrument", "REPORTED", "ref", False, (), B, None, "P1",
+         "what an action ran: Process Run Crate's instrument (a program, a transpiler, a decode rule)",
+         ("CreateAction",)),
+    Term("object", "REPORTED", "ref", True, (), B, None, "P1",
+         "what an action took as input; what a question is made of", ("CreateAction", "qro:Question")),
+    Term("result", "REPORTED", "ref", True, (), B, None, "P1", "what an action made, or left beside it",
+         ("CreateAction",)),
     Term("qro:deviceKind", "REPORTED", "word:device-kind", False, (), B, None, "P1",
-         "whether a device is a quantum processor"),
-    Term("qro:device", "REPORTED", "ref", False, (), B, None, "P1", "the device a job ran on"),
-    Term("qro:commitment", "CHECKED", "digest", False, (), B, 4, "P1",
-         "a job's commitment, recomputed and held to the one the provider echoed"),
-    Term("qro:calibrationLink", "CHECKED", "word:calibration-link", False, ("unknown",), B, 8, "P1",
-         "how a job's calibration snapshot is tied to its shots (section 6)"),
+         "whether a device is a quantum processor", ("IndividualProduct",)),
+    Term("qro:device", "REPORTED", "ref", False, (), B, None, "P1", "the device a job ran on, or a snapshot is of",
+         ("qro:Job", "qro:Snapshot")),
+    Term("qro:jobId", "REPORTED", "text", False, (), B, None, "P1", "the provider's job id", ("qro:Job",)),
+    Term("qro:line", "READ", "ref", False, (), B, None, "P1",
+         "the job line: Quantum-Film's record of a job and its commitments, written before any result was read",
+         ("qro:Job",)),
+    Term("qro:kitCommit", "REPORTED", "commit", False, ("unknown",), B, None, "P1",
+         "the commit of the code that submitted the job", ("qro:Job",)),
+    Term("qro:role", "READ", "word:role", False, (), B, None, "P1", "what a PUB's circuit was for", ("qro:Pub",)),
+    Term("qro:basis", "READ", "text", False, (), B, None, "P1", "the basis each qubit is read in, qubit 0 first",
+         ("qro:Pub",)),
+    Term("qro:record", "REPORTED", "ref", False, (), B, None, "P1",
+         "the PUB's decoded record: Quantum-Film's device-run file", ("qro:Pub",)),
+    Term("qro:commitment", "CHECKED", "digest", False, ("none",), B, 4, "P1",
+         "a PUB's commitment, recomputed and held to the one the provider echoed; `none` where no provider held one",
+         ("qro:Pub",)),
+    Term("qro:decodeRule", "CHECKED", "text", False, (), B, 5, "P1",
+         "the rule a raw result is read through; step 5 re-decodes under it", ("qro:Decode",)),
+    Term("qro:bitOrder", "READ", "word:bit-order", False, (), B, None, "P1",
+         "the order the decode is told the provider's bits come in; held by the known answer", ("qro:Decode",)),
+    Term("qro:knownAnswer", "CHECKED", "ref", False, (), B, 5, "P1",
+         "the known-answer PUB whose verdict holds this decode's order", ("qro:Decode",)),
+    Term("qro:calibrationLink", "CHECKED", "word:calibration-link", False, ("unknown", "unexposed"), B, 8, "P1",
+         "how a job's calibration snapshot is tied to its shots (section 6)", ("qro:Job",)),
+    Term("qro:calibration", "CHECKED", "ref", True, (), B, 8, "P1",
+         "the snapshot or snapshots a job's calibration link names", ("qro:Job",)),
     Term("qro:valuesDigest", "CHECKED", "digest", False, (), B, 8, "P1",
-         "the SHA-256 of a calibration's values, every date excluded"),
+         "the SHA-256 of a calibration's values, every date excluded", ("qro:Snapshot",)),
+    Term("qro:stamp", "CHECKED", "time", False, (), B, 8, "P1", "a snapshot's own stamp, read from its text",
+         ("qro:Snapshot",)),
+    Term("qro:newestValue", "CHECKED", "time", False, (), B, 8, "P1",
+         "the newest measurement date inside a snapshot, read from its text", ("qro:Snapshot",)),
     Term("qro:historyAtRunning", "REPORTED", "ref", False, ("unknown",), B, None, "P1",
-         "the snapshot the history returns at the job's running time, carried beside the link"),
-    Term("qro:clock", "REPORTED", "word:clock", False, (), B, None, "P1", "the clock an entity's times are on"),
-    Term("startTime", "ANCHORED", "time", False, ("unknown",), B, None, "P1", "when a job's shots began"),
-    Term("endTime", "ANCHORED", "time", False, ("unknown",), B, None, "P1", "when a job's shots ended"),
+         "the snapshot the history returns at the job's running time, carried beside the link", ("qro:Job",)),
+    Term("qro:clock", "REPORTED", "word:clock", False, (), B, None, "P1", "the clock an entity's times are on",
+         ("qro:Job", "qro:Snapshot")),
+    Term("startTime", "ANCHORED", "time", False, ("unknown",), B, None, "P1", "when a job's shots began",
+         ("qro:Job",)),
+    Term("endTime", "ANCHORED", "time", False, ("unknown",), B, None, "P1", "when a job's shots ended",
+         ("qro:Job",)),
+    # P2's: the measures, their classes and certified intervals, and the exact hold (section 7, section 9's
+    # table; P2's design, item 10, approved 2026-10-15).
+    Term("qro:law", "CHECKED", "ref", False, (), B, 6, "P2",
+         "the law table: a File in qro-law/1 form, held to its sum, its support and the question's law circuit",
+         ("qro:Question",)),
+    Term("qro:lawCircuit", "CHECKED", "ref", False, (), B, 6, "P2",
+         "the question's circuit that lays the law; step 6 simulates it and holds the law table to it",
+         ("qro:Question",)),
+    Term("qro:twins", "CHECKED", "word:twin", True, (), B, 6, "P2", "the classical twins the question names",
+         ("qro:Question",)),
+    Term("qro:measureSet", "CHECKED", "text", False, (), B, 6, "P2", "the measure set's definition and version",
+         ("qro:Question",)),
+    Term("qro:alpha", "CHECKED", "rational", False, (), B, 6, "P2",
+         "the crate's certified intervals hold together with probability at least 1 - alpha", ("qro:Measuring",)),
+    Term("qro:family", "CHECKED", "integer", False, (), B, 6, "P2",
+         "how many certified intervals the crate carries: the union bound's count", ("qro:Measuring",)),
+    Term("qro:measure", "CHECKED", "word:measure", False, (), B, 6, "P2", "which measure of the set",
+         ("qro:Contrast", "qro:Measurement")),
+    Term("qro:twin", "CHECKED", "word:twin", False, (), B, 6, "P2", "the twin a class is computed against",
+         ("qro:Contrast",)),
+    Term("qro:class", "CHECKED", "word:class", False, (), B, 6, "P2",
+         "the law's expected value against the twin's: computed, never declared", ("qro:Contrast",)),
+    Term("qro:lawValue", "CHECKED", "rational", False, (), B, 6, "P2",
+         "a scalar measure's expected value under the law", ("qro:Contrast",)),
+    Term("qro:twinValue", "CHECKED", "rational", False, (), B, 6, "P2", "its expected value under the twin",
+         ("qro:Contrast",)),
+    Term("qro:measuredPub", "CHECKED", "ref", False, (), B, 6, "P2", "the PUB whose shots are measured",
+         ("qro:Measurement",)),
+    Term("qro:inScope", "CHECKED", "integer", False, (), B, 6, "P2",
+         "the shots in the measure's domain, counted from the raw bytes", ("qro:Measurement",)),
+    Term("qro:value", "CHECKED", "rational", False, ("none",), B, 6, "P2",
+         "the measure's value, an exact ratio of whole counts; none when no shot is in scope",
+         ("qro:Measurement",)),
+    Term("qro:lower", "CHECKED", "rational", False, (), B, 6, "P2",
+         "the certified interval's lower end, rounded outward", ("qro:Measurement",)),
+    Term("qro:upper", "CHECKED", "rational", False, (), B, 6, "P2",
+         "the certified interval's upper end, rounded outward", ("qro:Measurement",)),
+    Term("qro:heldCompile", "CHECKED", "ref", False, (), B, 7, "P2", "the compile whose gate lists are held",
+         ("qro:Hold",)),
+    Term("qro:holdRule", "CHECKED", "text", False, (), B, 7, "P2", "the exact hold's rule and version",
+         ("qro:Hold",)),
+    Term("qro:exactHold", "CHECKED", "word:exact-hold", False, ("withheld", "unexposed"), B, 7, "P2",
+         "holds: every gate list the compile's manifest names is carried and passes the exact hold",
+         ("qro:Hold",)),
 )
 
 TYPES = (
     Type("Dataset", "P0", "the root, and a bundle"),
     Type("File", "P0", "a file the crate holds"),
-    Type("CreativeWork", "P0", "the metadata descriptor, the question, a pre-registration"),
+    Type("CreativeWork", "P0", "the metadata descriptor, the question, a pre-registration, a profile"),
+    Type("Profile", "P0", "a profile the root conformsTo, as its contextual entity (RO-Crate 1.3)"),
     Type("CreateAction", "P1", "a compile, a job, a prediction, a decode, the measures", action=True),
     Type("IndividualProduct", "P1", "a device"),
     Type("SoftwareApplication", "P1", "a program, a transpiler, a simulator"),
     Type("qro:Question", "P1", "the question: circuits, law, twins, decode rule and measure set"),
+    Type("qro:Job", "P1", "a provider's job: one submission"),
+    Type("qro:Pub", "P1", "one circuit of a job: its role, basis, commitment and decoded record"),
+    Type("qro:Decode", "P1", "a job's raw result read through a named rule"),
+    Type("qro:Compile", "P1", "a bundle's compile: the logical circuits frozen into the circuits sent"),
+    Type("qro:Snapshot", "P1", "a calibration snapshot: the provider's text"),
+    Type("qro:Measuring", "P2", "the measuring of a crate's PUBs by its question's measure set"),
+    Type("qro:Contrast", "P2", "one measure's class against one twin"),
+    Type("qro:Measurement", "P2", "one measure's value on one PUB, with its certified interval"),
+    Type("qro:Hold", "P2", "the exact hold of one compile's gate lists"),
     Type("qro:RawResult", "P0", "a raw result: the provider's bytes, fixed before anything decodes them"),
 )
 
 REFUSALS = (
     Refusal("spelling", "step 1", "refused", "P0",
             "the bytes are not canonical JSON, or a value is not in its term's one spelling"),
-    Refusal("context", "step 1", "refused", "P0", "the @context is not this profile version's"),
+    Refusal("context", "step 1", "refused", "P0",
+            "the @context, or the version a profile's contextual entity declares, is not the one this reader reads"),
     Refusal("graph-form", "step 1; step 3", "refused", "P0",
             "the graph's shape: the top level; a @graph that is not a list of two entities or more; an entity "
             "without @id or @type; a repeated @id; two paths along files, the descriptor among them, whose names "
             "differ only by case, or a path both a file and a directory; the order; the descriptor; the root, its "
             "type, never an action, and every term it must carry; the root's "
-            "conformsTo, which is Process Run Crate 0.6 and this profile; the root's mentions; a reference that "
+            "conformsTo, which is Process Run Crate 0.6 and this profile; each one's contextual entity, but its "
+            "version, and no Profile entity besides; the root's mentions; a reference that "
             "names no entity; a term on an entity its domain does not admit; and, at step 3, a raw result that is "
             "not a File the crate holds"),
     Refusal("term-unknown", "step 1", "refused", "P0",
@@ -227,8 +349,10 @@ REFUSALS = (
             "a commitment does not recompute, or is not the one the provider echoed"),
     Refusal("known-answer", "step 5; kit intake", "refused", "P1",
             "the decode does not read the known answer: bit order is not held"),
-    Refusal("measure-class", "step 6", "refused", "P2", "a measure's value or declared class does not re-derive"),
-    Refusal("compile-uncontrolled", "step 7", "refused", "P2", "a gate list does not pass the exact hold"),
+    Refusal("measure-class", "step 6", "refused", "P2",
+            "a measure's value, interval or class, or the law they rest on, does not re-derive"),
+    Refusal("compile-uncontrolled", "step 7", "refused", "P2",
+            "a gate list does not pass the exact hold, or a compile's hold is not what its gate lists give"),
     Refusal("calibration-link", "step 8", "refused", "P1", "a calibration link or values-digest does not hold"),
     Refusal("metadata-generated", "step 9", "refused", "P0",
             "the metadata is not what its generator makes from the records, the header normalised"),
@@ -284,7 +408,7 @@ AUDIT_RECORD = (
     Field("logHead", "CHECKED", "digest", False, ("none",),
           "the auditor's custody-log head when it wrote the record; `none` with no log, which pins nothing"),
     Field("signature", "REPORTED", "slot", False, ("none",), "the signature slot, `none` in v0"),
-    Field("stages", "REPORTED", "word:audit-stage", True, (), "which stages ran: crate-only, and any of the four"),
+    Field("stages", "REPORTED", "word:audit-stage", True, (), "which stages ran: crate-only, and any of the three"),
     Field("trustedTime", "REPORTED", "slot", False, ("none",), "the trusted-time slot, `none` in v0"),
     Field("verdict", "REPORTED", "word:verdict", False, (), "accepted, or the refusal's name"),
 )
@@ -307,6 +431,22 @@ OWNERS = ("P0", "P1", "P2", "P3", "P4", "P5")
 def context():
     """The crate's @context: RO-Crate 1.3's, then this profile's one prefix."""
     return [ROCRATE_CONTEXT, {PREFIX: NAMESPACE}]
+
+
+def descriptor():
+    """The metadata descriptor, exactly: a CreativeWork about the root that conformsTo RO-Crate 1.3, and nothing
+    more. The reader holds a crate's to it, the fixture writes it, and P4's shapes are to read it (P4's design,
+    R-B; P0.3)."""
+    return {"@id": DESC, "@type": "CreativeWork", "about": {"@id": ROOT}, "conformsTo": [{"@id": ROCRATE}]}
+
+
+def profile_entities():
+    """The contextual entity of each profile the root conformsTo, in @id order: RO-Crate 1.3 requires one for
+    each, typed Profile (the study's section 3; P4's design, R3; P0.3). The reader holds a crate's to these."""
+    return sorted(({"@id": PROFILE, "@type": ["CreativeWork", "Profile"], "name": PROFILE_NAME,
+                    "version": PROFILE_VERSION},
+                   {"@id": PROCESS_RUN_CRATE, "@type": ["CreativeWork", "Profile"], "name": PRC_NAME,
+                    "version": PRC_VERSION}), key=lambda e: e["@id"])
 
 
 def sanity():
@@ -350,6 +490,12 @@ def sanity():
                 out.append(f"{t.key}: domain {s} is not *, the root, the descriptor, a local file or a type")
         if t.owner not in OWNERS:
             out.append(f"{t.key}: owner {t.owner}")
+    cased = {}        # GitHub lowercases a page's anchors, so two qro: names equal but for case share one (P0.3)
+    for kind, k in [("term", t.key) for t in TERMS] + [("type", y.key) for y in TYPES]:
+        first = cased.setdefault(k.casefold(), (kind, k)) if k.startswith(PREFIX + ":") else (kind, k)
+        if first != (kind, k):           # a row twice over is the duplicate check's, above
+            out.append(f"{k}: equal but for case to {first[1]}, so the two share an anchor" if first[1] != k
+                       else f"{k}: both a term and a type, so the two share an anchor")
     for y in TYPES:
         if y.owner not in OWNERS:
             out.append(f"type {y.key}: owner {y.owner}")
