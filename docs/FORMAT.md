@@ -95,7 +95,8 @@ can hold each one to the study.
       (`C:/x`), a stream on a name with a dot (`notes.txt:hidden`) or below
       the crate's top (`data/README:x`), and a bare scheme (`http:`), are
       read as paths, and refused. A stated limit: a stream on a top-level
-      name that is itself a scheme (`README:hidden`) reads as an IRI. It is
+      name that is itself a lowercase scheme (`readme:hidden`) reads as an
+      IRI (item 22). It is
       then no file the crate holds: no digest may stand on it, and no step
       reads its bytes.
     - Two paths whose names differ only by case are refused, the
@@ -215,6 +216,100 @@ can hold each one to the study.
     profile the root conformsTo; one declaring another version, as text,
     is `context` (P0.3; P4's design, found 1, R3 and D10). The descriptor is
     likewise one function of the table, `descriptor()`.
+22. **Every `@id`, and every reference, is one spelling of the IRI it names,**
+    so that the graph the checker holds is the graph a JSON-LD reader makes
+    (P0.5; P4's verifier, round 1, defect 1). It is one of:
+    - `./`, the root;
+    - a path in the crate: segments of a file's characters (item 11),
+      none empty, `.` or `..`, the first not beginning with `@`, and a
+      directory's path ending in `/`. Its last segment, the text after its
+      final `/` (empty for a directory), neither ends at its first `;` nor
+      begins `.;` or `..;`: `x;`, `;` and `.;x` are refused, and `a;b.txt`,
+      `;x` and `x;/` accepted;
+    - a fragment, `#` and one or more of RFC 3986's fragment characters,
+      holding no `://`;
+    - an absolute IRI whose scheme is lowercase, two characters or more
+      with no dot, and neither `file` nor a prefix of the context:
+      RO-Crate 1.3's terms whose IRI ends in a gen-delim, and `qro`
+      (`CONTEXT_PREFIXES` in qro/vocabulary.py). After its scheme it holds
+      one `#` at most.
+
+    A fragment and an absolute IRI hold RFC 3986's characters but `[` and
+    `]`, each `%` beginning an escape of two hex digits. So urllib's
+    `urlsplit` reads every accepted id: it raises on a bracket out of place,
+    which broke rdflib's `defrag` and its RDF/XML reader given a base
+    (P0.5's verifier, round 2, note 4). An IPv6 literal is no host the
+    profile needs.
+
+    An entity's `@id` in any other form is refused `spelling`. A
+    reference's is refused too: `graph-form` where it is no absolute IRI,
+    since no entity's `@id` can then be it (`_:b0`, `./x`), and `spelling`
+    where it reads as one (`schema:a`, `HTTPS://x/y`).
+
+    A JSON-LD reader reads many of the other forms otherwise (MEASURED,
+    rdflib 7.6.0):
+    - `_:b0` is a blank node;
+    - `@x`, `.`, `././`, `//` and `?` are the root;
+    - `./x` is `x`, `./#a` is `#a`, and `a?` is `a`, its empty query
+      dropped;
+    - `a//b` and `a/./b` are `a/b`;
+    - `/x` and `../a` lie outside the crate, and `//x` is another host;
+    - `schema:a` is `http://schema.org/a`;
+    - an absolute `file:` IRI cannot be told from a path;
+    - an id holding a space makes no node at all;
+    - a fragment holding `://` is left as written, a relative IRI, at every
+      base;
+    - at a base of a scheme urllib both joins and reads parameters in, of
+      which Python 3.12 and 3.13 have eleven (http, https, ftp, sftp, imap, mms, prospero, rtsp, rtsps, rtspu and shttp), a
+      `;` in a path's last segment is read as urllib's urljoin reads it, as
+      the start of parameters: empty ones are dropped, and a `.` or `..`
+      before them is read as a dot segment. So `x;` is `x`, and `;` the root
+      (P0.5's verifiers, rounds 1 and 3).
+
+    Others rdflib reads as written (`x#a`, `#`, `?q`, `HTTPS://x/y`, `C:/x`,
+    `ab:%zz`). They are refused as forms the rule does not offer, so that an
+    IRI has one spelling: the profile names nothing inside a file and no
+    query, and writes a scheme in lowercase. One spelling is as RDF compares
+    IRIs, character for character: the rule normalises nothing, so `%2F` and
+    `%2f`, or `a` and `%61`, are two IRIs, each its own spelling.
+
+    So distinct `@id`s name distinct IRIs, as JSON-LD 1.1 reads them, a
+    relative id resolved by RFC 3986's algorithm and an absolute IRI kept as
+    written, and as rdflib 7.6.0 does (MEASURED after P0.5's second round
+    under Python 3.12.9, and after its third under 3.13.5, every reading the
+    same: 300,000 ids drawn under the rule, at nine bases. At the eight
+    whose path is hierarchical, `file:`, `http:`, `https:` and `ftp:` among
+    them, each was read as JSON-LD 1.1 reads it, and no two the same. At a
+    `urn:` base rdflib joins an id onto the URN's own path instead, and no
+    two the same there either). By RFC 3986's algorithm alone, two absolute
+    IRIs that differ only by a dot segment would be one,
+    `http://example.org/a/../b` and `http://example.org/b`; JSON-LD 1.1 and
+    rdflib keep each as written. tests/format/test_spelling.py holds the
+    rule to a model of rdflib's reading, which made the same IRI as rdflib
+    of every one of those ids. Four stated limits:
+    - an absolute IRI equal to the IRI a relative id resolves to where the
+      crate is read is one node with that id there, a path's, a fragment's
+      or the root's. Two examples, for a crate read at
+      `https://example.org/crate/`: `https://example.org/crate/x` with the
+      path `x`; and, for a crate read from its metadata file's own URL,
+      `https://example.org/crate/ro-crate-metadata.json#a` with `#a`;
+    - an absolute IRI and a fragment are held to their characters, their
+      escapes and one `#`, not to the rest of RFC 3986's grammar.
+      `http://a:b:c/`, a port of letters, is accepted. rdflib keeps it as
+      written; a processor that converts only well-formed IRIs drops it
+      (P0.5's verifiers, rounds 1 and 2, notes);
+    - rdflib departs from JSON-LD 1.1 at some bases, though at none it was
+      measured at does it make one node of two accepted ids, but as the
+      first limit says. At a base of a scheme urllib does not join
+      (`mailto:`, `s3:`, `data:`), it leaves a relative id relative and
+      makes no node of it; at a base with an empty path
+      (`https://example.org`), it reads `#a` as `https://example.org/.#a`
+      (P0.5's verifiers, rounds 2 and 3);
+    - a JSON-LD 1.0 processor makes a prefix of every term of the context,
+      not only those whose IRI ends in a gen-delim, and RO-Crate 1.3's
+      context names no version. So to such a processor an absolute IRI whose
+      scheme is a term (`geo:x`, `name:x`) is another IRI (BELIEVED, from
+      1.0's rule; none was run). rdflib reads JSON-LD 1.1's rule.
 
 ## Stated limits of P0's format
 

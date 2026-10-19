@@ -40,6 +40,15 @@ def test_rocrates_context_is_the_pinned_copy():
     assert not any(k.startswith(V.PREFIX + ":") for k in reader.rocrate_terms())
 
 
+def test_the_context_prefixes_are_the_pinned_contexts_and_the_profiles():
+    """P0.5: the names a compact IRI may use, RO-Crate 1.3's terms whose IRI ends in a gen-delim (JSON-LD 1.1's rule
+    for a simple term), and qro; held to the pinned copy, so the list is written once and never drifts."""
+    data = (Path(V.__file__).parent / V.ROCRATE_CONTEXT_FILE).read_bytes()
+    assert hashlib.sha256(data).hexdigest() == V.ROCRATE_CONTEXT_SHA256
+    terms = json.loads(data)["@context"]
+    assert V.CONTEXT_PREFIXES == {k for k, v in terms.items() if v and v[-1] in ":/?#[]@"} | {V.PREFIX}
+
+
 def raised_names(root):
     """Every name a Refused(...) call in the package can raise, read from its syntax tree: a constant, or each
     branch of a conditional. Anything else is returned as "<dynamic>", which is refused. The static half of the

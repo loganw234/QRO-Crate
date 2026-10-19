@@ -34,6 +34,13 @@ PRC_VERSION = PROCESS_RUN_CRATE.rsplit("/", 1)[1]
 # the package.
 ROCRATE_CONTEXT_FILE = "data/ro-crate-1.3-context.jsonld"
 ROCRATE_CONTEXT_SHA256 = "5a3df1a43185501db4d45cdde5a478c57eeb1d673eedfe400488fc4c4b21dd91"
+# The names a compact IRI may use as its prefix: RO-Crate 1.3's terms whose IRI ends in one of RFC 3986's
+# gen-delims, which JSON-LD 1.1 makes prefixes, and this profile's own. So `schema:a` is http://schema.org/a to
+# a JSON-LD reader, and an @id is never written so (P0.5; MEASURED, rdflib 7.6.0: `name:x`, whose term's IRI
+# ends otherwise, stays an IRI of the scheme `name`). tests/vocabulary holds the list to the pinned context.
+CONTEXT_PREFIXES = frozenset({"bibo", "cc", "dct", "foaf", "frapo", "geosparql", "pav", "pcdm", "prof", "profrole",
+                              "prov", "rdf", "rdfa", "rdfs", "rel", "relation", "roterms", "schema", "vann",
+                              "wf4ever", "wfdesc", "wfprov", PREFIX})
 
 # Rule 1. The table gives each term one; ANCHORED here means "ANCHORED once the crate holds the provider's own
 # record of it, REPORTED until then".
@@ -69,7 +76,7 @@ SPELLINGS = {
             "character but the line feed (C0, DEL or C1), nor a lone surrogate",
     "iri": "a string: an absolute IRI in printable ASCII with no space: a scheme of two characters or more with no "
            "dot, then ':' and at least one character more",
-    "ref": 'a JSON object {"@id": "..."} and nothing else',
+    "ref": 'a JSON object {"@id": "..."} and nothing else, the @id in one of the forms FORMAT.md item 22 gives',
     "slot": "a slot this profile version leaves empty: only its absence word stands in it",
 }
 

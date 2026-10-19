@@ -38,7 +38,7 @@ The prefix `qro` is `https://github.com/loganw234/QRO-Crate/blob/main/docs/VOCAB
 | date | a string: an ISO 8601 date, YYYY-MM-DD |
 | text | a string: not empty, with no white space at either end (as Python's str.strip reads it), and no control character but the line feed (C0, DEL or C1), nor a lone surrogate |
 | iri | a string: an absolute IRI in printable ASCII with no space: a scheme of two characters or more with no dot, then ':' and at least one character more |
-| ref | a JSON object {"@id": "..."} and nothing else |
+| ref | a JSON object {"@id": "..."} and nothing else, the @id in one of the forms FORMAT.md item 22 gives |
 | slot | a slot this profile version leaves empty: only its absence word stands in it |
 
 ## Word sets

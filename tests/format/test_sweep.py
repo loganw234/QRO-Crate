@@ -12,7 +12,7 @@ What it holds, and no more:
     U+3000 and one astral character, U+1F600 (round 5, R5-1: twelve characters left 53 controls untried);
   - the strings within one change of the examples here. A rule that departs from its statement only further
     away passes.
-The statements are written from the rules' prose, in qro/vocabulary.py's SPELLINGS and FORMAT.md item 11,
+The statements are written from the rules' prose, in qro/vocabulary.py's SPELLINGS and FORMAT.md items 11 and 22,
 without the patterns qro/spelling.py uses. Two lean on the code, and say so: binary64's decimal is compared with
 qro/spelling.py's exact_decimal, which tests/format/test_spelling.py holds to nine values of cft-fp256's; and
 text's white space at either end is Python's str.strip, as the prose says.
@@ -27,6 +27,7 @@ import pytest
 
 from qro import reader
 from qro import spelling as S
+from qro import vocabulary as V
 
 DIGITS, HEX, MAX = set(string.digits), set("0123456789abcdef"), 2**63 - 1
 LETTERS = set(string.ascii_letters)
@@ -107,8 +108,42 @@ def iri(v):
             and set(scheme[1:]) <= LETTERS | DIGITS | {"+", "-"} and tail != "" and all("!" <= c <= "~" for c in tail))
 
 
+IRI_CHARS = LETTERS | DIGITS | set("._~!$&'()*+,;=:@/?-")        # a fragment's, and an absolute IRI's but its #
+HEXES = set("0123456789abcdefABCDEF")
+LOWER = set(string.ascii_lowercase)
+
+
+def escaped(s):
+    """`s` holds IRI_CHARS and escapes only, each % followed by two hex digits."""
+    i = 0
+    while i < len(s):
+        if s[i] == "%" and len(s[i + 1:i + 3]) == 2 and set(s[i + 1:i + 3]) <= HEXES:
+            i += 3
+        elif s[i] in IRI_CHARS:
+            i += 1
+        else:
+            return False
+    return True
+
+
 def an_id(v):
-    return v != "" and all("!" <= c <= "~" for c in v)
+    """FORMAT.md item 22: ./; a fragment, of RFC 3986's characters but brackets, each % beginning an escape of two
+    hex digits, and holding no ://; an absolute IRI, its scheme lowercase, two characters or more with no dot, and
+    neither file nor a prefix of the context, its tail of the same characters and escapes with one # at most; or a
+    path, no segment empty, . or .., none @ first, a directory's ending in /, and its last segment, the text after
+    its final /, neither ending at its first ; nor beginning .; or ..;."""
+    if v == "./":
+        return True
+    if v.startswith("#"):
+        return len(v) > 1 and escaped(v[1:]) and "://" not in v
+    scheme, colon, tail = v.partition(":")
+    if colon and len(scheme) >= 2 and scheme[0] in LOWER and set(scheme[1:]) <= LOWER | DIGITS | {"+", "-"}:
+        return (tail != "" and tail.count("#") <= 1 and all(escaped(t) for t in tail.split("#"))
+                and scheme != "file" and scheme not in V.CONTEXT_PREFIXES)
+    body = v[:-1] if v.endswith("/") else v
+    head, semi, params = v.split("/")[-1].partition(";")
+    return (body != "" and not v.startswith("@") and not (semi and (params == "" or head in (".", "..")))
+            and all(s not in ("", ".", "..") and set(s) <= SEGMENT for s in body.split("/")))
 
 
 def path(v):
@@ -132,7 +167,11 @@ RULES = {   # name: (the rule under test, its statement, seed examples)
     "text": (lambda v: S.problem("text", v) is None, text, ["a name", "two\nlines", "café — x"]),
     "iri": (lambda v: S.problem("iri", v) is None, iri, ["https://w3id.org/ro/crate/1.3", "urn:x", "a+b-c9:!~"]),
     "absolute": (reader.absolute, iri, ["https://w3id.org/ro/crate/1.3", "urn:x", "c:x", "a.b:x", "notes.txt:x"]),
-    "id": (lambda v: S.id_problem(v) is None, an_id, ["./", "data/x.json", "#frag", "a!~b"]),
+    "id": (lambda v: S.id_problem(v) is None, an_id, ["./", "data/x.json", "#frag", "a!~b", "data/run1/", "x",
+                                                    "#a:b/c?d", "urn:x", "https://w3id.org/ro/crate/1.3",
+                                                    "ab:x", "a@b/c", "#a%20b", "a;b", ";x", "x;;", "#a:/b",
+                                                    "a/.;x", "a/..;x", "a;/", "urn:a%2Fb", "ab:x#y", "ab:#",
+                                                    "#a%41"]),
     "path": (lambda v: S.path_problem(v) is None, path,
              ["data/x.txt", "a/b.c", "data/a!$&'()+,;=@~-_.b", "data/CON.txt", "data/aux", "data/com1", "data/lpt9.x",
               "data/conin$", "data/conout$.y", "prn", "nul.json", "data/com", "data/lpt", "data/con-x", "x."]),
@@ -140,7 +179,6 @@ RULES = {   # name: (the rule under test, its statement, seed examples)
 
 
 def test_the_sweep_takes_every_string_spelling_the_table_has():
-    from qro import vocabulary as V
     assert {k for k in RULES if k in V.SPELLINGS} == set(V.SPELLINGS) - {"integer", "ref", "slot"}
 
 

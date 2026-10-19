@@ -1,9 +1,12 @@
 """Each spelling's examples, accepted and refused, walked both ways, and its writers (study QRO-0, section 9: one
 spelling per value). tests/format/test_sweep.py holds the string spellings to statements of their rules over
 strings one change from its own examples, over the characters its docstring lists."""
+import posixpath
+import random
 import re
 from datetime import datetime, timezone
 from fractions import Fraction
+from urllib.parse import urljoin, urlsplit, urlunsplit
 
 import pytest
 
@@ -120,6 +123,12 @@ HEX = "0123456789abcdef"
 DIGITS = "0123456789"
 SCHEME = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789+-"
 PRINTABLE = "".join(chr(c) for c in range(0x21, 0x7f))
+ALNUM = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789"
+SEGMENT_CHARS = ALNUM + "._~!$&'()+,;=@-"
+FRAGMENT_CHARS = ALNUM + "._~!$&'()*+,;=:@/?-"        # and escapes; an absolute IRI's tail the same, one # too
+IRI_TAIL_CHARS = ALNUM + "._~:/?@!$&'()*+,;=-"
+ESCAPES = "%01%23%45%67%89%ab%cd%ef%AB%CD%EF"                 # every hex digit after a %, in both cases
+LOWER_SCHEME = "abcdefghijklmnopqrstuvwxyz0123456789+-"
 CLASS_ACCEPTED = {   # round 3, note 1: every character each rule admits, in an accepted value
     "digest": [HEX * 4],
     "commit": [(HEX * 3)[:40]],
@@ -135,7 +144,11 @@ CLASS_ACCEPTED = {   # round 3, note 1: every character each rule admits, in an 
     "date": [f"20{d}{d}-0{d}-0{d}" for d in range(1, 10)] + ["1000-10-10", "2000-12-19", "1987-11-28", "2026-10-30"],
     "iri": [SCHEME + ":" + PRINTABLE] + [f"{c}b:x" for c in SCHEME[:52]],
     "text": ["x " + PRINTABLE + "\n\u00a0\u2014\U0001f600 x"],
-    "ref": [{"@id": PRINTABLE}],
+    # an @id's four forms, each with every character its form admits (P0.5)
+    "ref": [{"@id": "./"}, {"@id": "x" + SEGMENT_CHARS + "/" + SEGMENT_CHARS + "/"},
+            {"@id": "#" + FRAGMENT_CHARS + ESCAPES},
+            {"@id": "urn:" + IRI_TAIL_CHARS + ESCAPES + "#" + IRI_TAIL_CHARS + ESCAPES},
+            {"@id": LOWER_SCHEME + ":x"}],
 }
 
 
@@ -143,6 +156,240 @@ CLASS_ACCEPTED = {   # round 3, note 1: every character each rule admits, in an 
 def test_every_character_a_spelling_admits_is_in_an_accepted_value(spelling):
     for v in CLASS_ACCEPTED[spelling]:
         assert S.problem(spelling, v) is None, (spelling, str(v)[:80])
+
+
+@pytest.mark.parametrize("value", ["./", "ro-crate-metadata.json", "data/", "data/run1/", "x", "a/b/c.json",
+                                   "data/.hidden", "a@b", "x/@y", "...", "a/.../b", "#a", "#a/b?c:d@e", "#a%20b",
+                                   "#job-db1", "#a:/b", "#a//b", "#//b", "a;b.txt", "data/notes;v2.txt", ";x", "a/;x",
+                                   "x;;", "x;y;", "a;/", "a;/b", "x;/", "#a%2Fb", "https://example.org/a",
+                                   "https://example.org/a%20b?q=1#f", "ab:x#y", "ab:#", "http://example.org/a/../b",
+                                   "https://example.org/x;", "ab:x;", "urn:uuid:0123", "ab:x", "name:x", "geo:x",
+                                   "tag:x", "a+b-c9:x"])
+def test_an_id_in_one_of_the_four_forms_is_accepted(value):
+    """P0.5: the root, a path (a directory's ending in /), a fragment, or an absolute IRI whose scheme is no prefix
+    of the context: `name` and `geo` are terms of RO-Crate's context whose IRIs end in no gen-delim, so no prefix
+    (MEASURED, rdflib 7.6.0: `name:x` stays an IRI of the scheme `name`). A ; in a last segment is accepted where
+    urllib keeps the params it splits there (`a;b.txt`, `;x`, `x;;`), and anywhere in a directory's path; a fragment
+    may hold :// 's pieces apart (P0.5's verifier, round 1). A fragment and an absolute IRI may hold escapes, a % and
+    two hex digits, and an absolute IRI one # (round 2, note 4)."""
+    assert S.id_problem(value) is None and S.problem("ref", {"@id": value}) is None
+
+
+@pytest.mark.parametrize("value, why", [
+    ("_:b0", "a blank node"), ("@x", "the root"), ("@x/y", "the root"), (".", "the root"), ("././", "the root"),
+    ("./x", "x"), ("./#a", "#a"), ("//x", "a host"), ("//", "the root"), ("a//b", "a/b"), ("a/./b", "a/b"),
+    ("a/../b", "b"), ("../a", "outside the crate"), ("data//", "an empty segment"), ("schema:a", "http://schema.org/a"),
+    ("qro:x", "the vocabulary's IRI"), ("rdf:type", "rdf's"), ("dct:title", "dct's"), ("file:///crate/a", "the path a"),
+    ("a?", "a, its empty query dropped"), ("?", "the root"), ("/x", "the host's /x, outside the crate"),
+    ("@0", "the root"), ("@9/y", "the root"), ("schema:0", "http://schema.org/0"), ("rdf:_1", "rdf's _1"),
+    ("schema:a#b", "http://schema.org/a#b"),
+    ("https://example.org/a b", "no node"), ("a b", "no node"),
+    ("#a://b", "a relative IRI"), ("#a:b://c", "a relative IRI"), ("#:://", "a relative IRI"),
+    ("x;", "x at an http base"), ("data/notes.txt;", "data/notes.txt at an http base"), ("a/b;", "a/b at one"),
+    (";", "the root at one"), (".;", "the root at one"), ("a/..;", "the root at one"), ("..;", "the crate's parent at one"),
+    (".;x", ";x at one"), ("..;x", ";x in the crate's parent at one"), ("a/.;x", "a/;x at one")])
+def test_an_id_a_json_ld_reader_reads_otherwise_is_refused(value, why):
+    """P4's verifier, round 1, defect 1; the lead's measurement with rdflib 7.6.0 under the base file:///crate/; and
+    P0.5's verifier, round 1, for the fragments holding :// (at every base) and the last segments ending in an
+    empty ;params or beginning .; or ..; (at an http, https, ftp or like base); and round 2, for an empty query, a path from
+    the host's root, and a space, which makes no node; round 3, for @ before a digit and compact IRIs whose tail is
+    no letter's, or holds a #: each of these is read as another IRI, as a blank node, as no
+    node, or not as the id it spells (`why`), so two entities the checker held apart could be one node in RDF, or
+    one could vanish. A reference's @id is held to the same rule (P0.5)."""
+    assert S.id_problem(value) is not None and S.problem("ref", {"@id": value}) is not None, why
+
+
+@pytest.mark.parametrize("value, why", [
+    ("@", "no @ first, JSON-LD's keywords' mark"), ("x#a", "a thing inside a file"), ("data/#a", "a thing inside a directory"),
+    ("#", "an empty fragment"), ("#a#b", "a second #"), ("?q", "a query"), ("a?b", "a query"),
+    ("HTTPS://example.org/a", "an uppercase scheme"), ("Https://example.org/a", "an uppercase scheme"),
+    ("file:a", "a file: IRI"), ("C:/x", "a drive"), ("notes.txt:hidden", "a stream"),
+    ("https://example.org/<a>", "no IRI's characters"), ("ab:%zz", "a % beginning no escape"),
+    ("#a%2", "a % beginning no escape"), ("http://a/b#c#d", "a second #"),
+    ("ab://[", "a bracket, which urllib's urlsplit raises on"), ("http://[::1]/x", "an IPv6 literal's brackets")])
+def test_an_id_in_a_form_the_rule_does_not_offer_is_refused(value, why):
+    """P0.5's verifiers, rounds 1 and 2: rdflib 7.6.0 makes of each of these the IRI it spells, so none is refused
+    for a collision. Each is a form the four do not offer (`why`), refused so that an IRI has one spelling: the
+    profile names nothing inside a file, and no query; a scheme is written in lowercase; a file: IRI cannot be told
+    from a path in the crate; and a fragment or an absolute IRI holds RFC 3986's characters but brackets, each %
+    beginning an escape, and one # at most, so that urllib's urlsplit, which raises on a bracket out of place,
+    reads every accepted id (round 2, note 4)."""
+    assert S.id_problem(value) is not None and S.problem("ref", {"@id": value}) is not None, why
+
+
+@pytest.mark.parametrize("tail", ["x", "0", "_1", "a#b", "%41", "-"])
+@pytest.mark.parametrize("prefix", sorted(V.CONTEXT_PREFIXES))
+def test_every_prefix_of_the_context_makes_a_compact_iri_which_is_refused(prefix, tail):
+    """Whatever its tail: rdflib expands schema:0, rdf:_1 and schema:a#b as it does schema:x (P0.5's verifier, round
+    3, note 1: a rule that refused a compact IRI only when its tail began with a letter, or held no #, passed)."""
+    assert "compact IRI" in S.id_problem(prefix + ":" + tail)
+
+
+_URI = re.compile(r"(?:([^:/?#]+):)?(?://([^/?#]*))?([^?#]*)(?:\?([^#]*))?(?:#(.*))?", re.S)
+
+
+def rfc3986(base, ref):
+    """RFC 3986's resolution of a relative reference against a base (section 5.2), strictly: what JSON-LD 1.1 asks
+    of a relative @id (its API, section 5.2.2, READ)."""
+    def dots(path):    # section 5.2.4
+        out = []
+        while path:
+            if path.startswith(("../", "./")):
+                path = path[path.index("/") + 1:]
+            elif path.startswith("/./") or path == "/.":
+                path = "/" + path[3:]
+            elif path.startswith("/../") or path == "/..":
+                path = "/" + path[4:]
+                out = out[:-1]
+            elif path in (".", ".."):
+                path = ""
+            else:
+                i = path.find("/", 1)
+                i = len(path) if i < 0 else i
+                out, path = out + [path[:i]], path[i:]
+        return "".join(out)
+    bs, ba, bp, bq, _ = _URI.fullmatch(base).groups()
+    s, a, p, q, f = _URI.fullmatch(ref).groups()
+    if s is not None:
+        bs, ba, path = s, a, dots(p)
+    elif a is not None:
+        path = dots(p)
+    elif p == "":
+        path, q = bp, (q if q is not None else bq)
+    elif p.startswith("/"):
+        path = dots(p)
+    else:
+        path = dots(("/" + p) if ba is not None and bp == "" else bp[:bp.rfind("/") + 1] + p)
+    a = a if a is not None or s is not None else ba
+    return (bs + ":" + ("//" + a if a is not None else "") + path + ("?" + q if q is not None else "")
+            + ("#" + f if f is not None else ""))
+
+
+def rdflib_reads(base, ref):
+    """The IRI rdflib 7.6.0's JSON-LD reader makes of an @id at a base, as its norm_url makes it (rdflib/plugins/
+    shared/jsonld/util.py, READ), modelled here, as rdflib is the engine's and not the checker's to import. Its
+    Context.expand, which reads a compact IRI, a keyword's form, a blank node and a space first, is not modelled:
+    the lists above hold those, and the model is exact on every id the rule accepts (P0.5's verifier, round 3, note
+    3). An id holding :// is
+    left as it is, and one with a scheme is itself; at a urn base the id's path is joined onto the URN's own;
+    otherwise urllib's urljoin, its path then normalised as POSIX's normpath does, a directory's / kept; and an id
+    ending in # keeps it (P0.5's verifier, round 2, note 2: the model had left that clause out, which no accepted id
+    reaches). The model and rdflib itself make the same IRI of each of 300,000 ids at nine bases (MEASURED after
+    P0.5's second round)."""
+    if "://" in ref or urlsplit(ref).scheme:
+        return ref
+    b = urlsplit(base)
+    if b.scheme in ("urn", "urn-x"):
+        head, _, rest = b.path.partition("/")
+        r = urlsplit(ref)
+        iri = f"{b.scheme}:{head}{urljoin('/' + rest, r.path)}" + (f"#{r.fragment}" if r.fragment else "")
+    else:
+        parts = urlsplit(urljoin(base, ref))
+        path = posixpath.normpath(parts.path)
+        if parts.path.endswith("/") and not path.endswith("/"):
+            path += "/"
+        iri = urlunsplit(parts._replace(path=path))
+    return iri + "#" if ref.endswith("#") and not iri.endswith("#") else iri
+
+
+# Bases a crate is read at: P4's, a published crate's (https, http, ftp), one whose path holds ;params, and the
+# metadata file's own URL, at each of which rdflib reads a relative id as RFC 3986 resolves it; and a urn, which
+# rdflib joins otherwise.
+BASES = ["file:///crate/", "https://example.org/crate/", "http://example.org/a/b/", "https://example.org/crate/x;p/",
+         "ftp://example.org/crate/", "https://example.org/crate/ro-crate-metadata.json"]
+URN_BASE = "urn:example:crate"
+# Pieces spliced into drawn ids, so that the shapes a reader reads otherwise are drawn often, not by chance
+# (P0.5's verifier, round 1: about 6,700 short fragments drew no ://).
+SPLICES = ["://", ":/", "//", "/./", "/../", "./", "../", ";", ";/", "/;", "..;", ".;", ";.", "x;", "#", "?", "@", ":",
+           "%", "..", "%2F", "%41", "["]
+
+
+def drawn_ids(n, seed):
+    """`n` ids drawn from the four forms' characters, pieces spliced in, and how many of each shape the rule refused."""
+    rng, ids, refused = random.Random(seed), [], {"fragment holding ://": 0, "last segment ;": 0, "other": 0}
+
+    def word(chars, lo=1, hi=8):
+        s = "".join(rng.choice(chars) for _ in range(rng.randint(lo, hi)))
+        for _ in range(rng.randint(0, 2)):
+            k = rng.randint(0, len(s))
+            s = s[:k] + rng.choice(SPLICES) + s[k:]
+        return s
+    while len(ids) < n:
+        form = rng.randrange(5)
+        if form < 2:
+            v = "/".join(word(SEGMENT_CHARS, 0, 6) for _ in range(rng.randint(1, 3)))
+            v += rng.choice(["", "", "/", ";", ";x", ".;"])     # a ; at the end, kept or not, often
+        elif form < 4:
+            v = "#" + word(FRAGMENT_CHARS)
+        else:     # never under a base: an absolute IRI that is a path of the crate is item 22's stated limit
+            v = rng.choice(["https://example.net/", "urn:", "ab:", "tag:x,", "ftp://example.net/"]) + word(IRI_TAIL_CHARS)
+        p = S.id_problem(v)
+        if p is None:
+            ids.append(v)
+        elif p.startswith("a fragment holding ://"):
+            refused["fragment holding ://"] += 1
+        elif p.startswith("a last segment"):
+            refused["last segment ;"] += 1
+        else:
+            refused["other"] += 1
+    return ["./"] + sorted(set(ids)), refused
+
+
+def test_distinct_ids_resolve_to_distinct_iris():
+    """P0.5: the property the rule is for, at several bases (P0.5's verifier, round 1: the test read one, where
+    urllib agrees with RFC 3986 on ;). Ids drawn from the four forms, each with every character it admits and the
+    shapes a reader reads otherwise spliced in, are read as rdflib reads them (`rdflib_reads`). At each base but the
+    urn, each relative id's IRI is RFC 3986's resolution of it, and is the base, or its directory, with the id after
+    it, so that no other spelling reads the same (round 2, note 1: without that, a leading ./ let through passed this
+    test); an absolute id is itself; and at every base, no two distinct ids name one IRI. rdflib itself is the
+    engine stage's, P4's, to hold."""
+    ids, refused = drawn_ids(12000, 5)
+    assert len(ids) > 11000 and refused["fragment holding ://"] > 300 and refused["last segment ;"] > 300, refused
+    for base in BASES + [URN_BASE]:
+        seen = {}
+        for v in ids:
+            iri = rdflib_reads(base, v)
+            if base != URN_BASE:
+                assert iri == (v if urlsplit(v).scheme else rfc3986(base, v)), (base, v, iri)
+                if not urlsplit(v).scheme:
+                    head = base if v.startswith("#") else base[:base.rfind("/") + 1]
+                    assert iri == head + ("" if v == "./" else v), (base, v, iri)
+            assert seen.setdefault(iri, v) == v, (base, seen[iri], v, iri)
+
+
+@pytest.mark.parametrize("value", ["#a://b", "#:://", "x;", "a/b;", ";", ".;", "a/..;", ".;x", "..;x", "a/.;x"])
+def test_the_model_of_rdflib_reads_each_shape_the_rule_refuses_otherwise(value):
+    """The property test's model can fail: each shape P0.5's verifier found accepted and read otherwise, round 1, the
+    model reads otherwise at an https base, where RFC 3986 reads it as its spelling. So were the rule to accept one,
+    `test_distinct_ids_resolve_to_distinct_iris` would fail on it."""
+    base = "https://example.org/crate/"
+    assert rdflib_reads(base, value) != rfc3986(base, value) == base + value
+
+
+def test_the_model_keeps_a_trailing_hash_as_rdflib_does():
+    """P0.5's verifier, round 2, note 2, MEASURED with rdflib 7.6.0: `#` at file:///crate/ is file:///crate/#. No
+    accepted relative id ends in #, and an absolute one that does (`ab:#`) is left as written before the clause, so
+    this is the one test of it (P0.5's verifier, round 3, D2)."""
+    assert rdflib_reads("file:///crate/", "#") == "file:///crate/#"
+    assert rdflib_reads("https://example.org/crate/", "x#") == "https://example.org/crate/x#"
+
+
+def test_rfc_3986s_own_examples_are_resolved_as_it_says():
+    """The resolver the property test trusts, held to RFC 3986's section 5.4 examples, normal and abnormal."""
+    base = "http://a/b/c/d;p?q"
+    for ref, want in [("g:h", "g:h"), ("http:g", "http:g"), ("g", "http://a/b/c/g"), ("./g", "http://a/b/c/g"), ("g/", "http://a/b/c/g/"),
+                      ("/g", "http://a/g"), ("//g", "http://g"), ("?y", "http://a/b/c/d;p?y"),
+                      ("g?y", "http://a/b/c/g?y"), ("#s", "http://a/b/c/d;p?q#s"), ("g#s", "http://a/b/c/g#s"),
+                      (";x", "http://a/b/c/;x"), ("g;x", "http://a/b/c/g;x"), ("", "http://a/b/c/d;p?q"),
+                      (".", "http://a/b/c/"), ("./", "http://a/b/c/"), ("..", "http://a/b/"), ("../", "http://a/b/"),
+                      ("../g", "http://a/b/g"), ("../..", "http://a/"), ("../../g", "http://a/g"),
+                      ("../../../g", "http://a/g"), ("/./g", "http://a/g"), ("/../g", "http://a/g"),
+                      ("g.", "http://a/b/c/g."), (".g", "http://a/b/c/.g"), ("g..", "http://a/b/c/g.."),
+                      ("..g", "http://a/b/c/..g"), ("./../g", "http://a/b/g"), ("./g/.", "http://a/b/c/g/"),
+                      ("g/./h", "http://a/b/c/g/h"), ("g/../h", "http://a/b/c/h"), ("g;x=1/./y", "http://a/b/c/g;x=1/y"),
+                      ("g;x=1/../y", "http://a/b/c/y"), ("g?y/./x", "http://a/b/c/g?y/./x"),
+                      ("g#s/../x", "http://a/b/c/g#s/../x")]:
+        assert rfc3986(base, ref) == want, ref
 
 
 def test_each_field_of_a_time_and_a_date_holds_every_digit_it_may():
@@ -168,6 +415,8 @@ def test_the_class_examples_cover_their_classes():
     assert set(HEX) <= seen("digest") and set(HEX) <= seen("commit") and set(DIGITS) <= seen("size")
     assert set(DIGITS) <= seen("rational") and set(DIGITS) <= seen("time") and set(DIGITS) <= seen("date")
     assert set(SCHEME) | set(PRINTABLE) <= seen("iri") and set(PRINTABLE) <= seen("text")
+    ids = "".join(v["@id"] for v in CLASS_ACCEPTED["ref"])
+    assert set(SEGMENT_CHARS + FRAGMENT_CHARS + IRI_TAIL_CHARS + LOWER_SCHEME + ESCAPES + "#") <= set(ids)
 
 
 @pytest.mark.parametrize("bad", ["9223372036854775808", "9" * 19 + "0", "1" + "0" * 19])

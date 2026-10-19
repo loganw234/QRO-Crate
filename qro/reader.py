@@ -63,8 +63,9 @@ def absolute(ref_id):
     IRI, so the reader and the spelling have one meaning of it (P0's verifier, round 4). Its scheme is two
     characters or more with no dot, then ':' and something after it. So a drive letter (`C:/x`), a stream on a name
     with a dot (`notes.txt:hidden`) and a bare scheme (`http:`) stay paths, and a file's path holds no ':' (round 2).
-    A stated limit (round 3): a stream on a top-level name that is itself a scheme (`README:hidden`) reads as an
-    IRI. It is then no file the crate holds, so no digest stands on it and no step reads its bytes."""
+    A stated limit (round 3): a stream on a top-level name that is itself a lowercase scheme (`readme:hidden`) reads
+    as an IRI; since P0.5 one in another case (`README:hidden`) is refused as an @id (FORMAT.md items 11 and 22). It
+    is then no file the crate holds, so no digest stands on it and no step reads its bytes."""
     return spelling.IRI.fullmatch(ref_id) is not None
 
 

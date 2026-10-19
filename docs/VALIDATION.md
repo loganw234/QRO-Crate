@@ -2467,3 +2467,388 @@ rest become notes the lead takes afterwards, as P0.2's fourth round was.
 
 **The whole of P0.4** took four rounds and three send-backs, the last two over narrower reasons, and is committed as
 the next entry says. Its fixes, and its verifiers' measurements, are in the four entries above and the reports.
+
+## 2026-10-16 - P0.4 committed; P0.5: every @id in one spelling of the IRI it names
+
+**P0.4 is committed as 20d40e6** and pushed to origin main, on Logan's standing word of 2026-10-16
+("You are clear to commit and push when ready"). The runner passed on the committed tree: 17 stages, 7
+skipped by name, in 190 s beside two parcels' fixes. Its fourth verifier's notes are P0.6's.
+
+**Why.** P4's first verifier (its report is placed under docs/reviews/ at P4's merge) found that a
+real SHACL engine fails P4's must shapes on crates the checker accepts. Most of the cause is the reader's: it took any
+printable ASCII without a space as an `@id`, and a JSON-LD reader reads many such ids otherwise. So two entities the
+checker holds apart were one node in RDF, a blank node, or the root. P0.5 is the reader's part of that defect; P4's
+part follows in P4's own fixes.
+
+**What a JSON-LD reader does with an id** (MEASURED, the lead's probe_ids.py, rdflib 7.6.0, the base P4's engine stage
+uses, `file:///crate/`, the crate's context given inline and the network blocked):
+- `_:b0` is a blank node; `@x`, `@x/y`, `@inner/not-first`, `.`, `././` and `//` are the root;
+- `./x` is `x`, `./#a` is `#a`, `a//b` and `a/./b` are `a/b`, `a/../b` is `b`, and `../a` lies outside the crate;
+- `schema:a` is `http://schema.org/a`, and so is every compact IRI through one of the context's 22 prefixes, or
+  `qro`; a term whose IRI ends in no gen-delim, `name` or `geo`, is no prefix (`name:x` stays itself), as JSON-LD
+  1.1 says;
+- an absolute `file:` IRI under the base is a path of the crate;
+- `HTTPS://x` and `https://Example.org/a` are kept as written, and so are dot segments in an absolute IRI.
+
+**The rule** (FORMAT.md item 22; `id_problem` in qro/spelling.py): an `@id`, and a reference's, is `./`; a path,
+of a file's characters, with no empty or dot segment and no `@` first, a directory's ending in `/`; a fragment, `#`
+and one or more fragment characters; or an absolute IRI whose scheme is lowercase, two characters or more with no
+dot, and neither `file` nor a prefix of the context. The context's prefixes are written once, `CONTEXT_PREFIXES` in
+qro/vocabulary.py, held by a test to the pinned copy of RO-Crate's context. Anything else is refused `spelling`.
+- **No real crate changes.** P0's fixture, its goldens and its twin carry only ids in these forms, and the twin's
+  identity stays `21fafec5…`. P1.1's code and tests write none of the refused forms (READ, a search of its tree).
+  P4's edge plants `edge-blank-node-id` and `edge-absolute-file-id` do, and change in P4's fixes.
+- **What a rule may not hold, stated:** an absolute IRI that is itself the place a crate was published, a path of
+  it, is one IRI with that path to a reader there. A stream on a top-level name that is a lowercase scheme
+  (`readme:hidden`) still reads as an IRI (item 11).
+
+**The tests:**
+- the sweep's statement of the id rule, written from item 22's prose, over every string one change from twelve
+  examples of the four forms;
+- the classes: an example of each form holding every character it admits;
+- 21 ids accepted and 34 refused, each refused one with what a JSON-LD reader makes of it, and every prefix of the
+  context refused as a compact IRI;
+- the property the rule is for: 20,000 ids drawn from the four forms resolve, under RFC 3986, to distinct IRIs, each
+  relative one its IRI with the base removed;
+- P4's verifier's four crates, `#a` beside `./#a`, `http://schema.org/a` beside `schema:a`, `_:b0` and a File `@x`,
+  each refused at the second id; and a reference to a compact IRI, refused where the values are read;
+- R2-3's plant, an entity whose id is `qro:RawResult`, now a compact IRI, refused by the id rule.
+- the 67 refused paths, each refused at the crate as a listed File's @id: 37 by the path rule, and 30, an
+  empty or dot segment or a character no @id holds, by the id rule first.
+
+**Measured, by the lead:**
+- **rdflib on the rule:** 20,000 ids drawn from the four forms (gen_ids.py), as one document's entities: rdflib 7.6.0
+  resolves each as RFC 3986 does, merges none, and reads none as a blank node (probe_ids3.py).
+- **14 hand mutants** (m_p05.py): each of the rule's forms and checks widened or narrowed, the reference spelling's
+  old rule, and the prefix list cut. All 14 were killed, each by the test meant to kill it.
+- **The runner:** `QRO_MOTH_ROOT=<moth-quantum> bash verify/run.sh`, run `20261016-092008-55976-20d40e6+dirty`,
+  on the tree as frozen but for this entry: **17 stages passed, 7 skipped by name**, none failed, in 171 s beside
+  two parcels' fixes.
+  - docs: 164 passed; tool-tests: 129; vocab-tests: 12; format: 769; custody: 23; control-tests: 32. That is
+    1,129 tests, 91 more than P0.4's: 119 new, less 28 that left two others, the 26 refused paths the id rule
+    now refuses first, which left the path rule's test, and R2-3's two `qro:RawResult` cases;
+  - privacy: 260 files, 5 commit messages, and 8 staged versions, nothing found;
+  - check-docs: 10 documents, 42 other markdown files, 35 source files;
+  - the twin: ACCEPTED `21fafec5…`.
+
+**Next:** P0.5's verifier, round 1, on Sonnet and the full bar.
+
+## 2026-10-19 - P0.5's first verifier: NOT READY, two ids rdflib reads otherwise, and the fixes
+
+**The verdict** (docs/reviews/P0.5/round1.md): NOT READY, on the full bar, the first of three. Two defects in what the
+code does, a gate that could not see them, and prose:
+- **A fragment holding `://`** (`#a://b`): rdflib returns any id holding `://` as it is written, so the node is the
+  relative IRI `#a://b` at every base, P4's among them.
+- **A last segment ending in `;`** (`x;`, `;`, `.;`, `a/..;`): rdflib resolves a relative id with urllib's urljoin.
+  At an http, https or ftp base, urljoin splits `;params` off the last segment, drops them when they are empty, and
+  reads a `.` or `..` before them as a dot segment. So at an https base `x;` is `x`, and `;` is the root. The
+  verifier built two crates the checker accepted at all nine steps: one with the Files `data/notes.txt` and
+  `data/notes.txt;`, and one with an entity `;`. At that base each is one node where the checker holds two, and a
+  SHACL shape of the verifier's own failed on both.
+- **The gate:** the property test read one base, `file:///crate/`, where urllib agrees with RFC 3986, and modelled
+  neither defect.
+- **The prose:**
+  - item 22 said every refused reference is `spelling`, when one that is no IRI is `graph-form`;
+  - it said a JSON-LD reader reads every refused form otherwise, when rdflib reads 13 of the 34 as written;
+  - reader.py's `absolute()` still named `README:hidden`;
+  - CLAUDE.md's line and the entry above were as false as the two defects made item 22.
+
+**The fixes:**
+- **The rule** (`id_problem`; FORMAT.md item 22). A fragment holds no `://`. In a path's last segment, the first `;`
+  neither ends the segment nor follows `.` or `..` alone.
+  - The narrow rule was measured before it was chosen. The verifier's `classify.py`, rerun by the lead over round
+    1's 400,000 accepted ids, splits those whose last segment holds a `;` three ways at the http and https bases:
+    - all 1,015 whose first `;` ends the segment deviate from RFC 3986;
+    - all 360 that begin `.;` or `..;` deviate;
+    - none of the 3,033 with other parameters deviates, at any of the six bases.
+  - So `a;b.txt`, `;x` and `x;;` stay accepted. The verifier's broader fix, no `;` in a last segment at all, would
+    have refused `a;b.txt` for nothing.
+  - On round 1's ids, the new rule refuses exactly the 6,242 fragments and the 1,375 last segments that deviated, and
+    keeps the other 392,383.
+- **The gate.** `test_distinct_ids_resolve_to_distinct_iris` now reads its ids at seven bases:
+  - `file:///crate/`;
+  - two https bases, one of them a base whose path holds `;params`;
+  - an http base and an ftp base;
+  - the metadata file's own URL;
+  - a urn.
+
+  It reads each id as rdflib does, through a model in the test of rdflib's `norm_url`: an id holding `://` is left as
+  written; one with a scheme is itself; any other goes through urllib's urljoin and POSIX's normpath; at a urn base it
+  is joined onto the URN's own path.
+  - At every base but the urn, each relative id must be RFC 3986's resolution of it. The test's strict resolver is
+    held to RFC 3986's own examples in section 5.4.
+  - At every base, no two ids may name one IRI.
+  - The draw splices in the shapes a reader reads otherwise, and the test holds that it refused more than 300 of each
+    new shape, so it reaches them by design rather than by chance.
+  - A control test holds that the model reads each shape round 1 found differently from RFC 3986. So were the rule to
+    accept one, the property test would fail.
+- **The model against rdflib** (MEASURED, model_vs_rdflib.py). The model and rdflib 7.6.0 made the same IRI of every
+  id in both draws:
+  - 300,000 ids drawn under the new rule, at nine bases: 2,700,000 readings;
+  - round 1's 400,000 ids, at its six bases: 2,400,000 readings, with their deviations.
+
+  Python 3.12.9's urllib and 3.13.5's gave the model the same readings.
+- **rdflib on the new rule** (MEASURED with the round-1 verifier's `gen_probe_ids2.py`, `rdf_probe.py` and
+  `compare.py`, unmodified, at nine bases). The draw was 300,000 ids accepted from 447,376.
+  - At the eight bases whose path is hierarchical, rdflib 7.6.0 read each id as JSON-LD 1.1 does, by RFC 3986. These
+    are the bases `file:///crate/`, `file:///C:/crate/` and `file:///crate/sub/`, the three http and https bases, the
+    ftp base and the metadata file's URL.
+  - At none of the nine bases did it merge two ids, make a blank node or raise.
+  - At `urn:example:crate`, rdflib joined 153,000 ids onto the URN's own path, which RFC 3986 does not, and merged
+    none.
+- **The whole-crate tests.** The verifier's three crates are each refused by the id rule. Its Files `data/x.txt` and
+  `data/x.txt;` are refused by the whole checker. Its entities `#a://b` and `;` are among seven ids, each planted
+  as an entity.
+- **Test reach** (a note). The tests that hold a refused path to the id rule now hold its location, `@graph[i] @id`,
+  which the path rule never gives. With Files let past the id rule (the verifier's mutant 26), they had all passed
+  on the path rule.
+- **The references.** A test holds item 22's two names:
+  - `graph-form` for a reference that is no absolute IRI: `_:b0`, `./x`, `x#a`, `#a://b`, `x;`;
+  - `spelling` for one that reads as an absolute IRI: `schema:a`, `file:a`, `HTTPS://...`.
+- **The prose.**
+  - Item 22 is restated:
+    - its two new exclusions;
+    - the references' two names;
+    - which forms rdflib reads otherwise, and which it reads as written but the rule does not offer: nothing inside a
+      file, no query, a scheme in lowercase;
+    - the measured claim;
+    - three stated limits: an absolute IRI that is a path of the crate where it was published; an absolute IRI or a
+      fragment held to its characters, not to RFC 3986's grammar; and a JSON-LD 1.0 processor's prefixes;
+    - its paragraphs, now set as the item's own.
+  - The refused examples are split into two tests the same way.
+  - Also restated:
+    - qro/spelling.py's comment and messages;
+    - reader.py's `absolute()`, now `readme:hidden`;
+    - CLAUDE.md's line;
+    - the `ref` spelling's text, which now names item 22 (docs/VOCABULARY.md regenerated).
+- **The entry above.** Its "Anything else is refused `spelling`" and its claim that distinct ids name distinct IRIs
+  were measured at `file:///crate/` only. This entry's measurements replace them.
+
+**Notes taken as stated limits, not fixed:**
+- the absolute and fragment forms are held to their characters, not to RFC 3986's grammar;
+- JSON-LD 1.0's prefixes (BELIEVED; no 1.0 processor was run).
+
+Each is stated in item 22. The runner's timing in CLAUDE.md is P0.6's (P0.4's fourth verifier, note 10).
+
+**Measured, by the lead:**
+- **30 hand mutants** (m_p05_r1.py). All 30 were killed, each by its targeted test:
+  - round 1's fourteen, retargeted where the code moved;
+  - the fragment's `://` admitted, or `:/` refused too;
+  - the `;` rule changed each way: either half dropped, made the broad rule, read at the whole id or at the
+    segment's last `;`, or held on a directory's name;
+  - Files let past the id rule;
+  - the model resolving `://`, or reading as RFC 3986 does;
+  - the resolver not removing dot segments;
+  - the draw splicing no `://`, or ending no path in `;`.
+
+  One mutant first failed to compile, through a slip in its own text; once fixed it was killed too.
+- **P1.1 on P0.5:** P1.1's 1,018 tests pass on a copy of this tree with P1.1's files added.
+- **The runner:** `QRO_MOTH_ROOT=<moth-quantum> bash verify/run.sh`, run `20261019-043512-47322-20d40e6+dirty`, on the tree
+  as frozen but for this entry's figures: **17 stages passed, 7 skipped by name**, none failed, in 151 s of stage
+  time, beside P1.1's second verifier.
+  - docs: 164 passed; tool-tests: 129; vocab-tests: 12; format: 824; custody: 23; control-tests: 32. That is
+    1,184 tests, 55 more than round 1's 1,129, all in format: 39 in test_spelling.py and 16 in test_hostile.py;
+  - privacy: 262 files, 5 commit messages and 13 staged versions, nothing found;
+  - check-docs: 10 documents, 44 other markdown files, 35 source files;
+  - the twin: ACCEPTED `21fafec5…`.
+
+**Next:** P0.5's verifier, round 2, on Sonnet and the full bar.
+
+## 2026-10-19 - P0.5's second verifier: NOT READY on prose only, and the fixes
+
+**The verdict** (docs/reviews/P0.5/round2.md): NOT READY, on the full bar, the second of three. It found no defect in
+what the code does, and no gate that passes a fault it claims to catch.
+- **The rule held against rdflib 7.6.0** (MEASURED by the verifier):
+  - It enumerated 799,200 accepted ids and made 17,848,837 readings at 47 bases. Each reading was RFC 3986's at
+    every hierarchical base, with no merge, no blank node, no vanished node and no exception.
+  - A real `Graph.parse` agreed with the readings, in subject and object position.
+  - The narrow `;` rule held.
+  - `CONTEXT_PREFIXES` is JSON-LD 1.1's rule, and the references' two names held on 58,639 trials.
+  - The lead's figures held, and the lead's 30 mutants were killed again.
+- **Three false sentences:**
+  - **D1:** "the rest rdflib reads as written". An id holding a space makes no node; an empty query is dropped, so
+    `a?` is `a` and `?` the root; and `/x`, `//x` and `../a` are read otherwise.
+  - **D2:** item 22's first stated limit is narrower than the fault it concedes. `#a` beside the absolute
+    `https://example.org/crate/ro-crate-metadata.json#a` is one node where the crate is read from that URL, and
+    likewise beside `https://example.org/crate/#a` at `https://example.org/crate/`.
+  - **D3:** a test comment saying `%` is in no @id.
+
+**The fixes:**
+- **D1.** Item 22 and qro/spelling.py's comment say which forms rdflib reads otherwise, as a list with these among
+  them, and which it reads as written. Neither says "the rest". The two space cases move to the test of what rdflib
+  reads otherwise, as no node; `a?`, `?` and `/x` join them.
+- **D2.** The first limit is stated as the class: an absolute IRI equal to the IRI a relative id resolves to where
+  the crate is read is one node with that id there, a path's, a fragment's or the root's. It has two examples.
+- **D3.** The comment says `%` is in no path.
+- **Note 1, the property test.** It again asserts that each relative id is its IRI with the base removed: the base,
+  or its directory, with the id after it, at every hierarchical base. Two parts were needed:
+  - Its draw now splices in `./` and `../`. The new draw had almost never made a leading `./`, so the assertion alone
+    caught nothing.
+  - MEASURED (assert_check.py): with a leading `./` let through, the property test now fails with the assertion and
+    passes without it.
+- **Note 2, the model of rdflib.** It keeps `norm_url`'s last clause, a trailing `#` restored. No accepted id reaches
+  that clause, so a test holds it to rdflib's own reading: `#` at `file:///crate/` is `file:///crate/#`, as the
+  verifier measured.
+- **Note 3.** The tautology among the path tests is now an independent statement: item 22's path form, written in
+  the test. It holds that the id rule refuses first exactly the paths that form leaves out.
+- **Note 4, the cheap part of the grammar** (the lead's call):
+  - In a fragment and an absolute IRI, each `%` begins an escape of two hex digits.
+  - An absolute IRI holds no `[` or `]`, and one `#` at most.
+
+  So urllib's `urlsplit` reads every accepted id. It had raised on accepted ids such as `ab://[`, which broke
+  rdflib's `defrag` and its RDF/XML reader given a base. An IPv6 literal is no host the profile needs. The second
+  stated limit is narrowed to the rest of RFC 3986's grammar, such as a port of letters.
+- **Notes 5 and 6.** Item 22's measured claim names its Pythons, and "last segment" is defined: the text after the
+  final `/`, empty for a directory.
+- **The measurement, again, on the rule as it now stands** (MEASURED, the round-1 verifier's scripts, unmodified):
+  - 300,000 ids were drawn under the rule (546,297 draws), 18,701 of them with an escape and 16,676 absolute ones
+    with a `#`.
+  - At the eight hierarchical bases, rdflib 7.6.0 read each as RFC 3986 does. At none of the nine did it merge two
+    ids, make a blank node or no node, or raise. At the urn base it joined 168,738 ids its own way, and merged none.
+  - The test's model made the same IRI as rdflib on all 2,700,000 readings, under Python 3.12.9 and 3.13.5 alike.
+
+**Not taken:**
+- `canonical.write` raises TypeError on an @id that is no string. That is older than P0.5, and it is no refusal path:
+  a generator's failure is refused by name. It is P0.7's.
+- At bases urllib does not join (`s3:`, `data:`, `mailto:`), rdflib leaves every relative id relative (the verifier's
+  note 5). That is rdflib's, whatever an id's spelling. Item 22's measured claim names the bases it was measured at.
+- CLAUDE.md's timing is P0.6's.
+
+**Measured, by the lead:**
+- **39 hand mutants** (m_p05_r2.py), each killed by its targeted test, on the tree as frozen:
+  - round 1's thirty, retargeted where the patterns moved;
+  - a bare `%` admitted, one hex digit enough, or lowercase hex refused;
+  - brackets admitted;
+  - a second `#` admitted, none at all, or an empty tail;
+  - the model's last clause lost;
+  - a leading `./` let through, held by the property test alone among the targets.
+- **The runner:** `QRO_MOTH_ROOT=<moth-quantum> bash verify/run.sh`, run `20261019-055510-1986-20d40e6+dirty`, on the tree as
+  frozen but for this entry's figures: **17 stages passed, 7 skipped by name**, none failed, in 226 s of stage
+  time, beside P1.1's second verifier.
+  - docs: 164 passed; tool-tests: 129; vocab-tests: 12; format: 838; custody: 23; control-tests: 32. That is
+    1,198 tests, 14 more than round 2's 1,184, all in test_spelling.py;
+  - privacy: 263 files, 5 commit messages and 13 staged versions, nothing found;
+  - the twin: ACCEPTED `21fafec5…`.
+
+**Next:** P0.5's verifier, round 3, on Sonnet and the full bar.
+
+## 2026-10-19 - P0.5's third verifier: NOT READY on prose; the cap reached; the fixes
+
+**The verdict** (docs/reviews/P0.5/round3.md): NOT READY, on the full bar, the third of three. It found no defect in
+what the code does, and no gate that passes a fault it claims to catch.
+- **What it measured.** It ran rdflib 7.6.0 under Python 3.12.9 and 3.13.5:
+  - 739,634 ids at 24 bases, with identical readings on both Pythons;
+  - exhaustive small alphabets, and every `;` id to length 11;
+  - real parses, and pyshacl with a shape of its own;
+  - 2,350,646 strings against its own reading of item 22, with no widening against round 2's rule.
+
+  The lead's 39 mutants were killed again.
+- **Two false sentences:**
+  - **D1:** item 22 said distinct ids are distinct "as RFC 3986 resolves them", and the entry above that rdflib
+    read each "as RFC 3986 does". RFC 3986 removes dot segments from an absolute reference's path, while JSON-LD
+    1.1, and rdflib, keep an absolute IRI as written. So `http://example.org/a/../b` and `http://example.org/b` are
+    one IRI by RFC 3986 and two nodes in RDF. What was measured is JSON-LD 1.1's reading.
+  - **D2:** two test comments, "no accepted id ends in #" (`ab:#` does) and "a character no @id holds" (fragments
+    and absolute IRIs hold `%`, `:`, `#`). The same phrase is in the first P0.5 entry above.
+- **The cap is reached:** three NOT READYs, each over narrower reasons than the one before. Round 4 runs on the
+  relaxed bar (CLAUDE.md item 6).
+
+**The fixes:**
+- **D1.** Item 22 says distinct ids are distinct "as JSON-LD 1.1 reads them, a relative id resolved by RFC 3986's
+  algorithm and an absolute IRI kept as written". It names the two absolute IRIs RFC 3986 alone would make one. The
+  test file's comment on its bases says the same of a relative id. In the entry above, "read each as RFC 3986 does"
+  is to be read as JSON-LD 1.1 reads each.
+- **D2.**
+  - The trailing-`#` test says no accepted relative id ends in `#`, and that an absolute one is left as written
+    before the clause.
+  - The path test says a refused path holds a character no path holds, which leaves it in none of the four forms.
+    So, in the first P0.5 entry above, "a character no @id holds" is to be read as no path holds.
+- **Notes taken:**
+  - **Notes 1 and 2.** A compact IRI is refused whatever its tail: the prefix test runs every prefix with six tails,
+    `x`, `0`, `_1`, `a#b`, `%41` and `-`. And `@0`, `@9/y`, `schema:0`, `rdf:_1` and `schema:a#b` join the test of
+    what rdflib reads otherwise. The verifier's three survivors are among the lead's mutants now, and are killed.
+  - **Note 3.** The model's docstring says it models `norm_url`, not `Context.expand`.
+  - **Note 4.** The lead's brief had said Python 3.13.5 has no rdflib. It has rdflib 7.6.0, so item 22's 3.13.5
+    figure had been the model's alone. MEASURED now with rdflib itself: under 3.13.5 it reads the 300,000 ids at nine
+    bases exactly as under 3.12.9, all 2,700,000 readings the same.
+  - **Note 5.** A fourth stated limit names rdflib's departures:
+    - at a base of a scheme urllib does not join, a relative id makes no node;
+    - at a base with an empty path, `#a` is read with a dot.
+
+    At no base measured does it make one node of two accepted ids, but as the first limit says.
+  - **Note 7.** "One spelling" is as RDF compares IRIs, character for character. The rule normalises nothing.
+  - **Note 8.** The `;` sentence names the eleven schemes urllib both joins and reads parameters in, under Python
+    3.12.9 and 3.13.5 alike (MEASURED). The verifier counted ten.
+- **Note 6, re-checked against the parcels.** Round 2's tightening (escapes, brackets, one `#`) had been checked
+  against no parcel. Now:
+  - P1.1's 1,018 tests, from its round-2 packet, pass on round 3's tree;
+  - the 100 distinct @ids in P4's JSON files all pass the rule (MEASURED, ids_in_tree.py).
+
+**Measured, by the lead:**
+- **42 hand mutants** (m_p05_r3.py): round 2's 39, and the verifier's three survivors. Each was killed by its targeted
+  test.
+- **The runner:** `QRO_MOTH_ROOT=<moth-quantum> bash verify/run.sh`, run `20261019-073050-23277-20d40e6+dirty`, on the tree
+  as frozen but for this entry's figures: **17 stages passed, 7 skipped by name**, none failed, in 199 s of stage
+  time, beside other sessions' work.
+  - docs: 164 passed; tool-tests: 129; vocab-tests: 12; format: 958; custody: 23; control-tests: 32. That is
+    1,318 tests, 120 more than round 3's 1,198, all in test_spelling.py: 115 more prefix cases, and five more ids
+    rdflib reads otherwise;
+  - privacy: 264 files, 5 commit messages and 13 staged versions, nothing found;
+  - the twin: ACCEPTED `21fafec5…`.
+
+**Next:** P0.5's verifier, round 4, on Sonnet and the relaxed bar.
+
+## 2026-10-19 - P0.5's fourth verifier: READY, on the relaxed bar
+
+**The verdict** (docs/reviews/P0.5/round4.md): READY. It found no defect in what the code does, and no gate or
+registry that lets an accidental fault through. Since round 3 the code had changed by one word of a comment in
+qro/spelling.py.
+- **What it measured.**
+  - **rdflib 7.6.0 under Python 3.12.9:** 412,557 accepted ids at 43 bases, with no blank node, no exception and no
+    merge of two ids. Its readings differ from RFC 3986's only at six bases whose own path is odd, and merge none
+    there.
+  - **Real parses** in subject and object position: 27,991 ids at 14 bases, the same under 3.13.5.
+  - **The `;` rule:** 526,107 ids holding `;` at 15 bases, read through urljoin under both Pythons, none read
+    otherwise. The eleven schemes were confirmed.
+  - **The test's model of rdflib:** the same as rdflib on 3,870,043 readings per Python.
+  - **Every serialiser of rdflib and pyshacl 0.40.1:** one node each.
+  - **The old reader against the new:** 363,612 verdicts per tree. Nothing was newly accepted, and every new refusal
+    is `spelling`.
+  - **Mutants:** the lead's 42 killed again. Of its own 19, 16 were killed, two survivors were equivalent, and one is
+    note 5.
+- **Its slip:** a script of its own imported `qro` from the frozen tree with `python -I`, which wrote two `.pyc` files
+  there. It deleted exactly those and checked the sums again: 264 files, each as frozen.
+
+**Its notes, none blocking, and where each goes.** Each is P0.7's, the lead's piece after P0.6.
+- **Note 1, a hang older than P0.5.** The reader builds every directory prefix of each File's path. A File id of
+  50,000 one-letter segments, 100 KB, took 149 s, and the memory is quadratic in the number of segments (MEASURED by
+  the verifier). It is the same at 20d40e6. A cap on an id's length, or prefixes built so their cost is linear, ends
+  it.
+- **Note 2, JSON-LD 1.0's prefixes.**
+  - RO-Crate 1.3 asks for a metadata document that is valid JSON-LD 1.0. A JSON-LD 1.0 processor makes a prefix of
+    every term of the context, and 333 of the pinned context's 3,069 terms have a scheme's shape (`data`, `geo` and
+    `isbn` among them).
+  - So under 1.0, `geo:1,2` and `http://schema.org/geo1,2` would be one node. That is the verifier's model of the
+    2014 rule; no 1.0 processor was run.
+  - rdflib in 1.0 mode reads as in 1.1, so only a processor of the 2014 recommendation is exposed. Item 22's fourth
+    limit states this exposure as BELIEVED, and the verifier finds it wider than that limit reads.
+  - **The lead's decision:** P0.7 refuses an absolute IRI whose scheme is a term of the context, as it now refuses a
+    prefix of the context. It first measures which of those names a registered scheme is, and that no parcel's crate
+    writes one.
+- **Note 3.** The third limit's "leaves a relative id relative and makes no node of it" is false for a fragment holding
+  `:`. At a `mailto:` base, `#a:b` makes the relative IRI `.#a:b`. rdflib departs at bases in four more ways the limit
+  does not list: a `//` in the base's path collapses, dot segments there are removed, a final `;` is dropped for a
+  fragment, and the scheme is lowercased. None of them merges two accepted ids.
+- **Note 4.** Item 22 says `@x`, `//`, `?` and `;` are the root. That holds at a directory base. Read from the metadata
+  file's own URL, each is the descriptor's IRI.
+- **Note 5, test reach where the code is right.**
+  - A rule that let `schema://x` through survives every stage. No reader misreads it, since JSON-LD 1.1 keeps a value
+    whose suffix begins `//` as written, so the prefix test's "whatever its tail" says too much.
+  - `CONTEXT_PREFIXES` is written out, not derived from the context, and its test reads only `V.PREFIX`. So a second
+    prefix of the profile's own would go unseen.
+- **Note 6.** The draft commit message held its verdict's placeholder, which is now filled. CLAUDE.md's timings are
+  P0.6's.
+
+**The whole of P0.5** took four rounds and three send-backs: the first on two ids rdflib reads otherwise, the
+last two on prose alone. It is committed as the next entry says. Its fixes, and its verifiers' measurements, are
+in the four entries above and the reports.

@@ -51,7 +51,9 @@ that reading cannot see.
   docs/CONTROLS.md pages; never hand-edit them. Two rules are no term's
   spelling, so they are not in the table: an entity's `@id` and a file's
   path, `id_problem` and `path_problem` in qro/spelling.py. FORMAT.md item
-  11 states the path's.
+  11 states the path's, and item 22 the @id's: one spelling of the IRI it
+  names, so that the graph the checker holds is the one a JSON-LD reader
+  makes, within the limits item 22 states (P0.5).
 - **A CHECKED term names its checker step, and a crate carrying a CHECKED
   term whose step is not yet built is refused `step-unbuilt`.** Steps 4 to
   8 are the parcels'. A parcel declares its steps, raw forms, count rules

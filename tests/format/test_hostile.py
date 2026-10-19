@@ -181,6 +181,37 @@ def test_the_path_spelling_refuses(name):
 
 
 PATHS_REFUSED_AS_PATHS = [n for n in PATHS_REFUSED if spelling.id_problem(n) is None]   # not first as an @id
+PATHS_REFUSED_AS_IDS = [n for n in PATHS_REFUSED if spelling.id_problem(n) is not None]   # first as an @id
+
+
+@pytest.mark.parametrize("name", PATHS_REFUSED_AS_IDS, ids=[repr(n)[:40] for n in PATHS_REFUSED_AS_IDS])
+def test_a_listed_files_id_outside_the_id_spelling_is_refused_by_the_id_rule(tmp_path, name):
+    """P0.5: a refused path the id rule refuses first, an empty or dot segment, or a character no path holds, which
+    leaves it in none of the four forms, is refused at its @id, so every refused path is refused at the crate by one rule or the other. The id rule names
+    the entity by its place in the graph, the path rule by its path, so the location tells which rule refused
+    (P0.5's verifier, round 1: with Files let past the id rule, these tests still passed on the path rule)."""
+    c = rewrite(crate(tmp_path), lambda md: listed(md, name))
+    r = refused("spelling", lambda: reader.read((c / canonical.DESCRIPTOR).read_bytes()))
+    assert r.where.startswith("@graph[") and r.where.endswith(" @id"), r
+
+
+ID_PATH_CHARS = set("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789._~!$&'()+,;=@-/")
+
+
+def outside_the_ids_path_form(name):
+    """FORMAT.md item 22's path form, stated here and not read from the code: a character it does not hold, @ first,
+    an empty, . or .. segment, or a last segment that ends at its first ; or begins .; or ..;."""
+    body = name[:-1] if name.endswith("/") else name
+    head, semi, params = name.split("/")[-1].partition(";")
+    return (not set(name) <= ID_PATH_CHARS or name.startswith("@")
+            or any(s in ("", ".", "..") for s in body.split("/")) or bool(semi and (params == "" or head in (".", ".."))))
+
+
+def test_every_refused_path_is_refused_by_one_rule_or_the_other():
+    """The id rule refuses first exactly the paths item 22's path form leaves out, and the path rule the rest (P0.5's
+    verifier, round 2, note 3: the split was read from the code it held, so its sum was a tautology)."""
+    assert PATHS_REFUSED_AS_IDS == [n for n in PATHS_REFUSED if outside_the_ids_path_form(n)]
+    assert PATHS_REFUSED_AS_IDS and PATHS_REFUSED_AS_PATHS
 
 
 @pytest.mark.parametrize("name", PATHS_REFUSED_AS_PATHS, ids=[repr(n)[:40] for n in PATHS_REFUSED_AS_PATHS])
@@ -311,9 +342,8 @@ def test_a_root_without_a_required_term_is_graph_form(tmp_path, key):
 
 
 @pytest.mark.parametrize("ident, key, value", [
-    ("local-file", "sha256", "a" * 64), ("local-file", "contentSize", "1"), ("qro:RawResult", "qro:shots", 9),
-    ("qro:RawResult", "qro:rawForm", "x"), ("Dataset", "hasPart", [{"@id": "data/notes.txt"}]),
-    ("File", "encodingFormat", "text/plain")])
+    ("local-file", "sha256", "a" * 64), ("local-file", "contentSize", "1"),
+    ("Dataset", "hasPart", [{"@id": "data/notes.txt"}]), ("File", "encodingFormat", "text/plain")])
 def test_an_entity_whose_id_spells_a_domain_is_not_of_it(tmp_path, ident, key, value):
     """P0's verifier, round 2 (R2-3): every domain token was matched against the @id too, so an entity named
     `qro:RawResult` could state a count no step reads. Only the root's and the descriptor's tokens are @ids."""
@@ -323,6 +353,18 @@ def test_an_entity_whose_id_spells_a_domain_is_not_of_it(tmp_path, ident, key, v
     c = rewrite(crate(tmp_path), add)
     r = refused("graph-form", lambda: reader.read((c / canonical.DESCRIPTOR).read_bytes()))
     assert r.where == f"{ident} {key}"
+
+
+@pytest.mark.parametrize("key, value", [("qro:shots", 9), ("qro:rawForm", "x")])
+def test_an_entity_whose_id_spells_a_qro_type_is_a_compact_iri_and_refused(tmp_path, key, value):
+    """R2-3's own plant, `qro:RawResult` as an @id: since P0.5 a compact IRI, the vocabulary's own IRI to a JSON-LD
+    reader, so it is refused by the id rule before its terms are read."""
+    def add(md):
+        md["@graph"].append({"@id": "qro:RawResult", "@type": "CreativeWork", key: value})
+        md["@graph"][2:] = sorted(md["@graph"][2:], key=lambda x: x["@id"])
+    c = rewrite(crate(tmp_path), add)
+    r = refused("spelling", lambda: reader.read((c / canonical.DESCRIPTOR).read_bytes()))
+    assert r.where.endswith(" @id") and "compact IRI" in r.detail, r
 
 
 def test_a_root_of_another_type_is_graph_form(tmp_path):
@@ -379,13 +421,85 @@ def test_a_graph_that_is_not_a_list_of_entities_is_graph_form(tmp_path, graph):
 def test_a_raw_result_at_a_path_outside_the_spelling_is_refused(tmp_path):
     """Round 3, row 8: the path rule reaches a File of two types, a raw result among them."""
     def add(md):
-        listed(md, "data/a%20b.counts.json")
-        e = entity(md, "data/a%20b.counts.json")
+        listed(md, "data/con.counts.json")      # an @id, but no path: a device's name (since P0.5, % is in no path)
+        e = entity(md, "data/con.counts.json")
         e["@type"] = ["File", "qro:RawResult"]
         e["qro:rawForm"] = fixture.RAW_FORM
     c = rewrite(crate(tmp_path), add)
     r = refused("spelling", lambda: reader.read((c / canonical.DESCRIPTOR).read_bytes()))
-    assert r.where == "data/a%20b.counts.json @id"
+    assert r.where == "data/con.counts.json @id"
+
+
+def two(md, first, second):
+    """`md` with two CreativeWorks of one name each, `first` and `second`, in the graph's order."""
+    for i in (first, second):
+        md["@graph"].append({"@id": i, "@type": "CreativeWork", "name": "x"})
+    md["@graph"][2:] = sorted(md["@graph"][2:], key=lambda x: x["@id"])
+
+
+@pytest.mark.parametrize("first, second", [("#a", "./#a"), ("http://schema.org/a", "schema:a"), ("#b", "_:b0"),
+                                           ("#c", "@x")])
+def test_two_entities_a_json_ld_reader_would_make_one_are_refused(tmp_path, first, second):
+    """P4's verifier, round 1, defect 1, MEASURED with pyshacl: each pair was accepted by the checker at every step,
+    while RDF reads the second as the first (or as the root, or a blank node), so a must shape failed on a crate
+    the checker accepted. The second's @id is refused, by the id rule (P0.5)."""
+    c = rewrite(crate(tmp_path), lambda md: two(md, first, second))
+    r = refused("spelling", lambda: reader.read((c / canonical.DESCRIPTOR).read_bytes()))
+    assert r.where.startswith("@graph[") and r.where.endswith(" @id"), r
+
+
+def test_a_file_whose_id_begins_with_at_is_refused(tmp_path):
+    """P4's verifier, round 1: a top-level File `@x` is the root's IRI to rdflib. FORMAT.md item 11 lets a path hold
+    `@`; item 22 refuses one that begins with it."""
+    c = rewrite(crate(tmp_path), lambda md: listed(md, "@x"))
+    r = refused("spelling", lambda: reader.read((c / canonical.DESCRIPTOR).read_bytes()))
+    assert r.where.startswith("@graph[") and r.where.endswith(" @id"), r
+
+
+def test_a_reference_to_a_compact_iri_is_refused(tmp_path):
+    """A reference names an IRI as an @id does: `{"@id": "schema:a"}` is http://schema.org/a to a JSON-LD reader, and
+    is refused `spelling` where the values are read (P0.5)."""
+    c = rewrite(crate(tmp_path), lambda md: md["@graph"][1].update(license={"@id": "cc:by"}))
+    r = refused("spelling", lambda: reader.read((c / canonical.DESCRIPTOR).read_bytes()))
+    assert r.where == "./ license", r
+
+
+@pytest.mark.parametrize("ident", ["#a://b", "#:://", "x;", ";", ".;", "a/..;", ".;x"])
+def test_an_entity_a_json_ld_reader_reads_as_another_iri_is_refused(tmp_path, ident):
+    """P0.5's verifier, round 1, its crates B and C: the fixture with a CreativeWork `#a://b`, a relative IRI to rdflib
+    at every base, or `;`, the root to rdflib at an https base, was accepted at every step. Each is refused at its
+    @id, by the id rule."""
+    def add(md):
+        md["@graph"].append({"@id": ident, "@type": "CreativeWork", "name": "x"})
+        md["@graph"][2:] = sorted(md["@graph"][2:], key=lambda x: x["@id"])
+    c = rewrite(crate(tmp_path), add)
+    r = refused("spelling", lambda: reader.read((c / canonical.DESCRIPTOR).read_bytes()))
+    assert r.where.startswith("@graph[") and r.where.endswith(" @id"), r
+
+
+def test_a_file_beside_its_own_name_ending_in_a_semicolon_is_refused(tmp_path):
+    """P0.5's verifier, round 1, its crate A: Files data/x.txt and data/x.txt; were accepted at all nine steps, while
+    at an https base RDF reads them as one node with two digests. The second is refused by the id rule. A ; that
+    urllib keeps, in data/a;b.txt, is a name like any other, held end to end above."""
+    def add(md):
+        listed(md, "data/x.txt", b"one")
+        listed(md, "data/x.txt;", b"two")
+    c = rewrite(crate(tmp_path), add)
+    (c / "data" / "x.txt").write_bytes(b"one")
+    r = refused("spelling", lambda: checker.check(c))
+    assert r.where.startswith("@graph[") and r.where.endswith(" @id") and "first ;" in r.detail, r
+
+
+@pytest.mark.parametrize("ref, name", [("_:b0", "graph-form"), ("./x", "graph-form"), ("x#a", "graph-form"),
+                                       ("#a://b", "graph-form"), ("x;", "graph-form"), ("schema:a", "spelling"),
+                                       ("file:a", "spelling"), ("HTTPS://example.org/a", "spelling")])
+def test_a_reference_outside_the_id_rule_is_refused_by_the_name_item_22_gives(tmp_path, ref, name):
+    """FORMAT.md item 22 (P0.5's verifier, round 1, prose): a reference whose @id is no absolute IRI names no entity
+    of the graph, since no entity's @id can be outside the rule, and is `graph-form`; one that reads as an absolute
+    IRI is refused `spelling` where the values are read."""
+    c = rewrite(crate(tmp_path), lambda md: md["@graph"][1].update(license={"@id": ref}))
+    r = refused(name, lambda: reader.read((c / canonical.DESCRIPTOR).read_bytes()))
+    assert r.where == "./ license", r
 
 
 def test_a_file_whose_id_is_a_fragment_is_not_a_file_the_crate_holds(tmp_path):

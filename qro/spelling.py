@@ -34,6 +34,30 @@ _ID = re.compile(r"[!-~]+", re.ASCII)            # printable ASCII, no space: so
 # encoding), no "#", "?", "\", space or other.
 _SEGMENT = re.compile(r"[A-Za-z0-9._~!$&'()+,;=@-]+", re.ASCII)
 SEGMENT_MAX = 255             # the longest name NTFS, ext4 and APFS each hold
+# An @id, and a reference's, is one spelling of the IRI it names (P0.5; P4's verifier, round 1, defect 1): the
+# root ./; a path in the crate, a directory's ending in /, of the path's characters, with no empty or dot segment
+# and no @ first; a fragment #...; or an absolute IRI whose scheme is lowercase, two characters or more with no
+# dot, and neither a prefix of the context nor file. A fragment and an absolute IRI hold RFC 3986's characters but
+# [ and ], each % beginning an escape of two hex digits, and an absolute IRI one # at most: so no accepted id is
+# one urllib's urlsplit raises on, as on an unbalanced bracket, which broke rdflib's defrag and its RDF/XML reader
+# with a base (P0.5's verifier, round 2, note 4). A JSON-LD reader reads many other forms otherwise, so two
+# entities the checker holds apart would be one node in RDF, or a blank one, or none (MEASURED, rdflib 7.6.0 under
+# the base file:///crate/): _:b0 is a blank node; @x, @x/y, ., ././, // and ? are the root; ./x is x, ./#a is #a,
+# and a? is a; a//b and a/./b are a/b; /x and ../a lie outside the crate, and //x is another host; schema:a is
+# http://schema.org/a; file:///crate/a is the path a; and an id holding a space makes no node. Others it reads as
+# written (x#a, #, ?q, HTTPS://x/y, C:/x, ab:%zz), and they are refused as forms the rule does not offer, so that
+# an IRI has one spelling. Two shapes inside the forms are refused too, each read otherwise by rdflib (P0.5's
+# verifier, round 1, MEASURED): a fragment holding ://, which rdflib leaves as written, a relative IRI, at every
+# base; and a path whose last segment, the text after its final / (empty for a directory), ends at its first ;
+# or begins .; or ..;. rdflib resolves with urllib's urljoin, which at an http, https, ftp or like base splits ;params
+# off the last segment, drops them when empty, and reads a . or .. before them as a dot segment: x; is x, and ;
+# the root. Other params it keeps, so a;b.txt is accepted. These patterns are not in PATTERNS: a shape sees an @id
+# resolved, as an IRI, never its spelling.
+_ID_SEGMENT = r"(?![.]{1,2}(?:/|$))[A-Za-z0-9._~!$&'()+,;=@-]+"
+_PATH_ID = re.compile(rf"(?!@){_ID_SEGMENT}(?:/{_ID_SEGMENT})*/?", re.ASCII)
+_IRI_CHAR = r"(?:[A-Za-z0-9._~!$&'()*+,;=:@/?-]|%[0-9A-Fa-f]{2})"   # a fragment's, a query's or a path's
+_FRAGMENT_ID = re.compile(rf"#{_IRI_CHAR}+", re.ASCII)
+_ABSOLUTE_ID = re.compile(rf"([a-z][a-z0-9+-]+):(?:{_IRI_CHAR}+(?:#{_IRI_CHAR}*)?|#{_IRI_CHAR}*)", re.ASCII)
 # Text: no control character but the line feed (C0, DEL and C1: Unicode's category Cc), and no lone surrogate.
 _TEXT_BAD = re.compile(r"[\x00-\x09\x0b-\x1f\x7f-\x9f\ud800-\udfff]")
 # Each spelling's pattern, for those that have one: a value must match it whole, and problem() holds the
@@ -95,7 +119,7 @@ def problem(spelling, value):
     if spelling == "ref":
         if not isinstance(value, dict) or list(value) != ["@id"]:
             return 'not a reference {"@id": ...} and nothing else'
-        return None if isinstance(value["@id"], str) and _ID.fullmatch(value["@id"]) else "not an @id spelling"
+        return None if id_problem(value["@id"]) is None else "not an @id spelling"
     if not isinstance(value, str):
         return "not a string"
     if spelling == "size":
@@ -151,8 +175,29 @@ def problem(spelling, value):
 
 
 def id_problem(value):
-    """None if `value` is an @id's spelling."""
-    return None if isinstance(value, str) and _ID.fullmatch(value) else "an @id is printable ASCII with no space"
+    """None if `value` is an @id's spelling: printable ASCII with no space, in one of the four forms above, and
+    neither of the two shapes inside them that a JSON-LD reader reads otherwise."""
+    if not isinstance(value, str) or not _ID.fullmatch(value):
+        return "an @id is printable ASCII with no space"
+    if value == V.ROOT:
+        return None
+    if _FRAGMENT_ID.fullmatch(value):
+        return "a fragment holding ://, which a JSON-LD reader leaves a relative IRI" if "://" in value else None
+    if _PATH_ID.fullmatch(value):
+        head, semi, params = value.rsplit("/", 1)[-1].partition(";")
+        if semi and (params == "" or head in (".", "..")):
+            return ("a last segment whose first ; ends it, or which begins .; or ..;: at an http base a JSON-LD "
+                    "reader reads x; as x, and ; as the root")
+        return None
+    m = _ABSOLUTE_ID.fullmatch(value)
+    if m is None:
+        return ("an @id is ./, a path with no empty or dot segment and no @ first, #..., or an absolute IRI with a "
+                "lowercase scheme, and no other form (FORMAT.md item 22)")
+    if m.group(1) in V.CONTEXT_PREFIXES:
+        return f"a compact IRI, {m.group(1)}: being a prefix of the context: a second spelling of another IRI"
+    if m.group(1) == "file":
+        return "a file: IRI, which a reader cannot tell from a path in the crate"
+    return None
 
 
 # A device's name, with or without an extension, in any case: the names Windows reserves (CON, PRN, AUX, NUL,
