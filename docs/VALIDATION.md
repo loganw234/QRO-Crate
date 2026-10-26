@@ -2852,3 +2852,124 @@ qro/spelling.py.
 **The whole of P0.5** took four rounds and three send-backs: the first on two ids rdflib reads otherwise, the
 last two on prose alone. It is committed as the next entry says. Its fixes, and its verifiers' measurements, are
 in the four entries above and the reports.
+
+## 2026-10-25 - P1.1 merged: the adapter's checker side
+
+**What P1.1 is.** P1 is the adapter parcel: it turns Quantum-Film's records of real runs, on IBM's devices and on
+Moth's Atlas emulator, into crates, and adds the checker's steps that hold a crate to those runs. Its design was
+approved on 2026-10-15, in the round's ledger, P1.md items 1 to 13, with the lead's decisions in lead.md. P1.1 is
+its checker side, built on Sonnet in its own worktree from 7f40400 and brought to 20d40e6 by a fast-forward. It adds
+21 files and changes none:
+- **qro/p1_forms.py:** the readers of the three raw result forms (IBM's, and Atlas's result and vector) and of a
+  calibration snapshot, in strict JSON;
+- **qro/p1_commit.py:** commitment v3 and its options digest;
+- **qro/p1_graph.py:** `Index`, the crate's relations;
+- **qro/p1_decode.py:** the decode rules, the known-answer verdicts, `pub_counts` and `crate_file`;
+- **qro/p1_calibration.py:** the values-digest, the claims and the link rule;
+- **qro/p1_steps.py:** steps 4, 5 and 8;
+- **qro/register_p1.py:** those three steps and the three raw forms, and nothing else;
+- **tests/p1/:** 1,169 tests in 405 functions, and the test-only builder, p1_builder.py.
+
+P1.2, the producer side, is not built: the records, the generators, the adapter, the plants, the twin, the
+`p1-crates` stage and P1.2's own page.
+
+**What the steps hold:**
+- **Step 4:** each Pub's commitment, recomputed over all fourteen inputs, against IBM's echo inside the raw result's
+  bytes, at the PUB's own index; never the manifest's or the claims'.
+- **Step 5:** the decode, in the bit order the raw declares, and the known-answer verdicts. IBM's are judged by the
+  modal outcome against its mirror; Atlas's by the vector, each Z position within four standard deviations.
+- **Step 8:** each calibration snapshot's values-digest, and the link rule, `history-at-first-shot` or
+  `history-in-gap`. A Job's times are held to its raw result's span wherever the raw carries one.
+
+**The real records** (MEASURED through the built code, in scratch; P1.2's `p1-crates` is to hold them in a gate):
+- 68 of 68 commitments agree with IBM's echo;
+- 31 of 31 known answers hold `msb-first`, and none `lsb-first`;
+- 12 snapshots give six values-digests, 1, 3 and 2 on fez, kingston and marrakesh;
+- the links are 57 at the first shot and 8 in a gap;
+- the six Atlas results give their layouts, and the vector its worst |z| of 2.154 under `atlas-register`.
+
+**Changes from the approved design, each taken by the lead:**
+- `crate_file` is public;
+- `Index` raises GraphError for a type list holding a non-string;
+- a record's field of the wrong kind is refused, naming the field;
+- a Job's times are held to the raw's span wherever the raw carries one, whatever its link word;
+- step 8 weighs the snapshots whose files name the job's backend;
+- step 4 keeps of a job line its commitments alone;
+- every reader refuses an integer past 2^63 - 1 in magnitude;
+- a refusal's detail quotes an echo to 65 characters and a numeral to 24 digits.
+
+**The four rounds** (docs/reviews/P1.1/):
+1. **NOT READY**, on three code defects and prose:
+   - the Atlas reader refused the real results' `fetched_at`;
+   - the steps cached every parsed result, and a crate of 60 jobs ran out of memory, exit 3;
+   - step 8 took the carried snapshots by the device entity's @id.
+2. **NOT READY**, with no wrong verdict found:
+   - two gates: the test of step 8's snapshot passed a mutant keeping its document, and step 8's registration was
+     tested from one side;
+   - a memory defect: step 4 kept every job line, 507 MB on ten lines of 2.1 MB;
+   - prose.
+3. **NOT READY**, with no defect in what the code does: limit 17's costs and its exit sentence, two gates (the
+   memory class, and step 5's registration), and two sentences. The cap was reached.
+4. **READY**, on the relaxed bar, on 2026-10-25. Its auditor agreed with the steps on 75,802 mutated crates and
+   11,175 link-rule crates, and every line of the seven modules runs under the tests.
+
+**Measured at the merge:**
+- P1.1's mutants: 274 of 275 hand and 870 of 873 automatic, each survivor an equivalent it names;
+- the verifiers' mutants: round 3's 52 of 52, and round 2's 81 of 83, the other two no longer applying;
+- 1.74 million reader mutants, none escaping;
+- the runner on the merged tree, run `20261025-224750-9381-8afeede+dirty`: **18 stages passed, 6 skipped by
+  name**, none failed, in 195 s of stage time; 2,487 tests in its pytest stages, P1's 1,169 among them.
+
+**The stated limits,** as P1.1 last restated them (P1.md 2026-10-16T14:16:08Z, restated 16:47:50Z,
+2026-10-19T15:09:12Z and 17:46:44Z):
+1. A producer who holds every byte can reseal a crate, and the crate-only checker accepts it (`qpy-only`,
+   `shot-moved-resealed`; each tested as accepted).
+2. IBM's echo shows that the bytes carry the commitment, not that the bytes are IBM's.
+3. Atlas's commitment is `none`, and nothing evidences that it came before the result.
+4. A `history-*` link is a necessary condition, not proof that the snapshot was in force.
+5. The values-digest keeps list order, so a provider that reordered a list between fetches would show two digests.
+6. A known answer holds the order only as far as its pattern tells orders apart. A set that is its own mirror is
+   refused; Atlas's X positions are not tested, its Y positions cannot tell qubits apart, and its Z positions are
+   held within four deviations.
+7. `read-before-run`, `read-after-run` and `provider-linked` are refused `step-unbuilt`.
+8. Execution spans are zone-less, and are read as UTC.
+9. Steps 4 and 5 read of a record and of a job line only what they hold. No step reads a record's counts or digest,
+   a verdict file, the manifest, a decoded count, or `qro:historyAtRunning`.
+10. A PUB's index is one decimal digit of its id: ten PUBs, 0 to 9, are accepted, and an eleventh is refused (P1.1's
+    fourth verifier: the ledger had said ten needs a new rule).
+11. The bit order a known answer is judged by rests on whatever binds the known-answer Pub's record, and a Pub
+    weakened to `none` binds nothing.
+    - With that Pub alone at `none`, its record resealed to a mirrored circuit, and the Decodes declared
+      `lsb-first`, steps 4, 5 and 8 accept the crate.
+    - Atlas Pubs have no commitment, so relabelling a law Pub's role skips step 5's accounting.
+    - A Job weakened to `unknown` or `unexposed` passes step 8 where its raw result carries no span.
+
+    Step 9 is the stated cover.
+12. A raw result that inflates past 64 MiB is refused `raw-form`.
+13. A number in a snapshot must be one binary64 holds exactly. In every reader:
+    - an integer past 2^63 - 1 in magnitude is refused;
+    - a float that overflows binary64 is refused;
+    - one that underflows reads as 0.0.
+14. The snapshot form is closed: a key IBM adds refuses every crate carrying it until the form has a version for it.
+15. Of two carried snapshots of one stamp, the greater @id is the one a gap names.
+16. A known-answer verdict needs at least one shot.
+17. **In steps 4, 5 and 8, an OSError and a MemoryError are not caught:** exit 3, or exit 2 for a PermissionError.
+    Step 3, which reads every raw result first, is P0's.
+    - A step costs the parse of the crate's largest file, not the sum of its files.
+    - What a parse costs, MEASURED by shape: a JSON file up to 46 times its size, a snapshot 147 times, an IBM
+      result's array 6.7 times its inflated size, and a circuit 21.7 times.
+    - No bound that a file cannot exceed is known.
+18. The tests commit no provider file: they hold five real echoes and seven snapshots' digests as literals.
+19. A file the crate lists and the disk lacks is, if a step is called directly, a FileNotFoundError; through the
+    checker, step 2 refuses it first.
+20. `qro:jobId` is REPORTED, and compared with nothing.
+21. A Job's times are the raw result's to say: where the raw carries no span, they are compared with nothing.
+22. No Pub or Job is compared with another job, though a Decode is held to its known answer's job. So a job copied
+    whole under new ids is accepted by every step but 9, the cover.
+
+**Left for P1.2** (P1.1's fourth verifier's notes, ledger 2026-10-26T05:42:20Z):
+- a test of step 8 telling the older of two named snapshots by stamp where their ids sort the other way;
+- a stated limit for step 4's finding committed files by digest among the crate's copies, so that altering only the
+  copy a job ran is accepted while another copy keeps the digest;
+- the cost table on P1.2's own page, where p1_steps.py is to point;
+- step 5's time on a result at the reader's cap, 6.1 s, tallying the rows for the verdict and again for each PUB.
