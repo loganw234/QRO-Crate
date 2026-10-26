@@ -75,7 +75,8 @@ that reading cannot see.
   failing.** A crash inside the checker is never a verdict. Python's own
   failure to start it (no `qro` on the path) exits 1 with no REFUSED line
   (FORMAT.md item 16). And a parcel's raw-form reader or generator that fails
-  on a crate is refused by its step's name (FORMAT.md item 16): a bug in
+  on a crate is refused by its step's name (FORMAT.md item 16), but for a
+  MemoryError, the host's, which is the checker failing, exit 3: a bug in
   your reader shows as a refused crate, its detail naming the failure.
 - **Test the command line as a process too.** It writes its one line
   unbuffered to the descriptor itself. A buffered write to a closed pipe
@@ -144,3 +145,50 @@ that reading cannot see.
 
    The generated pages never say which controls are built, so a plant
    changes none of them.
+8. **A process with no console opens a window for each console program it
+   starts** (Logan, 2026-10-26: P0.6's fourth verifier ran the gate under
+   pythonw.exe, and its git calls flashed open by the dozen). Never run the
+   gate, git, the runner or pytest under pythonw.exe, a detached process or
+   a new console; for a closed stdout, use Git Bash's `>&-`. The gate's own
+   git calls take no window and no stdin (P0.7). Through the sandbox's
+   launchers (item 9), whose python.exe is a venv's redirector, `>&-` closes
+   Python's own stdout but hands the programs it starts a valid one: a test
+   of what a child does with no stream gives it a handle that names nothing,
+   with SetStdHandle, as the gate's tests do (P0.7's second verifier).
+9. **Agents run the project's code in a sandbox, and no code deletes outside
+   one** (Logan, 2026-10-26: a parcel's hand mutant of its own cleanup ran
+   `shutil.rmtree` on the users folder for 13 minutes, and emptied most of
+   the profile and the programs installed in it). An agent works on a copy
+   of the tree in its own directory under
+   `%USERPROFILE%\AppData\LocalLow\qro-sbx`, and runs every command that
+   executes the project's code, its tests, a mutant or a script of its own
+   through `%LOCALAPPDATA%\qro-crate\sbx\sbx.sh`:
+   - at low integrity, where Windows lets a process, and every process it
+     starts, write and delete only in low-labelled folders: the sandbox,
+     and every other folder under `%USERPROFILE%\AppData\LocalLow`, which
+     Windows labels low for every application; nowhere else in the
+     profile, the repositories or the system. For a program Python starts,
+     which the hook does not see, that label is the only fence (P0.7's
+     third verifier);
+   - with a Python audit hook, the guarded interpreter's sitecustomize, that
+     refuses a write, delete, rename, link, copy or chmod made through
+     Python's own file functions outside the sandbox, and a write to a file
+     with two names, a hard link, anywhere. It does not see a program
+     Python starts (git, bash, rm, cmd), `os.system`, or ctypes.
+
+   Both hold an agent to the sandbox as a whole, every agent's directory in
+   it, and not to its own: keeping out of the others' is the rule's work.
+
+   Git Bash cannot run at low integrity, so the runner and the tests that
+   start bash (in tests/format/test_cli.py and
+   tests/docs/test_stage_registry.py) run through `sbx-mid.sh`, at normal
+   integrity, where the hook alone holds anything: a program Python starts,
+   and ctypes, are held by nothing there (P0.7's second verifier). A clone
+   of a real repository is made there with `git clone --no-hardlinks` (git's
+   local transport starts sh, which cannot run at low integrity), or by
+   copying its objects: a plain local clone hard-links the repository's
+   object files, so that changing one in the clone changes the real one's.
+   A cleanup in the project's code removes only what it made, never an
+   `rmtree` of a computed ancestor. A subagent's shell starts in the real
+   checkout and keeps no `cd`: write only by absolute path, or after a `cd`
+   in the same command.

@@ -99,11 +99,13 @@ def test_each_spelling_p06_added_finds_its_forms(name, text):
     ("wsl-file-url", "see file:" + "//" + "wsl$" + "/Ubuntu/" + "home" + "/%3Cname%3E"),
     ("wsl-file-url", "xfile:" + "//" + "wsl$" + "/Ubuntu/" + "home" + "/someone"),
     ("wsl-file-url", "see file:" + "//" + "wsl$" + "//" + "home" + "/someone"),
-    ("url-quoted-drive", "x%ZZ" + "C:" + "%5C" + "Users" + "%5C" + "someone")],
+    ("url-quoted-drive", "x%ZZ" + "C:" + "%5C" + "Users" + "%5C" + "someone"),
+    ("url-quoted-drive", "see " + "C:" + "%5C" + "Users" + "someone")],
     ids=["after a letter", "after a digit", "after a dot", "after a slash", "a URL whose host is named wsl",
          "a placeholder for the name", "a scheme ending in a letter", "another scheme", "a longer host",
          "hex letters with no percent before", "a digit that is no escape's before", "a file URL's placeholder",
-         "a file URL inside a word", "a file URL with no distribution", "a percent sign before no hex pair"])
+         "a file URL inside a word", "a file URL with no distribution", "a percent sign before no hex pair",
+         "no separator after Users"])
 def test_each_spelling_p06_added_keeps_its_edges(name, text):
     """P0.6's verifier, round 1, notes: each part of the two lookbehinds, and the name the drive's form requires,
     held by no test."""
@@ -168,6 +170,17 @@ def git_tree(tmp_path, files, message="a clean commit"):
     return r
 
 
+def link_dir(path, target):
+    """A directory link: a junction on Windows, which needs no privilege; a symbolic link elsewhere. No skip: the
+    runner fails a stage that skips a test (a copy of tests/format/test_hostile.py's, never imported from it)."""
+    import os
+    if os.name == "nt":
+        import _winapi
+        _winapi.CreateJunction(str(target), str(path))
+    else:
+        os.symlink(target, path, target_is_directory=True)
+
+
 def test_the_gate_exits_1_on_a_key_in_a_tracked_file_and_0_on_a_clean_tree(tmp_path):
     clean = git_tree(tmp_path / "a", {"notes.md": "nothing to see" + chr(10)})
     planted = git_tree(tmp_path / "b", {"notes.md": privacy.PLANTS["named:QISKIT_IBM_TOKEN"] + chr(10)})
@@ -195,12 +208,26 @@ def test_the_controls_fail_when_one_alternative_misses_its_plant(tmp_path, monke
     assert privacy.control(r) == 1
 
 
-def test_an_unreadable_tracked_file_fails_the_gate(tmp_path):
-    """A file git would commit and the gate cannot read is a finding, not a pass."""
-    r = git_tree(tmp_path, {"notes.md": "nothing" + chr(10), "gone.md": "soon gone" + chr(10)})
+def test_a_tracked_file_gone_from_disk_is_read_from_the_index(tmp_path):
+    """A file git would commit is read wherever git holds it. Deleted from disk and not from the index, its index
+    version is what a plain commit takes, and the staged reader reads it: a key in it is found, and a clean one
+    passes. Before P0.7 the file loop made it a finding too, `unreadable: FileNotFoundError`, and a clean sparse
+    checkout failed for each file it leaves out (P0.6's fourth verifier, O1). A file the gate cannot read at all, a
+    pipe or a device, is still a finding (the test of pipes, below)."""
+    key = privacy.PLANTS["named:QISKIT_IBM_TOKEN"]
+    r = git_tree(tmp_path, {"notes.md": "nothing" + chr(10), "gone.md": "soon gone" + chr(10),
+                            "keyed.md": key + chr(10)})
     (r / "gone.md").unlink()
+    (r / "keyed.md").unlink()
     bad, _ = privacy.check(r)
-    assert [b for b in bad if b.startswith("gone.md: unreadable")], bad
+    assert bad and all(b.startswith("keyed.md (staged): a key (") for b in bad), bad
+    # clean, with a file gone, it passes the run and the controls; the controls copied every tracked file from disk
+    # and raised FileNotFoundError (P0.7's first verifier, D2, MEASURED)
+    gate = (ROOT / "tools" / "check_privacy.py").read_bytes()
+    clean = git_tree(tmp_path / "clean", {"notes.md": "nothing" + chr(10), "gone.md": "soon gone" + chr(10),
+                                          "tools/check_privacy.py": gate})
+    (clean / "gone.md").unlink()
+    assert privacy.check(clean)[0] == [] and privacy.control(clean) == 0
 
 
 def test_the_gate_reads_its_own_repository_whatever_repository_gits_variables_name(tmp_path, monkeypatch):
@@ -425,8 +452,10 @@ def test_a_gitlink_whose_path_holds_a_file_or_a_symbolic_link_is_read(tmp_path, 
         (r / "sub").mkdir()
         simulate_links(monkeypatch, {"sub": key})
     else:
-        lexists = privacy.os.path.lexists
+        # a dangling link is something there to git's lstat as to Python's lexists, so git calls it no deletion
+        lexists, absent = privacy.os.path.lexists, privacy.absent
         monkeypatch.setattr(privacy.os.path, "lexists", lambda p: Path(p).name == "sub" or lexists(p))
+        monkeypatch.setattr(privacy, "absent", lambda root: absent(root) - {"sub"})
         simulate_links(monkeypatch, {"sub": key})
     bad, summary = privacy.check(r)
     assert [b for b in bad if b.startswith("sub: a key (")] and "nested repository" not in summary, (bad, summary)
@@ -786,6 +815,270 @@ def test_a_history_whose_types_git_cannot_read_is_a_finding(tmp_path, monkeypatc
         return real(cmd, *args, **kwargs)
     monkeypatch.setattr(privacy.subprocess, "run", run)
     assert "earlier commits' files: unread, as git could not list or read them" in privacy.check(r)[0]
+
+
+def test_a_sparse_checkout_passes_and_what_it_leaves_out_is_read(tmp_path):
+    """P0.6's fourth verifier, O1, MEASURED: a clean sparse checkout was refused, each tracked file it leaves out a
+    finding, `unreadable: FileNotFoundError`, though the staged reader reads the index's version of it. A tracked
+    file not in the working tree is passed over by the file loop and read from the index: a key outside the cone is
+    found. And the controls pass it too: their copy read every tracked file from disk (P0.7's first verifier, D2)."""
+    key = privacy.PLANTS["named:QISKIT_IBM_TOKEN"]
+    gate = (ROOT / "tools" / "check_privacy.py").read_bytes()
+    for name, outside in (("clean", "an outside note" + chr(10)), ("keyed", key + chr(10))):
+        r = git_tree(tmp_path / name, {"notes.md": "nothing to see" + chr(10), "in/kept.md": "kept" + chr(10),
+                                       "out/note.md": outside, "tools/check_privacy.py": gate})
+        subprocess.run(["git", "-C", str(r), "sparse-checkout", "set", "in", "tools"], check=True,
+                       capture_output=True, env=hermetic_git(tmp_path / name))
+        assert not (r / "out" / "note.md").exists(), "the cone left it out: the test's own control"
+        bad = privacy.check(r)[0]
+        if name == "clean":
+            assert bad == [] and privacy.control(r) == 0, bad
+        else:
+            assert [b for b in bad if b.startswith("out/note.md (staged): a key (")] == bad and bad, bad
+
+
+@pytest.mark.parametrize("mode", [[], ["--control"]], ids=["the run", "the controls"])
+def test_the_gate_runs_where_its_stdin_is_gone(tmp_path, mode):
+    """P0.6's fourth verifier, O2, MEASURED: with stdin closed by Git Bash's `<&-`, the gate's first git call raised
+    OSError, WinError 6, as each git inherited a standard input that was no longer there. Each git is given no stdin
+    but its input. The process makes its own standard input a handle that names nothing, on Windows, or closes its
+    descriptor 0 elsewhere, and runs the gate as `__main__`."""
+    gate = (ROOT / "tools" / "check_privacy.py").read_bytes()
+    r = git_tree(tmp_path, {"notes.md": "nothing to see" + chr(10), "tools/check_privacy.py": gate})
+    script = tmp_path / "no_stdin.py"
+    script.write_bytes(("import os, runpy, sys" + chr(10)
+                        + "if os.name == 'nt':" + chr(10)
+                        + "    import ctypes" + chr(10)
+                        + "    ctypes.windll.kernel32.SetStdHandle(-10, ctypes.c_void_p(0xFFFFF0))" + chr(10)
+                        + "else:" + chr(10)
+                        + "    os.close(0)" + chr(10)
+                        + "sys.argv = ['tools/check_privacy.py'] + " + repr(mode) + chr(10)
+                        + "runpy.run_path('tools/check_privacy.py', run_name='__main__')" + chr(10)).encode("ascii"))
+    p = subprocess.run([sys.executable, "-I", str(script)], cwd=r, capture_output=True, env=hermetic_git(tmp_path))
+    assert p.returncode == 0, p.stderr[-400:]
+
+
+@pytest.mark.parametrize("mode", [[], ["--control"]], ids=["the run", "the controls"])
+@pytest.mark.parametrize("fd", [1, 2], ids=["stdout", "stderr"])
+def test_the_gate_runs_where_its_stdout_or_stderr_is_gone(tmp_path, mode, fd):
+    """P0.7's first verifier, D1, MEASURED: with stdout closed (Git Bash's `>&-`) or stderr closed (`2>&-`), the
+    controls' `git init` raised OSError, WinError 6, where cbdb6a3's gate passed: given its stdin and not its stdout
+    or stderr, a git is started with a copy of the gate's own, and a closed one cannot be copied. Each git's stdout
+    and stderr are captured unless the call takes them. The process makes the stream a handle that names nothing,
+    on Windows, or closes its descriptor elsewhere, and runs the gate as `__main__`."""
+    gate = (ROOT / "tools" / "check_privacy.py").read_bytes()
+    r = git_tree(tmp_path, {"notes.md": "nothing to see" + chr(10), "tools/check_privacy.py": gate})
+    script = tmp_path / "no_stream.py"
+    script.write_bytes(("import os, runpy, sys" + chr(10)
+                        + "if os.name == 'nt':" + chr(10)
+                        + "    import ctypes" + chr(10)
+                        + "    ctypes.windll.kernel32.SetStdHandle(" + str(-10 - fd)
+                        + ", ctypes.c_void_p(0xFFFFF0))" + chr(10)
+                        + "else:" + chr(10)
+                        + "    os.close(" + str(fd) + ")" + chr(10)
+                        + "    sys." + ("stdout" if fd == 1 else "stderr") + " = None" + chr(10)
+                        + "sys.argv = ['tools/check_privacy.py'] + " + repr(mode) + chr(10)
+                        + "runpy.run_path('tools/check_privacy.py', run_name='__main__')" + chr(10)).encode("ascii"))
+    p = subprocess.run([sys.executable, "-I", str(script)], cwd=r, capture_output=True, env=hermetic_git(tmp_path))
+    assert p.returncode == 0, p.stderr[-400:]
+
+
+@pytest.mark.parametrize("mode", [[], ["--control"]], ids=["the run", "the controls"])
+def test_the_gate_runs_where_reconfiguring_its_stdout_raises(tmp_path, mode):
+    """P0.6's fourth verifier, O4, MEASURED: a stream whose `reconfigure` exists and raises, of the verifier's making,
+    crashed round 3's guard, which asked hasattr. The reconfigure is tried, and a stream that refuses it is left as
+    it is."""
+    gate = (ROOT / "tools" / "check_privacy.py").read_bytes()
+    r = git_tree(tmp_path, {"notes.md": "nothing to see" + chr(10), "tools/check_privacy.py": gate})
+    script = tmp_path / "stubborn.py"
+    script.write_bytes(("import io, runpy, sys" + chr(10)
+                        + "class Stubborn(io.StringIO):" + chr(10)
+                        + "    def reconfigure(self, **kw):" + chr(10)
+                        + "        raise io.UnsupportedOperation('not this stream')" + chr(10)
+                        + "sys.stdout = Stubborn()" + chr(10)
+                        + "sys.argv = ['tools/check_privacy.py'] + " + repr(mode) + chr(10)
+                        + "runpy.run_path('tools/check_privacy.py', run_name='__main__')" + chr(10)).encode("ascii"))
+    p = subprocess.run([sys.executable, "-I", str(script)], cwd=r, capture_output=True, env=hermetic_git(tmp_path))
+    assert p.returncode == 0, p.stderr[-400:]
+
+
+def test_every_git_the_gate_starts_inherits_no_stream_and_opens_no_window(tmp_path, monkeypatch):
+    """P0.6's fourth verifier, O2, and the console windows of its round: each git the gate starts is given no stdin but
+    its input, so a closed stdin cannot fail it, and on Windows no console window, so the gate run where there is no
+    console opens none on the desktop. Its stdout and stderr are captured unless the call takes them, so a closed
+    one cannot fail it either (P0.7's first verifier, D1: this test asked of stdin alone, and passed it). Every git
+    of a run, over a history and a staged version, and of the controls."""
+    gate = (ROOT / "tools" / "check_privacy.py").read_bytes()
+    r = git_tree(tmp_path, {"notes.md": "nothing to see" + chr(10), "old.md": "an old note" + chr(10),
+                            "tools/check_privacy.py": gate})
+    env = hermetic_git(tmp_path)
+    git = ["git", "-C", str(r), "-c", "user.name=x", "-c", "user.email=x@example.org"]
+    subprocess.run(git + ["rm", "-q", "old.md"], check=True, env=env)
+    subprocess.run(git + ["commit", "-q", "-m", "the note gone"], check=True, env=env)
+    (r / "notes.md").write_bytes(b"a staged line" + bytes([10]))
+    subprocess.run(git + ["add", "notes.md"], check=True, env=env)
+    (r / "notes.md").write_bytes(b"nothing to see" + bytes([10]))
+    calls, real = [], privacy.subprocess.run
+
+    def run(cmd, *args, **kwargs):
+        calls.append((list(cmd), kwargs))
+        return real(cmd, *args, **kwargs)
+    monkeypatch.setattr(privacy.subprocess, "run", run)
+    privacy.check(r)
+    privacy.control(r)
+    gits = [(cmd, kw) for cmd, kw in calls if cmd[0] == "git"]
+    assert {"ls-files", "cat-file", "rev-list", "log", "init"} <= {w for cmd, _ in gits for w in cmd}, gits
+    for cmd, kw in gits:
+        assert (kw.get("stdin") is subprocess.DEVNULL) is ("input" not in kw), cmd
+        assert kw.get("capture_output") or {"stdout", "stderr"} <= set(kw), cmd
+        assert kw.get("creationflags") == getattr(subprocess, "CREATE_NO_WINDOW", 0), cmd
+
+
+def test_a_tracked_file_git_sees_and_the_gate_cannot_read_is_a_finding(tmp_path, monkeypatch):
+    """P0.7's first verifier, a note, BELIEVED: asked of Python alone whether a tracked file was gone, a file git sees
+    and Python cannot, as a path past Windows' limit is where long paths are not enabled, was passed over, and an
+    edit `git commit -a` takes went unread; before P0.7 it was a finding. A tracked file is passed over only where
+    git itself says it is not in the working tree. Python's failure is simulated, on the one file."""
+    r = git_tree(tmp_path, {"notes.md": "nothing to see" + chr(10), "hidden.md": "a note" + chr(10)})
+    committed, lexists = privacy.committed, privacy.os.path.lexists
+
+    def hidden_committed(p):
+        if Path(p).name == "hidden.md":
+            raise FileNotFoundError(2, "simulated: a path the host hides from Python")
+        return committed(p)
+
+    def hidden_lexists(p):
+        return False if Path(p).name == "hidden.md" else lexists(p)
+    monkeypatch.setattr(privacy, "committed", hidden_committed)
+    monkeypatch.setattr(privacy.os.path, "lexists", hidden_lexists)
+    assert privacy.check(r)[0] == ["hidden.md: unreadable: FileNotFoundError"]
+
+
+def test_a_skip_worktree_file_still_on_disk_is_read(tmp_path):
+    """Found by P0.7's second verifier, which the round's pause stopped before its report: a file tagged skip-worktree
+    and still on disk, its bytes those of the index, was read by nothing. The file loop passed it over for git's tag,
+    and the staged reader reads an index version only where it differs from the file on disk, so a key committed into
+    it passed. A file is passed over only where git says it is not in the working tree and it is gone from disk too.
+    Clean, such a file passes the run and the controls."""
+    key = privacy.PLANTS["named:QISKIT_IBM_TOKEN"]
+    gate = (ROOT / "tools" / "check_privacy.py").read_bytes()
+    for name, text in (("keyed", key + chr(10)), ("clean", "a note" + chr(10))):
+        r = git_tree(tmp_path / name, {"notes.md": "nothing to see" + chr(10), "conf.md": text,
+                                       "tools/check_privacy.py": gate})
+        subprocess.run(["git", "-C", str(r), "update-index", "--skip-worktree", "conf.md"], check=True,
+                       env=hermetic_git(tmp_path / name))
+        assert "conf.md" in privacy.absent(r) and (r / "conf.md").exists(), "tagged S and on disk: the test's control"
+        bad = privacy.check(r)[0]
+        if name == "keyed":
+            assert [b for b in bad if b.startswith("conf.md: a key (")] == bad and bad, bad
+        else:
+            assert bad == [] and privacy.control(r) == 0, bad
+
+
+def test_a_link_left_dangling_where_a_tracked_file_was_is_not_passed_over(tmp_path):
+    """P0.7's second verifier, note 4: the pass-over asks `lexists`, and `exists` in its place passed every test, the
+    two differing only at a link whose target is gone. A file git says is not in the working tree is passed over only
+    where nothing at all stands at its path: a dangling link there is something, which the gate reads."""
+    import os
+    r = git_tree(tmp_path / "t", {"notes.md": "nothing to see" + chr(10), "conf.md": "a note" + chr(10)})
+    subprocess.run(["git", "-C", str(r), "update-index", "--skip-worktree", "conf.md"], check=True,
+                   env=hermetic_git(tmp_path / "t"))
+    (r / "conf.md").unlink()
+    (tmp_path / "gone").mkdir()
+    link_dir(r / "conf.md", tmp_path / "gone")
+    (tmp_path / "gone").rmdir()
+    assert os.path.lexists(r / "conf.md") and not os.path.exists(r / "conf.md"), "a dangling link: the test's control"
+    gone = privacy.absent(r)
+    assert "conf.md" in gone and not privacy.passed_over(r, "conf.md", gone)
+    bad, summary = privacy.check(r)
+    assert summary.startswith("2 files") or [b for b in bad if b.startswith("conf.md: ")], (bad, summary)
+
+
+def test_the_controls_run_on_a_tree_with_no_git(tmp_path, monkeypatch):
+    """P0.7's second verifier, note 1: the controls' copy asks git what is gone only where the tree is in git. Without
+    that guard `--control` on a tree with no .git, as a copy or an unpacked archive is, raised CalledProcessError where
+    the run passed, and no test held it. git looks no higher than this test's own directory: where pytest's temporary
+    directory lay inside a work tree, git found that one, and the guard's mutant passed (P0.7's third verifier, T3)."""
+    monkeypatch.setenv("GIT_CEILING_DIRECTORIES", str(tmp_path))
+    r = tmp_path / "copy"
+    (r / "tools").mkdir(parents=True)
+    (r / "notes.md").write_text("nothing to see" + chr(10), encoding="utf-8")
+    (r / "tools" / "check_privacy.py").write_bytes((ROOT / "tools" / "check_privacy.py").read_bytes())
+    assert not privacy.in_git(r), "no .git: the test's control"
+    assert privacy.check(r)[0] == [] and privacy.control(r) == 0
+
+
+def test_two_blobs_of_earlier_commits_are_each_read(tmp_path):
+    """P0.6's fourth verifier, T2: no test read two history-only blobs in one batch, so a framing that lost the line
+    feed between them passed every test here, and raised IndexError on a real history (MEASURED by it)."""
+    key = privacy.PLANTS["named:QISKIT_IBM_TOKEN"]
+    r = git_tree(tmp_path, {"notes.md": "nothing to see" + chr(10), "a.md": "an old note" + chr(10) + key + chr(10),
+                            "b.md": key + chr(10) + "another old note" + chr(10)})
+    env = hermetic_git(tmp_path)
+    git = ["git", "-C", str(r), "-c", "user.name=x", "-c", "user.email=x@example.org"]
+    subprocess.run(git + ["rm", "-q", "a.md", "b.md"], check=True, env=env)
+    subprocess.run(git + ["commit", "-q", "-m", "the notes gone"], check=True, env=env)
+    bad = privacy.check(r)[0]
+    assert {b.split(" (history ")[0] for b in bad if ": a key (" in b} == {"a.md", "b.md"}, bad
+
+
+def test_every_finding_is_printed_masked(tmp_path, capsys):
+    """P0.6's fourth verifier, T1: no test held that a finding is masked, and five mutants printing a key whole, or a
+    mask 24 characters wide, passed every test here. A key in a file, a staged version, an earlier commit's blob and
+    a commit message: each is printed with what the alternative found cut to its first four characters and its
+    length, and no more of it."""
+    key = privacy.PLANTS["named:QISKIT_IBM_TOKEN"]
+    found = privacy.findings(key, {"named:QISKIT_IBM_TOKEN"})[0][2]
+    shown = found[:4] + "..." + "[" + str(len(found)) + " chars]"
+    r = git_tree(tmp_path, {"notes.md": "nothing to see" + chr(10), "old.md": "an old note" + chr(10) + key + chr(10)},
+                 message="a note" + chr(10) + chr(10) + key)
+    env = hermetic_git(tmp_path)
+    git = ["git", "-C", str(r), "-c", "user.name=x", "-c", "user.email=x@example.org"]
+    subprocess.run(git + ["rm", "-q", "old.md"], check=True, env=env)
+    subprocess.run(git + ["commit", "-q", "-m", "the old note gone"], check=True, env=env)
+    (r / "stage.md").write_bytes((key + chr(10)).encode("ascii"))
+    subprocess.run(git + ["add", "stage.md"], check=True, env=env)
+    (r / "stage.md").write_bytes(b"nothing here" + bytes([10]))
+    (r / "keys.md").write_bytes((key + chr(10)).encode("ascii"))
+    capsys.readouterr()
+    assert privacy.run(r) == 1
+    out = capsys.readouterr().out
+    lines = [line.strip() for line in out.splitlines() if ": a key (named:QISKIT_IBM_TOKEN), " in line]
+    places = ("keys.md: ", "stage.md (staged): ", "old.md (history ", "commit ")
+    assert sorted(p for line in lines for p in places if line.startswith(p)) == sorted(places), out
+    assert len(lines) == 4 and all(line.endswith(", " + shown) for line in lines), out
+    secret = found.split("=", 1)[1]
+    assert secret[:4] not in out, "the key's value, which no mask four characters wide shows"
+
+
+def test_a_blob_of_an_earlier_commit_whose_object_is_garbage_is_a_finding(tmp_path):
+    """P0.6's fourth verifier, a note, MEASURED: a history-only blob whose loose object is overwritten with garbage is
+    listed by rev-list, and cat-file calls it missing, so the reader's missing arm is reached by a real repository,
+    not only by the listing the test above simulates."""
+    import os
+    import stat
+    r = git_tree(tmp_path, {"notes.md": "nothing to see" + chr(10), "old.md": "an old note" + chr(10)})
+    env = hermetic_git(tmp_path)
+    git = ["git", "-C", str(r), "-c", "user.name=x", "-c", "user.email=x@example.org"]
+    oid = subprocess.run(git + ["rev-parse", "HEAD:old.md"], capture_output=True, text=True, check=True,
+                         env=env).stdout.strip()
+    subprocess.run(git + ["rm", "-q", "old.md"], check=True, env=env)
+    subprocess.run(git + ["commit", "-q", "-m", "the note gone"], check=True, env=env)
+    obj = r / ".git" / "objects" / oid[:2] / oid[2:]
+    os.chmod(obj, stat.S_IREAD | stat.S_IWRITE)
+    obj.write_bytes(b"garbage, no zlib stream")
+    listed = subprocess.run(git + ["rev-list", "--objects", "HEAD", "--"], capture_output=True, env=env)
+    assert listed.returncode == 0 and oid.encode("ascii") in listed.stdout, "listed: the test's own control"
+    assert "old.md (history " + oid[:7] + "): unreadable: its object missing" in privacy.check(r)[0]
+
+
+@pytest.mark.parametrize("text", ["see " + "\\" + "\\" + "wsl$" + "/Ubuntu/home/someone",
+                                  "see " + "\\" + "\\" + "wsl.localhost" + "/Ubuntu/x"],
+                         ids=["the dollar's", "the .localhost form"])
+def test_a_wsl_unc_path_with_a_slash_after_its_host_is_found(text):
+    """P0.6's fourth verifier, a note, MEASURED: a WSL path with backslashes before its host and slashes after, as a
+    path joined with both separators is, passed every alternative. wsl-unc takes either separator after the host."""
+    assert [n for _, n, _ in privacy.findings(text, {"wsl-unc"})] == ["wsl-unc"], text
 
 
 def test_a_binary_blob_in_an_earlier_commit_is_listed_by_name(tmp_path):

@@ -45,8 +45,9 @@ lists that is not there is not
 read (G4); and the lint must name every top-level directory holding a .py file git would commit (G2).
 Stated limits (P0's verifier, round 4, notes 1 to 3): this reads the runner's text, not its run. So it cannot see
 a stage the shell never reaches (inside `if false`, after an `exit 0`), a tool's own flag that masks its exit
-(`--exit-zero`, `--help`, or ruff's options anywhere on the lint line, `--ignore=ALL` among them: P0.6's
-verifiers, rounds 1 and 2), or the runner's own exit status. Each run prints a line for every stage it ran. The
+(`--exit-zero`, `--help`; ruff's own options are refused in the lint, whose words after `check` are names, each
+once: P0.6's verifiers, rounds 1 and 2, and P0.7), or the runner's own exit status. Each run prints a line for
+every stage it ran. The
 negative control shows on every run that the command line still refuses its plant, not that the runner counts
 a failure, since the control's verdict is inverted: so a test runs the runner itself on a copy whose one stage
 fails, which it must count and exit 1 for (P0.4's verifier, round 4, note 5). While a stage's tool is absent,
@@ -55,7 +56,8 @@ A stage whose own line reads a variable is held to its `need_env` (env_unguarded
 variable, and whose line does not, is held by nothing here: p1-crates', p2-crates' and p4-shacl's. Deleting one of
 those passes, and the stage then fails where the variable is unset, loudly, rather than skipping by name; the tests of
 the guards' forms take p4-shacl's call as their text, so deleting that one fails them, though no rule asks for it
-(P0.6's verifiers, round 2, note 6, and round 3, D2).
+(P0.6's verifiers, round 2, note 6, and round 3, D2). Nor is a `need_env` caught before a stage that needs no
+variable: it skips that stage by name wherever the variable is unset (round 4, a note, MEASURED).
 And a test module is code pytest runs:
 one written to reach into pytest's own state, past the stage script's refusal of `pytest_plugins`, can take
 tests out of its stage, and no pin here can stop it (P0.1's verifier, round 3, G3). stray_tests reads lines, not
@@ -380,6 +382,8 @@ def shape_problems(root, runner_text):
         out.append(f"the lint does not name every directory holding Python: {sorted(python_dirs)}")
     elif lint[0].split()[:4] != ["python", "-m", "ruff", "check"]:      # P0.4's verifier, round 4, note 4: `python -`
         out.append(f"the lint is not `python -m ruff check`: {lint[0].strip()}")   # read an empty program, lint ok
+    elif any(w.startswith("-") for w in lint[0].split()[4:]) or len(set(lint[0].split()[4:])) < len(lint[0].split()[4:]):
+        out.append(f"the lint names directories, each once, and no option: {lint[0].strip()}")  # P0.6's verifier, round 1
     twin = re.search(r'^stage twin "[^"]*" -- \\\n(.*)$', runner_text, re.M)
     if twin is None or twin.group(1).split()[-2:] != ["controls.plant", "twin"]:
         out.append("the twin's stage does not plant the twin")
@@ -746,6 +750,10 @@ def test_a_stage_that_reads_a_variable_without_its_guard_is_caught(plant):
     own = RUNNER.replace("stage study ", 'stage zzenv "a stage that reads a variable" -- ' + chr(92) + chr(10)
                          + '  python tools/zz.py "$ZZ_VAR"' + chr(10) + chr(10) + "stage study ", 1)
     assert env_unguarded(own) == ["stage zzenv reads ZZ_VAR with no need_env ZZ_VAR before it"]
+    two = RUNNER.replace("stage study ", 'need_env ZZ_A "zz"' + chr(10) + 'stage zzenv "a stage that reads two" -- '
+                         + chr(92) + chr(10) + '  python tools/zz.py "$ZZ_A" "${ZZ_B:-}"' + chr(10) + chr(10)
+                         + "stage study ", 1)
+    assert env_unguarded(two) == ["stage zzenv reads ZZ_B with no need_env ZZ_B before it"], "a line reading two"
 
 
 def lint_copy(tmp_path, source):
@@ -782,6 +790,34 @@ def test_the_runner_counts_a_failing_stage_and_exits_one(tmp_path, source, rc, s
     r = subprocess.run([runner_bash(), "verify/run.sh", "--only", "lint"], cwd=root, capture_output=True, text=True,
                        env=env)
     assert r.returncode == rc and summary in r.stdout and ("== FAILED" in r.stdout) is bool(rc), r.stdout[-800:]
+
+
+@pytest.mark.parametrize("args, plant, rc, says", [
+    (["--only", "lint,p2"], None, 0, "== PASSED, with 1 skipped by name above"),
+    (["--only", "lint,p2", "--require-all"], None, 1, "== FAILED"),
+    (["--only", "p2"], None, 1, "== FAILED: no stage ran (a skip is not a run)"),
+    (["--only", ""], None, 2, "a run of zero stages is not a pass"),
+    (["--only", "lint,controls"], "", 1, "NEGATIVE CONTROL DID NOT FAIL"),
+    (["--only", "lint,controls"], "print('REFUSED raw-digest at x')" + chr(10) + "raise SystemExit(1)", 0,
+     "the negative control failed, as it must"),
+    (["--only", "lint,controls"], "raise SystemExit(1)", 1, 'the control failed, but not with "REFUSED raw-digest"')],
+    ids=["a skip, passing", "a skip under --require-all", "no stage run", "no stage named", "a control that passes",
+         "a control that fails as it must", "a control that fails for another reason"])
+def test_the_runner_holds_its_skips_its_selection_and_its_control(tmp_path, args, plant, rc, says):
+    """P0.6's fourth verifier, T3: `--require-all` ignored, a run of zero stages passing, and a negative control that
+    passes uncounted each passed every test here, though the runner was right in each (MEASURED by it, in copies).
+    The runner runs on the lint's copy, where p2 skips by name, and the control's command is a module made here; the
+    lint runs beside the control, so that a control's verdict left uncounted shows as a pass."""
+    import subprocess
+    import sys
+    root = lint_copy(tmp_path, "X = 1" + chr(10))
+    if plant is not None:
+        (root / "controls" / "plant.py").write_bytes((plant + chr(10)).encode("ascii"))
+    env = dict(os.environ, PATH=os.path.dirname(sys.executable) + os.pathsep + os.environ.get("PATH", ""))
+    for k in ("QRO_MOTH_ROOT", "QRO_SHACL_PYTHON", "STATEROOT"):
+        env.pop(k, None)
+    r = subprocess.run([runner_bash(), "verify/run.sh", *args], cwd=root, capture_output=True, text=True, env=env)
+    assert r.returncode == rc and says in r.stdout + r.stderr, (r.stdout + r.stderr)[-800:]
 
 
 def quick_problems(runner_text):
@@ -1202,9 +1238,14 @@ def test_a_second_negative_control_is_held_too():
      "another option"),
     (("ruff check qro controls tools tests", "ruff check qro"), "every directory holding Python"),
     (("python -m ruff check qro", "python - ruff check qro"), "is not `python -m ruff check`"),
-    (("python -m controls.plant twin", "python -m controls.plant shot-moved"), "does not plant the twin")],
+    (("python -m controls.plant twin", "python -m controls.plant shot-moved"), "does not plant the twin"),
+    (("ruff check qro controls tools tests", "ruff check qro controls tools tests --ignore=ALL"), "no option"),
+    (("ruff check qro controls tools tests", "ruff check --isolated qro controls tools tests"), "no option"),
+    (("ruff check qro controls tools tests", "ruff check qro controls tools tests tests"), "each once"),
+    (("ruff check qro controls tools tests", "ruff check -q qro controls tools tests"), "no option")],
     ids=["MUST_SAY emptied", "MUST_SAY a letter", "MUST_SAY no name", "MUST_SAY another name", "-k added",
-         "--deselect added", "the lint cut to the package", "the lint run as no program", "the twin made the control"])
+         "--deselect added", "the lint cut to the package", "the lint run as no program", "the twin made the control",
+         "ruff told to ignore all", "ruff's option first", "a directory twice", "a short option"])
 def test_each_shape_plant_is_caught(plant, problem):
     planted = RUNNER.replace(*plant, 1)
     assert planted != RUNNER

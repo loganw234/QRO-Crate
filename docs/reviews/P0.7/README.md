@@ -1,0 +1,14 @@
+# P0.7's verifier reports
+
+Each report as its verifier returned it, collected on the date its row gives.
+
+**Where each came from:** the verifier's final message, which the harness delivered to the lead inside a task notification; the lead read it out of its own transcript. The whitespace around it is stripped, and it is written ending in one line feed. The notification carried a verifier's `<`, `>` and `&` escaped, and round1.md holds them as it carried them: `&gt;` four times and `&amp;` five times, for its verifier's `>` and `&`: Git Bash's `>&-` and `2>&-`, a shell's `&&`, and `len > 2`. round2.md holds them so too: `&gt;` five times, `&lt;` once and `&amp;` six times, for its verifier's Git Bash `<&-`, `>&-` and `2>&-`. round3.md holds `&gt;` and `&amp;` once each, for its verifier's `>&-`. round4.md holds `&lt;` eight times, `&gt;` nine times and `&amp;` once, for its verifier's own `<home>`, `<scratch>` and `<a place the hook refuses>`, and its `>&-`.
+
+**What was changed after that, and nothing else:** a home path would be redacted as `<repos>` or `<scratch>`, as P0's and P0.1's reviews are (rule 3), and every other string the privacy gate reads as a home path as `<a home path>`. round1.md held neither, and is as its verifier returned it. round2.md held one home path, the start of its verifier's sandbox directory, redacted as `<home>`, and nothing else the gate reads as one. round3.md held two, redacted as `<home>` and `<scratch>`, and nothing else. round4.md held none: its verifier wrote `<home>` and `<scratch>` itself.
+
+| file | report | collected | its source's SHA-256 | home paths redacted | other strings redacted as `<a home path>` |
+|---|---|---|---|---|---|
+| [round1.md](round1.md) | P0.7's first verifier, on the full bar: NOT READY, the controls failing where stdout or stderr is closed and on a clean sparse checkout; the writer still raising where the reader refuses; false sentences on rdflib's reading and on a MemoryError; and notes | 2026-10-26 | `8643a8ba…` | 0 | 0 |
+| [round2.md](round2.md) | P0.7's second verifier, on the full bar: NOT READY, on two sentences, a false clause in VALIDATION on a cut exit-2 line and CLAUDE.md item 9 saying more than its guard does; no defect in the code; and notes | 2026-10-26 | `bd1507f3…` | 1 | 0 |
+| [round3.md](round3.md) | P0.7's third verifier, on the full bar: NOT READY, on one sentence, CLAUDE.md item 9's "nowhere in the profile", where LocalLow is low-labelled for every application; no defect in the code; notes on the sandbox's guard and on test reach | 2026-10-26 | `cb3bf042…` | 2 | 0 |
+| [round4.md](round4.md) | P0.7's fourth verifier, on the relaxed bar: READY; no defect in the code, the gates or the tests; notes on item 9's prose, on a sentence's reach, and on the sandbox's guard and tools | 2026-10-26 | `3b68e17e…` | 0 | 0 |

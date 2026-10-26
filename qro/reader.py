@@ -22,10 +22,8 @@ in this order (cft-fp256's strict reader, docs/CERTIFICATES.md:852-899, READ, ad
      a sorted list of distinct values, and a single-valued one never a list: `spelling`.
 Hostile bytes are refused by name, never crash it (P0's verifier, P0-2). Stdlib only.
 """
-import hashlib
 import json
 from functools import lru_cache
-from pathlib import Path
 
 from qro import canonical, spelling
 from qro import vocabulary as V
@@ -51,11 +49,9 @@ def _constant(name):
 
 @lru_cache(maxsize=1)
 def rocrate_terms():
-    """The keys RO-Crate 1.3's context defines, from the copy whose digest the vocabulary pins."""
-    data = (Path(V.__file__).parent / V.ROCRATE_CONTEXT_FILE).read_bytes()
-    if hashlib.sha256(data).hexdigest() != V.ROCRATE_CONTEXT_SHA256:
-        raise RuntimeError(f"{V.ROCRATE_CONTEXT_FILE} is not the copy the vocabulary pins")
-    return frozenset(json.loads(data)["@context"])
+    """The keys RO-Crate 1.3's context defines, from the copy whose digest the vocabulary pins (V.rocrate_context,
+    which reads it, P0.7)."""
+    return frozenset(V.rocrate_context())
 
 
 def absolute(ref_id):
@@ -83,6 +79,25 @@ def admits(term, entity):
                 or s in canonical.types(entity):
             return True
     return False
+
+
+def _place(paths, path, at):
+    """Hold a path of the crate in paths, a tree whose nodes are its segments casefolded, each with the name it was
+    first written with, its kind and the nodes below it. Refused `graph-form` at `at` where a path's name differs
+    from another's only by case, or where a path is both a file and a directory. A path costs what its characters
+    do: built as a string at every prefix, a path of 50,000 segments took 149 s, its memory the square of its length
+    (P0.5's fourth verifier, note 1). Casefolding a path segment by segment is casefolding it whole, since no
+    character folds to or from `/`."""
+    node, parts = paths, path.split("/")
+    for n, part in enumerate(parts, 1):
+        kind = "file" if n == len(parts) else "directory"
+        name, other_kind, below = node.setdefault(part.casefold(), (part, kind, {}))
+        if name != part:
+            raise Refused("graph-form", at, f"a path, {'/'.join(parts[:n])}, whose name differs from "
+                          f"{'/'.join(parts[:n - 1] + [name])}'s only by case")
+        if other_kind != kind:
+            raise Refused("graph-form", at, f"{'/'.join(parts[:n])} is both a file and a directory")
+        node = below
 
 
 def read(data):
@@ -165,20 +180,14 @@ def _graph(graph):
     # case are one path on a host that folds case, and so is a path that is a file and a directory at once
     # (P0's verifier, round 6: data/A/x and data/a/y were accepted where case is kept, and are one directory
     # where it is folded). The descriptor is a file too.
-    seen, paths = set(), {canonical.DESCRIPTOR.casefold(): (canonical.DESCRIPTOR, "file")}
+    seen, paths = set(), {}
+    _place(paths, canonical.DESCRIPTOR, canonical.DESCRIPTOR)
     for e, i in zip(graph, ids):
         if i in seen:
             raise Refused("graph-form", i, "an @id twice in the graph")
         seen.add(i)
         if local_file(e):
-            parts = i.split("/")
-            for n in range(1, len(parts) + 1):
-                path, kind = "/".join(parts[:n]), "file" if n == len(parts) else "directory"
-                other, other_kind = paths.setdefault(path.casefold(), (path, kind))
-                if other != path:
-                    raise Refused("graph-form", i, f"a path, {path}, whose name differs from {other}'s only by case")
-                if other_kind != kind:
-                    raise Refused("graph-form", i, f"{path} is both a file and a directory")
+            _place(paths, i, i)
     if ids[:2] != [canonical.DESCRIPTOR, canonical.ROOT]:
         raise Refused("graph-form", "@graph", "the descriptor first, then the root")
     if ids[2:] != sorted(ids[2:]):

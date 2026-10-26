@@ -41,12 +41,15 @@ def test_rocrates_context_is_the_pinned_copy():
 
 
 def test_the_context_prefixes_are_the_pinned_contexts_and_the_profiles():
-    """P0.5: the names a compact IRI may use, RO-Crate 1.3's terms whose IRI ends in a gen-delim (JSON-LD 1.1's rule
-    for a simple term), and qro; held to the pinned copy, so the list is written once and never drifts."""
+    """P0.5: the names a compact IRI may use, the terms of the crate's context whose IRI ends in a gen-delim
+    (JSON-LD 1.1's rule for a simple term); held to the pinned copy and to the profile's own context, so the list is
+    written once and never drifts, and a second term of the profile's own would be seen (P0.5's fourth verifier,
+    note 5: the test read only V.PREFIX)."""
     data = (Path(V.__file__).parent / V.ROCRATE_CONTEXT_FILE).read_bytes()
     assert hashlib.sha256(data).hexdigest() == V.ROCRATE_CONTEXT_SHA256
-    terms = json.loads(data)["@context"]
-    assert V.CONTEXT_PREFIXES == {k for k, v in terms.items() if v and v[-1] in ":/?#[]@"} | {V.PREFIX}
+    terms = dict(json.loads(data)["@context"], **V.context()[1])
+    assert V.CONTEXT_PREFIXES == {k for k, v in terms.items() if isinstance(v, str) and v and v[-1] in ":/?#[]@"}
+    assert V.context_terms() == set(terms), "every term of the crate's context, which the id rule refuses as a scheme"
 
 
 def raised_names(root):

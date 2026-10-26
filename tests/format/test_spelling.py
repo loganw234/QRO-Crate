@@ -163,12 +163,11 @@ def test_every_character_a_spelling_admits_is_in_an_accepted_value(spelling):
                                    "#job-db1", "#a:/b", "#a//b", "#//b", "a;b.txt", "data/notes;v2.txt", ";x", "a/;x",
                                    "x;;", "x;y;", "a;/", "a;/b", "x;/", "#a%2Fb", "https://example.org/a",
                                    "https://example.org/a%20b?q=1#f", "ab:x#y", "ab:#", "http://example.org/a/../b",
-                                   "https://example.org/x;", "ab:x;", "urn:uuid:0123", "ab:x", "name:x", "geo:x",
-                                   "tag:x", "a+b-c9:x"])
+                                   "https://example.org/x;", "ab:x;", "urn:uuid:0123", "ab:x", "tag:x",
+                                   "a+b-c9:x", "doi:10.1000/1", "mailto:a@example.org"])
 def test_an_id_in_one_of_the_four_forms_is_accepted(value):
-    """P0.5: the root, a path (a directory's ending in /), a fragment, or an absolute IRI whose scheme is no prefix
-    of the context: `name` and `geo` are terms of RO-Crate's context whose IRIs end in no gen-delim, so no prefix
-    (MEASURED, rdflib 7.6.0: `name:x` stays an IRI of the scheme `name`). A ; in a last segment is accepted where
+    """P0.5: the root, a path (a directory's ending in /), a fragment, or an absolute IRI whose scheme is no term of
+    the context (P0.7: `name` and `geo` are terms, so refused, below). A ; in a last segment is accepted where
     urllib keeps the params it splits there (`a;b.txt`, `;x`, `x;;`), and anywhere in a directory's path; a fragment
     may hold :// 's pieces apart (P0.5's verifier, round 1). A fragment and an absolute IRI may hold escapes, a % and
     two hex digits, and an absolute IRI one # (round 2, note 4)."""
@@ -217,12 +216,35 @@ def test_an_id_in_a_form_the_rule_does_not_offer_is_refused(value, why):
     assert S.id_problem(value) is not None and S.problem("ref", {"@id": value}) is not None, why
 
 
-@pytest.mark.parametrize("tail", ["x", "0", "_1", "a#b", "%41", "-"])
+@pytest.mark.parametrize("tail", ["x", "0", "_1", "a#b", "%41", "-", "//x"])
 @pytest.mark.parametrize("prefix", sorted(V.CONTEXT_PREFIXES))
 def test_every_prefix_of_the_context_makes_a_compact_iri_which_is_refused(prefix, tail):
-    """Whatever its tail: rdflib expands schema:0, rdf:_1 and schema:a#b as it does schema:x (P0.5's verifier, round
-    3, note 1: a rule that refused a compact IRI only when its tail began with a letter, or held no #, passed)."""
+    """rdflib expands schema:0, rdf:_1 and schema:a#b as it does schema:x (P0.5's verifier, round 3, note 1: a rule
+    that refused a compact IRI only when its tail began with a letter, or held no #, passed). A tail that begins //
+    a JSON-LD reader keeps as an absolute IRI, so `schema://x` is no second spelling; it is refused all the same, as
+    no IRI the profile names is written so (P0.5's fourth verifier, note 5)."""
     assert "compact IRI" in S.id_problem(prefix + ":" + tail)
+
+
+SCHEMED_TERMS = sorted(t for t in V.context_terms() if re.fullmatch(r"[a-z][a-z0-9+-]+", t))
+
+
+def test_the_terms_with_a_schemes_shape_are_the_ones_measured():
+    """P0.7, MEASURED against the pinned context: 333 of RO-Crate 1.3's 3,069 terms, and this profile's `qro`, have
+    a scheme's shape. Six of them are schemes IANA registers (fetched 2026-10-25): about, data and geo, permanent;
+    maps, query and tool, provisional."""
+    assert len(SCHEMED_TERMS) == 334 and {"about", "data", "geo", "maps", "query", "tool", "name"} <= set(SCHEMED_TERMS)
+    assert not {"http", "https", "urn", "doi", "mailto", "tag", "ftp"} & set(SCHEMED_TERMS)
+
+
+@pytest.mark.parametrize("term", [t for t in SCHEMED_TERMS if t not in V.CONTEXT_PREFIXES])
+def test_an_absolute_iri_whose_scheme_is_a_term_of_the_context_is_refused(term):
+    """P0.5's fourth verifier, note 2: RO-Crate 1.3 asks for JSON-LD 1.0, and a JSON-LD 1.0 processor makes a
+    prefix of every term of the context, so `geo:1,2` and http://schema.org/geo1,2 would be one node to it. An
+    absolute IRI whose scheme is any term is refused (P0.7); a prefix's, as a compact IRI (above)."""
+    p = S.id_problem(term + ":1,2")
+    assert p is not None and "a term of the context" in p and "JSON-LD 1.0" in p, p
+    assert S.problem("ref", {"@id": term + ":x"}) is not None
 
 
 _URI = re.compile(r"(?:([^:/?#]+):)?(?://([^/?#]*))?([^?#]*)(?:\?([^#]*))?(?:#(.*))?", re.S)

@@ -13,8 +13,12 @@ part reads this module or is generated from it (HonestFramework, METHOD.md secti
 A parcel that needs a term asks the lead, who adds its row here: this file is P0's (ParcelRound, METHOD.md
 section 2). Stdlib only.
 """
+import hashlib
+import json
 import re
 from dataclasses import dataclass
+from functools import lru_cache
+from pathlib import Path
 
 PROFILE_VERSION = "0.1"
 PROFILE_NAME = "QRO-Crate"
@@ -439,6 +443,24 @@ OWNERS = ("P0", "P1", "P2", "P3", "P4", "P5")
 def context():
     """The crate's @context: RO-Crate 1.3's, then this profile's one prefix."""
     return [ROCRATE_CONTEXT, {PREFIX: NAMESPACE}]
+
+
+@lru_cache(maxsize=1)
+def rocrate_context():
+    """RO-Crate 1.3's context, each term and the IRI it names, from the copy whose digest ROCRATE_CONTEXT_SHA256
+    pins."""
+    data = (Path(__file__).parent / ROCRATE_CONTEXT_FILE).read_bytes()
+    if hashlib.sha256(data).hexdigest() != ROCRATE_CONTEXT_SHA256:
+        raise RuntimeError(f"{ROCRATE_CONTEXT_FILE} is not the copy the vocabulary pins")
+    return json.loads(data)["@context"]
+
+
+@lru_cache(maxsize=1)
+def context_terms():
+    """Every term of the crate's @context: RO-Crate 1.3's and this profile's own. A JSON-LD 1.0 processor makes
+    each a prefix, so `geo:1,2` is http://schema.org/geo1,2 to it, and RO-Crate 1.3 asks for JSON-LD 1.0 (P0.5's
+    fourth verifier, note 2)."""
+    return frozenset(rocrate_context()) | frozenset(context()[1])
 
 
 def descriptor():

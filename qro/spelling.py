@@ -37,7 +37,7 @@ SEGMENT_MAX = 255             # the longest name NTFS, ext4 and APFS each hold
 # An @id, and a reference's, is one spelling of the IRI it names (P0.5; P4's verifier, round 1, defect 1): the
 # root ./; a path in the crate, a directory's ending in /, of the path's characters, with no empty or dot segment
 # and no @ first; a fragment #...; or an absolute IRI whose scheme is lowercase, two characters or more with no
-# dot, and neither a prefix of the context nor file. A fragment and an absolute IRI hold RFC 3986's characters but
+# dot, and neither a term of the context nor file. A fragment and an absolute IRI hold RFC 3986's characters but
 # [ and ], each % beginning an escape of two hex digits, and an absolute IRI one # at most: so no accepted id is
 # one urllib's urlsplit raises on, as on an unbalanced bracket, which broke rdflib's defrag and its RDF/XML reader
 # with a base (P0.5's verifier, round 2, note 4). A JSON-LD reader reads many other forms otherwise, so two
@@ -195,6 +195,9 @@ def id_problem(value):
                 "lowercase scheme, and no other form (FORMAT.md item 22)")
     if m.group(1) in V.CONTEXT_PREFIXES:
         return f"a compact IRI, {m.group(1)}: being a prefix of the context: a second spelling of another IRI"
+    if m.group(1) in V.context_terms():
+        return (f"an absolute IRI whose scheme, {m.group(1)}, is a term of the context, which a JSON-LD 1.0 processor "
+                "reads as a compact IRI, and RO-Crate 1.3 asks for JSON-LD 1.0")
     if m.group(1) == "file":
         return "a file: IRI, which a reader cannot tell from a path in the crate"
     return None

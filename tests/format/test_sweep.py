@@ -129,7 +129,7 @@ def escaped(s):
 def an_id(v):
     """FORMAT.md item 22: ./; a fragment, of RFC 3986's characters but brackets, each % beginning an escape of two
     hex digits, and holding no ://; an absolute IRI, its scheme lowercase, two characters or more with no dot, and
-    neither file nor a prefix of the context, its tail of the same characters and escapes with one # at most; or a
+    neither file nor a term of the context, its tail of the same characters and escapes with one # at most; or a
     path, no segment empty, . or .., none @ first, a directory's ending in /, and its last segment, the text after
     its final /, neither ending at its first ; nor beginning .; or ..;."""
     if v == "./":
@@ -139,7 +139,7 @@ def an_id(v):
     scheme, colon, tail = v.partition(":")
     if colon and len(scheme) >= 2 and scheme[0] in LOWER and set(scheme[1:]) <= LOWER | DIGITS | {"+", "-"}:
         return (tail != "" and tail.count("#") <= 1 and all(escaped(t) for t in tail.split("#"))
-                and scheme != "file" and scheme not in V.CONTEXT_PREFIXES)
+                and scheme != "file" and scheme not in V.context_terms())
     body = v[:-1] if v.endswith("/") else v
     head, semi, params = v.split("/")[-1].partition(";")
     return (body != "" and not v.startswith("@") and not (semi and (params == "" or head in (".", "..")))

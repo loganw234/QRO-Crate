@@ -17,6 +17,9 @@ and 3), unbuffered, before the exit code is returned (P0's verifier, rounds 2 to
   - the line is printable ASCII. Every other character, a line feed, an escape, a lone surrogate or a CJK
     character among them, and the backslash, is written as its Python escape, which `unicode_escape` reads back.
     So a crate's own text, echoed in a refusal, can neither break the line nor forge another;
+  - the line is cut at LINE_MAX escaped characters, where no escape is split, and says how many characters it did
+    not write: a hostile file's text, quoted in a refusal, put megabytes into one line (P1.1's third verifier, a
+    note; P0.7). What it writes `unicode_escape` reads back as the text's first characters, and the notice;
   - a verdict that cannot be written whole, to a closed pipe, a full disk or a closed descriptor, exits 3: it did
     not arrive. Nothing is left in a buffer for the interpreter's exit to fail on later, with an exit code of its
     own. A stated limit: a descriptor that takes part of the line and then fails has that part, under exit 3;
@@ -24,7 +27,10 @@ and 3), unbuffered, before the exit code is returned (P0's verifier, rounds 2 to
     parcel's module that will not load or registers what is not its parcel's (checker.load), among others. Two
     exceptions (P0.1's verifier, round 1, note 4.3.1): a `PermissionError` from a step or a count rule is misuse,
     exit 2, as the user's own is; and a raw-form reader or a generator that raises an `Exception` on the crate's
-    bytes has refused them, `raw-form` or `metadata-generated`, exit 1.
+    bytes has refused them, `raw-form` or `metadata-generated`, exit 1, but for a `MemoryError`, which is the
+    host's, exit 3 (P1.1's third verifier, D1). A parcel's step may itself refuse by its step's name what its own
+    reading of a crate raises, as P1's do; whatever else a step lets through is the checker failing, but a
+    PermissionError, which is misuse.
 A stated limit: before this file runs, Python's own failure to start it (no `qro` on the path, a module that will
 not import) exits 1, Python's code, with no line on stdout. A refusal is exit 1 and its REFUSED line.
 """
@@ -38,14 +44,26 @@ from qro.refusal import Refused
 USAGE = "usage: python -m qro check [--fixtures] CRATE_DIR, or python -m qro custody LOG [AUDIT_RECORD ...]"
 
 
-def escape(text):
-    """`text` in printable ASCII: every other character, and the backslash, as its Python escape."""
-    return "".join(c if " " <= c <= "~" and c != "\\" else c.encode("unicode_escape").decode("ascii") for c in text)
+LINE_MAX = 4096
+
+
+def escape(text, limit=None):
+    """`text` in printable ASCII: every other character, and the backslash, as its Python escape. Past `limit`
+    escaped characters it is cut, where no escape is split, and the count of the characters not written follows."""
+    out, n = [], 0
+    for i, c in enumerate(text):
+        e = c if " " <= c <= "~" and c != "\\" else c.encode("unicode_escape").decode("ascii")
+        if limit is not None and n + len(e) > limit:
+            out.append(f" ... ({len(text) - i} more characters)")
+            break
+        out.append(e)
+        n += len(e)
+    return "".join(out)
 
 
 def write(fd, line):
-    """One line, escaped, to a descriptor: all of it, now, however little each write takes."""
-    data = (escape(line) + "\n").encode("ascii")
+    """One line, escaped and cut at LINE_MAX, to a descriptor: all of it, now, however little each write takes."""
+    data = (escape(line, LINE_MAX) + "\n").encode("ascii")
     while data:
         data = data[os.write(fd, data):]
 

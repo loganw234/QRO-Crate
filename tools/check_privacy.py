@@ -88,7 +88,8 @@ ALTERNATIVES = [
     ("path", "docker-host-home", r"(?i)(?<![A-Za-z0-9.])(/host_mnt|/run/desktop/mnt/host)/[a-z]/users/" + _NAME),
     ("path", "posix-home", r"(?i)(?<![A-Za-z0-9.])/(users|home)/" + _NAME),
     ("path", "backslash-home", r"(?i)(?<![A-Za-z0-9.:\\])\\home\\" + _NAME),
-    ("path", "wsl-unc", r"(?i)\\\\wsl(\$|\.localhost)\\"),
+    # and with a slash after its host, as a path joined with both separators is (P0.6's fourth verifier, a note)
+    ("path", "wsl-unc", r"(?i)\\\\wsl(\$|\.localhost)[\\/]"),
     # the same with forward slashes, as Path.as_posix writes it (P0.4's verifier, round 4, note 3); not after a
     # scheme's colon or a host's characters, so a URL whose host is named wsl is not one
     ("path", "wsl-unc-slash", r"(?i)(?<![A-Za-z0-9:./])//wsl(\$|\.localhost)/"),
@@ -141,6 +142,25 @@ BOMS =((b"\x00\x00\xfe\xff", "utf-32-be"), (b"\xff\xfe\x00\x00", "utf-32-le"), (
 CHECK_MODES = ("", "--control")
 
 
+NO_WINDOW = getattr(subprocess, "CREATE_NO_WINDOW", 0)       # Windows' flag; 0 elsewhere
+
+
+def git(args, **kw):
+    """subprocess.run of git with these arguments: with no stdin but its input, its stdout and stderr captured
+    unless the call takes them, and with no console window on Windows. With stdin closed (Git Bash's `<&-`), each
+    git inherited a handle that was gone, and the gate's first call raised WinError 6 (P0.6's fourth verifier, O2,
+    MEASURED). A git given its stdin and not its stdout or stderr is started with a copy of the gate's own, and where
+    one was closed (`>&-`, `2>&-`) the copy failed, WinError 6, in the controls' `git init` (P0.7's first verifier,
+    D1, MEASURED). Run where there is no console (pythonw, a detached process), each git opened a window of its own
+    on the desktop (P0.6's fourth verifier's round, MEASURED by the lead)."""
+    if "input" not in kw:
+        kw["stdin"] = subprocess.DEVNULL
+    if not kw.get("capture_output"):
+        kw.setdefault("stdout", subprocess.PIPE)
+        kw.setdefault("stderr", subprocess.PIPE)
+    return subprocess.run(["git", *args], creationflags=NO_WINDOW, **kw)
+
+
 def git_env():
     """The process's environment without the variables that point git at a repository: those git itself lists
     (`git rev-parse --local-env-vars`) but its configuration's, GIT_CONFIG and those beginning GIT_CONFIG_, which
@@ -149,8 +169,8 @@ def git_env():
     made git refuse a checkout it trusted only through them (round 2). Every git here runs in this, with replace
     refs ignored, as a push ignores them: with one, git log showed another message than the one pushed (P0.4's
     verifier, round 4, note 2, MEASURED)."""
-    local = subprocess.run(["git", "rev-parse", "--local-env-vars"], capture_output=True, text=True,
-                           check=True).stdout.split()
+    local = git(["rev-parse", "--local-env-vars"], capture_output=True, text=True,
+                check=True).stdout.split()
     drop = {k for k in local if k != "GIT_CONFIG" and not k.startswith("GIT_CONFIG_")}
     return dict({k: v for k, v in os.environ.items() if k.upper() not in drop}, GIT_NO_REPLACE_OBJECTS="1")
 
@@ -164,8 +184,8 @@ def in_git(root):
 
 def index(root):
     """[(mode, object id, path)]: the index's entries, `git ls-files -z --stage`."""
-    listing = subprocess.run(["git", "-C", str(root), "ls-files", "-z", "--stage"], capture_output=True,
-                             check=True, env=git_env()).stdout
+    listing = git(["-C", str(root), "ls-files", "-z", "--stage"], capture_output=True,
+                  check=True, env=git_env()).stdout
     out = []
     for record in listing.split(b"\0"):
         if record:
@@ -184,8 +204,8 @@ def files(root):
     gitlink's path, `git add -A` and `git commit -a` commit it in the gitlink's place, so it is read (round 2,
     R2-1). With no .git, every file below the root but in .git and the caches, and no nested repository."""
     if in_git(root):
-        out = subprocess.run(["git", "-C", str(root), "ls-files", "-z", "-co", "--exclude-standard"],
-                             capture_output=True, check=True, env=git_env()).stdout
+        out = git(["-C", str(root), "ls-files", "-z", "-co", "--exclude-standard"],
+                  capture_output=True, check=True, env=git_env()).stdout
         listed = [p.decode("utf-8") for p in out.split(b"\0") if p]
         gitlinks = {path for mode, _, path in index(root) if mode == b"160000" and held(root / path)}
         nested = sorted({p[:-1] for p in listed if p.endswith("/")} | gitlinks)
@@ -193,6 +213,28 @@ def files(root):
     skip = {".git", "__pycache__", ".pytest_cache", ".gate-state", ".ruff_cache"}
     return [Path(d) / f for d, ds, fs in os.walk(root) for f in fs
             if not (set(Path(d).relative_to(root).parts) & skip)], []
+
+
+def absent(root):
+    """The tracked files git itself says are not in the working tree, `git ls-files -z -t -c -d`: those a sparse
+    checkout leaves out (skip-worktree, tagged S) and those deleted from disk as git sees them (tagged R). The file
+    loop and the controls' copy pass over each that is gone from disk too (passed_over), and the staged reader reads
+    its index version, which a plain commit takes (P0.6's fourth verifier, O1). A tracked file git sees and the gate
+    cannot read stays a finding: asked of Python alone, a file whose path the host hides from Python while git reads
+    it, past Windows' path limit where long paths are not enabled, was passed over, and an edit `git commit -a` takes
+    went unread (P0.7's first verifier, a note, BELIEVED)."""
+    listing = git(["-C", str(root), "ls-files", "-z", "-t", "-c", "-d"], capture_output=True, check=True,
+                  env=git_env()).stdout
+    return {r[2:].decode("utf-8") for r in listing.split(b"\0") if r[:2] in (b"S ", b"R ")}
+
+
+def passed_over(root, rel, gone):
+    """Whether the file loop and the controls' copy pass over this tracked file: git says it is not in the working
+    tree, and it is gone from disk. Both are asked. A file tagged skip-worktree and still on disk, its bytes those of
+    the index, was read by nothing: the loop passed it over for git's tag, and the staged reader reads an index
+    version only where it differs from the file on disk, so a key committed into it passed (found by P0.7's second
+    verifier, which the round's pause stopped before its report; held by a test)."""
+    return rel in gone and not os.path.lexists(root / rel)
 
 
 def held(p):
@@ -243,8 +285,8 @@ def staged(root):
     entries = [(path, oid) for mode, oid, path in index(root) if mode != b"160000"]
     if not entries:
         return []
-    run = subprocess.run(["git", "-C", str(root), "cat-file", "--batch"],
-                         input=b"".join(oid + b"\n" for _, oid in entries), capture_output=True, env=git_env())
+    run = git(["-C", str(root), "cat-file", "--batch"],
+              input=b"".join(oid + b"\n" for _, oid in entries), capture_output=True, env=git_env())
     if run.returncode != 0:
         return None
     batch, out, at = run.stdout, [], 0
@@ -278,23 +320,27 @@ KNOWN = {
     ("7671e68acfe2ba1b0cd39a5b050e10523eb811c7", "url-quoted-drive"):
         "P0.4's fourth verifier's example, in docs/reviews/P0.4/round4.md as pushed in 20d40e6, of a spelling the gate "
         "then missed: the name in it is the placeholder `name`",
+    ("5c26e1925ab6bef74262d5da8fe55ebefaef1781", "wsl-unc"):
+        "P0.6's fourth verifier's example, in docs/reviews/P0.6/round4.md as pushed in cbdb6a3, of a spelling the gate "
+        "then missed: the name in it is the placeholder `name`",
 }
 
 
 def history(root):
     """[(path, object id, bytes or None)]: each blob HEAD's history holds that the index does not, by the first path git
     lists it at, its bytes None where git does not hold its object, which is a finding; or None where git cannot
-    list or read the history. git rev-list fails on a blob whose object is missing, so it is a finding that way
-    first (MEASURED); one git lists and then does not hold, as an object removed between the two calls, is read as
-    missing, never passed over. A push sends every commit's tree, so a key committed and deleted in a later commit
+    list or read the history. git rev-list fails on a blob whose object is deleted, so it is a finding that way
+    first (MEASURED); one whose loose object holds garbage is listed, and cat-file calls it missing (P0.6's fourth
+    verifier, MEASURED); and one git lists and then does not hold, as an object removed between the two calls, is
+    read as missing too, never passed over. A push sends every commit's tree, so a key committed and deleted in a later commit
     is pushed, though no file and no staged version holds it (P0.4's verifier, round 4, note 1, MEASURED). `git
     rev-list --objects` lists them, and `git cat-file --batch` reads them, once each. git lists a path cut at its
     first line feed, so a top-level name that begins with one is listed empty, as the root tree is, and is kept and
     named for what it is (P0.6's verifier, round 1, D1: such a blob was dropped with the root tree, and a key in it
     passed). The revision is ended by `--`, so that a file or a directory named HEAD at the root is no second
     reading of it (D2: git then refused the listing, and a clean tree failed)."""
-    listing = subprocess.run(["git", "-C", str(root), "rev-list", "--objects", "HEAD", "--"], capture_output=True,
-                             env=git_env())
+    listing = git(["-C", str(root), "rev-list", "--objects", "HEAD", "--"], capture_output=True,
+                  env=git_env())
     if listing.returncode != 0:
         return None
     named = {}
@@ -303,16 +349,16 @@ def history(root):
         if re.fullmatch(rb"[0-9a-f]{40}|[0-9a-f]{64}", oid) and space:     # tree and for a name beginning with one
             named.setdefault(oid, path.decode("utf-8", errors="replace") or "(a path beginning with a line feed)")
     indexed = {oid for _, oid, _ in index(root)}
-    types = subprocess.run(["git", "-C", str(root), "cat-file", "--batch-check"],
-                           input=b"".join(oid + b"\n" for oid in named), capture_output=True, env=git_env())
+    types = git(["-C", str(root), "cat-file", "--batch-check"],
+                input=b"".join(oid + b"\n" for oid in named), capture_output=True, env=git_env())
     if types.returncode != 0:
         return None
     blobs = [line.split(b" ")[0] for line in types.stdout.split(b"\n")
              if line.split(b" ")[1:2] in ([b"blob"], [b"missing"]) and line.split(b" ")[0] not in indexed]
     if not blobs:
         return []
-    run = subprocess.run(["git", "-C", str(root), "cat-file", "--batch"], input=b"".join(o + b"\n" for o in blobs),
-                         capture_output=True, env=git_env())
+    run = git(["-C", str(root), "cat-file", "--batch"], input=b"".join(o + b"\n" for o in blobs),
+              capture_output=True, env=git_env())
     if run.returncode != 0:
         return None
     batch, out, at = run.stdout, [], 0
@@ -351,11 +397,14 @@ def findings(text, alternatives=None):
 def check(root):
     bad, unread, known, n, staged_read, history_read = [], [], [], 0, 0, 0
     listed, repositories = files(root)
+    gone = absent(root) if in_git(root) else set()
     # a nested repository, which git commits as a gitlink (P0.2's verifier, round 4)
     nested = [f"{p.relative_to(root).as_posix()}/: a nested repository, committed as a gitlink, never as its files"
               for p in repositories]
     for p in listed:
         rel = p.relative_to(root).as_posix()
+        if passed_over(root, rel, gone):
+            continue        # gone, as git says, and from disk: the staged reader reads its index version
         text, why = read(p)
         if text is None:
             (unread if why == "binary" else bad).append(f"{rel}: {why}")
@@ -377,9 +426,9 @@ def check(root):
                 bad.append(f"{path} (staged): a {kind} ({name}), {mask(s)}")
     msgs = 0
     if in_git(root):
-        r = subprocess.run(["git", "-C", str(root), "log", "-z", "--encoding=UTF-8", "--format=%H%n%B"],
-                           capture_output=True, text=True, encoding="utf-8", errors="replace",
-                           env=dict(git_env(), LC_ALL="C"))
+        r = git(["-C", str(root), "log", "-z", "--encoding=UTF-8", "--format=%H%n%B"],
+                capture_output=True, text=True, encoding="utf-8", errors="replace",
+                env=dict(git_env(), LC_ALL="C"))
         # Only an unborn branch is no history, as git says it in the C locale; anything else that fails git log is
         # a finding (P0.2's verifier, round 3: HEAD's rev-parse fails for a broken ref as for an unborn one).
         if r.returncode != 0 and "does not have any commits yet" not in r.stderr:
@@ -463,8 +512,12 @@ def _copy(root, dest):
     """What the gate reads of root, each file's committed bytes, a symbolic link's text among them, as a plain file;
     a nested repository, not read, is not copied. A copy made through a symbolic link, as a mutant of this made
     it, stops the controls with IsADirectoryError at one to a directory (P0.4's verifier, round 2, N4, MEASURED
-    under WSL)."""
+    under WSL). A tracked file the run passes over (passed_over) is passed over here too: a clean sparse checkout
+    passed the run and failed the controls (P0.7's first verifier, D2, MEASURED)."""
+    gone = absent(root) if in_git(root) else set()
     for p in files(root)[0]:
+        if passed_over(root, p.relative_to(root).as_posix(), gone):
+            continue
         t = dest / p.relative_to(root)
         t.parent.mkdir(parents=True, exist_ok=True)
         t.write_bytes(committed(p))
@@ -499,7 +552,7 @@ def control(root):
         with tempfile.TemporaryDirectory() as td:
             r = _copy(root, Path(td) / "copy")
             if in_git(root):
-                subprocess.run(["git", "-C", str(r), "init", "-q"], check=True, env=git_env())
+                git(["-C", str(r), "init", "-q"], check=True, env=git_env())
             plant(r)
             ok = any(": a " in b for b in check(r)[0])   # a key or a path found, never a file unread (P0.2's
             # verifier, round 3: with -z dropped, the name not in ASCII was unreadable, and that passed for caught)
@@ -524,8 +577,10 @@ if __name__ == "__main__":
     # the tree could carry one; the history reader lets a file of an earlier commit carry one too (P0.6's verifier,
     # round 2, D1, MEASURED: a tree that 8afeede's gate passed failed, a binary file named in CJK characters listed
     # and stdout redirected in cp1252). Where stdout cannot be reconfigured, it is left as it is: None, under pythonw
-    # or a closed descriptor, where print writes nothing, or a console's stream with no reconfigure (round 3, D1,
-    # MEASURED: reconfiguring it raised AttributeError, and a clean tree failed)
-    if hasattr(sys.stdout, "reconfigure"):
+    # or a closed descriptor, where print writes nothing (round 3, D1, MEASURED); a console's stream with no
+    # reconfigure; or one whose reconfigure raises (round 4, O4, MEASURED with streams of the verifier's making)
+    try:
         sys.stdout.reconfigure(errors="backslashreplace")
+    except Exception:
+        pass
     sys.exit(control(ROOT) if "--control" in sys.argv[1:] else run(ROOT))

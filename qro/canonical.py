@@ -77,9 +77,27 @@ def body_digest(metadata):
 
 def write(metadata):
     """The metadata's canonical bytes, held to the strict reader before they are returned: the writer never
-    writes what the reader refuses."""
+    writes what the reader refuses. Where the metadata cannot be arranged or spelled, the reader is given it as
+    JSON writes it, and what the reader refuses is refused by the reader's name: an @id that is no string (P0.5's
+    first verifier, a note), an entity with no @id, an entity or a graph that is no object, a graph or a context
+    missing, a NaN (P0.7's first verifier, D3). Anything else is raised as it was: metadata Python's json cannot
+    write at all, a failure of the writer's own on metadata the reader accepts, and a MemoryError, the host's."""
     from qro import reader
-    data = dumps(arrange(metadata))
+    try:
+        data = dumps(arrange(metadata))
+    except MemoryError:
+        raise
+    except Exception:
+        try:
+            raw = (json.dumps(metadata, ensure_ascii=True, sort_keys=True, indent=2, separators=(",", ": "))
+                   + "\n").encode("ascii")
+        except MemoryError:                 # the host's, here too (P0.7's second verifier, note 7)
+            raise
+        except Exception:                   # no bytes for the reader to read: the first failure is raised
+            raw = None
+        if raw is not None:
+            reader.read(raw)
+        raise
     reader.read(data)
     return data
 

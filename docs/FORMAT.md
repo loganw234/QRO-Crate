@@ -130,20 +130,31 @@ can hold each one to the study.
     - A parcel's raw-form reader or generator that fails on a crate is
       refused by its step's name (`raw-form`, `metadata-generated`). So a
       bug in a parcel's reader or generator shows as a refused crate, and
-      the refusal's detail names the failure.
+      the refusal's detail names the failure. A `MemoryError` is the
+      exception: it is the host's, never a verdict on the crate, so it is
+      the checker failing, exit 3 (P1.1's third verifier, D1; P0.7).
+    - A parcel's step may itself refuse, by its step's name, what its own
+      reading of a crate raises, as P1's steps do. Whatever else a step lets
+      through is the checker failing, exit 3, but a `PermissionError`, which
+      is misuse, exit 2 (below).
     - The command line exits 3 when the checker itself fails, which is never
       a verdict: a crash, or an exit or interrupt raised inside it, in a
       parcel's step or count rule among others, and a parcel's module that
       will not load or registers what is not its own (item 20). A
       `PermissionError` from a step or a count rule is the exception: it is
       misuse, exit 2 (below). A raw-form reader's or a generator's is refused
-      by its step's name, as any `Exception` they raise is (above; P0.1's
-      verifier, round 1, note 4.3.1). It writes its one line to
+      by its step's name, and so is any other `Exception` they raise, a
+      `MemoryError` alone excepted (above; P0.1's verifier, round 1, note
+      4.3.1). It writes its one line to
       the descriptor
       itself, unbuffered, before it returns. The line is printable ASCII:
       every other character a crate's own text holds, a line feed or an
       escape among them, is written as its Python escape, so no crate can
-      break the line or forge another. A verdict it cannot write whole, to a
+      break the line or forge another. A line longer than 4,096 characters,
+      as escaped, is cut there, where no escape is split, and says how many
+      characters it did not write: a hostile file's text, quoted in a
+      refusal, put megabytes into one line (P1.1's third verifier, a note;
+      P0.7). A verdict it cannot write whole, to a
       closed pipe, a full disk or a closed descriptor, exits 3 (rounds 3 and
       4, R3-1 and R4-1).
     - Two stated limits. A descriptor that takes part of the line and then
@@ -229,10 +240,11 @@ can hold each one to the study.
     - a fragment, `#` and one or more of RFC 3986's fragment characters,
       holding no `://`;
     - an absolute IRI whose scheme is lowercase, two characters or more
-      with no dot, and neither `file` nor a prefix of the context:
-      RO-Crate 1.3's terms whose IRI ends in a gen-delim, and `qro`
-      (`CONTEXT_PREFIXES` in qro/vocabulary.py). After its scheme it holds
-      one `#` at most.
+      with no dot, and neither `file` nor a term of the context. A prefix of
+      the context, a term whose IRI ends in a gen-delim (`CONTEXT_PREFIXES`
+      in qro/vocabulary.py), makes a compact IRI of it to JSON-LD 1.1; any
+      term does to JSON-LD 1.0, which RO-Crate 1.3 asks for (P0.5's fourth
+      verifier, note 2; P0.7). After its scheme it holds one `#` at most.
 
     A fragment and an absolute IRI hold RFC 3986's characters but `[` and
     `]`, each `%` beginning an escape of two hex digits. So urllib's
@@ -249,12 +261,17 @@ can hold each one to the study.
     A JSON-LD reader reads many of the other forms otherwise (MEASURED,
     rdflib 7.6.0):
     - `_:b0` is a blank node;
-    - `@x`, `.`, `././`, `//` and `?` are the root;
+    - `@x`, `.`, `././`, `//` and `?` are the root where the crate is read
+      at its directory. Where it is read from its metadata file's own URL,
+      `.` and `././` are still the root, and `@x`, `//` and `?` are the
+      descriptor's IRI (P0.5's fourth verifier, note 4; P0.7's first
+      verifier, D4);
     - `./x` is `x`, `./#a` is `#a`, and `a?` is `a`, its empty query
       dropped;
     - `a//b` and `a/./b` are `a/b`;
     - `/x` and `../a` lie outside the crate, and `//x` is another host;
-    - `schema:a` is `http://schema.org/a`;
+    - `schema:a` is `http://schema.org/a`; and to a JSON-LD 1.0 processor
+      `geo:1,2` is `http://schema.org/geo1,2` (BELIEVED, from 1.0's rule);
     - an absolute `file:` IRI cannot be told from a path;
     - an id holding a space makes no node at all;
     - a fragment holding `://` is left as written, a relative IRI, at every
@@ -263,8 +280,10 @@ can hold each one to the study.
       which Python 3.12 and 3.13 have eleven (http, https, ftp, sftp, imap, mms, prospero, rtsp, rtsps, rtspu and shttp), a
       `;` in a path's last segment is read as urllib's urljoin reads it, as
       the start of parameters: empty ones are dropped, and a `.` or `..`
-      before them is read as a dot segment. So `x;` is `x`, and `;` the root
-      (P0.5's verifiers, rounds 1 and 3).
+      before them is read as a dot segment. So `x;` is `x`, and `;` the base
+      itself: the root where the crate is read at its directory, and the
+      descriptor's IRI where it is read from its metadata file's own URL
+      (P0.5's verifiers, rounds 1 and 3; P0.7's first verifier, D4).
 
     Others rdflib reads as written (`x#a`, `#`, `?q`, `HTTPS://x/y`, `C:/x`,
     `ab:%zz`). They are refused as forms the rule does not offer, so that an
@@ -301,15 +320,23 @@ can hold each one to the study.
     - rdflib departs from JSON-LD 1.1 at some bases, though at none it was
       measured at does it make one node of two accepted ids, but as the
       first limit says. At a base of a scheme urllib does not join
-      (`mailto:`, `s3:`, `data:`), it leaves a relative id relative and
-      makes no node of it; at a base with an empty path
-      (`https://example.org`), it reads `#a` as `https://example.org/.#a`
-      (P0.5's verifiers, rounds 2 and 3);
+      (`mailto:`, `s3:`, `data:`), it makes no node of a relative id, but of
+      a fragment holding `:`, which it leaves the relative IRI `.#a:b`. At a
+      base with an empty path (`https://example.org`), it reads `#a` as
+      `https://example.org/.#a`. And from a base's own path it collapses a
+      `//`, removes dot segments, and drops a final `;` for a fragment, and
+      it writes the base's scheme in lowercase (P0.5's verifiers, rounds 2
+      to 4);
     - a JSON-LD 1.0 processor makes a prefix of every term of the context,
-      not only those whose IRI ends in a gen-delim, and RO-Crate 1.3's
-      context names no version. So to such a processor an absolute IRI whose
-      scheme is a term (`geo:x`, `name:x`) is another IRI (BELIEVED, from
-      1.0's rule; none was run). rdflib reads JSON-LD 1.1's rule.
+      and RO-Crate 1.3 asks for JSON-LD 1.0, so an absolute IRI whose scheme
+      is any term is refused (P0.7). That a 1.0 processor reads one as
+      another IRI is BELIEVED, from 1.0's rule; none was run, and rdflib
+      reads 1.1's rule even when told 1.0. The rule has a cost. Of
+      RO-Crate 1.3's 3,069 terms, 333 have a scheme's shape. Six of them are
+      schemes IANA registers (fetched 2026-10-25): `about`, `data` and
+      `geo`, permanent, and `maps`, `query` and `tool`, provisional. An IRI
+      of those schemes, a `data:` or a `geo:` IRI say, is refused though
+      it names no term (MEASURED, against the pinned context).
 
 ## Stated limits of P0's format
 

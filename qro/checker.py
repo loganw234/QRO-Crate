@@ -16,7 +16,8 @@ own module, qro.register_<parcel>, and load() merges them into STEPS, RAW_FORMS,
 Where a crate holds a CHECKED field whose step is not built, a raw form with no reader, or a generator not
 built, the checker refuses `step-unbuilt`: it never passes what it has not checked
 ("a seam's refusal belongs in every backend", ParcelRound, METHOD.md section 2). A registered reader or generator
-that fails on the crate's bytes is refused by its step's name, never a crash. Stdlib only.
+that fails on the crate's bytes is refused by its step's name, never a crash, but for a MemoryError: that is the
+host's, and the checker failing (FORMAT.md item 16). Stdlib only.
 """
 import hashlib
 import importlib
@@ -228,6 +229,8 @@ def counts(crate, md):
             held = RAW_FORMS[form](crate.joinpath(*e["@id"].split("/")).read_bytes())
         except RawFormError as x:
             raise Refused("raw-form", e["@id"], f"not in the raw form {form}: {x}") from None
+        except MemoryError:                           # the host's, never a verdict on the crate (FORMAT.md item 16)
+            raise
         except Exception as x:                        # a reader that cannot read the bytes has refused them
             raise Refused("raw-form", e["@id"], f"the reader of {form} failed: {type(x).__name__}") from None
         if type(held) is not int or held < 0:
@@ -246,6 +249,8 @@ def regenerated(crate, md):
         raise Refused("step-unbuilt", f"{canonical.ROOT} qro:generator", f"no generator {name} is built")
     try:
         want = canonical.dumps(canonical.body(GENERATORS[name](crate)))
+    except MemoryError:                               # the host's, never a verdict on the crate (FORMAT.md item 16)
+        raise
     except Exception as x:                            # a generator that cannot make the metadata is no match
         raise Refused("metadata-generated", f"{canonical.ROOT} qro:generator",
                       f"{name} failed on the records: {type(x).__name__}") from None

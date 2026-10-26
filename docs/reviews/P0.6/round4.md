@@ -124,7 +124,7 @@ I list them first so the lead can rule otherwise. If the cap's wording is read t
   - A third is unstated: a well-formed `need_env` in front of a stage that reads no variable passes every rule (`p_registry.py`: `need_env QRO_MOTH_ROOT` before p4). It would skip p4 by name wherever the variable is unset.
 - The lead's `m_p06_r1.py` mutant 24 no longer applies: its text occurs twice since `env_unguarded` copied the line, so `hm_t.py` prints N/A. My `u1` covers the same fault and is killed.
 - Spellings that pass (`p_enc.py`, `p_enc2.py`):
-  - New: `\\wsl$/Ubuntu/home/name`, with a backslash host and slashes after.
+  - New: `<a home path>Ubuntu/home/name`, with a backslash host and slashes after.
   - Round 3's notes 5 and 7, still true: an encoded space before a POSIX, Git Bash or WSL-mount home path; `quote()` of an `as_posix` WSL path (`//wsl%24/…`); and a file URL through the WSL host's `/mnt/c`.
 - One line, as the lead asked: the gate's git calls pass no CREATE_NO_WINDOW.
 

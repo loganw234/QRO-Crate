@@ -128,16 +128,40 @@ def test_a_raw_result_its_reader_cannot_read_is_raw_form(tmp_path, raw, rule):
     assert rule in r.detail, r.detail
 
 
-def test_a_reader_that_crashes_is_raw_form_and_a_generator_that_crashes_is_metadata_generated(tmp_path):
+@pytest.mark.parametrize("raised", [ZeroDivisionError("a parcel's bug"), RecursionError("too deep"), KeyError("x"),
+                                    PermissionError(13, "denied")],
+                         ids=["ZeroDivisionError", "RecursionError", "KeyError", "PermissionError"])
+def test_a_reader_that_crashes_is_raw_form_and_a_generator_that_crashes_is_metadata_generated(tmp_path, raised):
+    """Any Exception but a MemoryError, from a parcel's raw-form reader or its generator, is the crate refused by the
+    step's name (FORMAT.md item 16): a net widened to let a RecursionError out as the host's passed every test
+    (P0.7's first verifier, a note)."""
     c = crate(tmp_path)
 
     def boom(_):
-        raise ZeroDivisionError("a parcel's bug")
+        raise raised
     checker.RAW_FORMS[fixture.RAW_FORM] = boom
     refused("raw-form", lambda: checker.check(c))
     fixture.register()
     checker.GENERATORS[fixture.GENERATOR] = boom
     refused("metadata-generated", lambda: checker.check(c))
+
+
+def test_a_memory_error_in_a_reader_or_a_generator_is_the_hosts_and_no_verdict(tmp_path):
+    """P1.1's third verifier, D1, MEASURED: step 3 turned any exception from a parcel's raw-form reader, a
+    MemoryError among them, into `REFUSED raw-form`, so a host short of memory gave a verdict on the crate. A
+    MemoryError from a reader or a generator now reaches the command line, which answers it as the checker failing,
+    exit 3 (P0.7; FORMAT.md item 16)."""
+    c = crate(tmp_path)
+
+    def short(_):
+        raise MemoryError
+    checker.RAW_FORMS[fixture.RAW_FORM] = short
+    with pytest.raises(MemoryError):
+        checker.check(c)
+    fixture.register()
+    checker.GENERATORS[fixture.GENERATOR] = short
+    with pytest.raises(MemoryError):
+        checker.check(c)
 
 
 # -- P0-4 and P0-5: a file is the same file on every host -----------------------------------------------------
@@ -610,15 +634,19 @@ def test_the_walk_reports_the_first_stray_file_in_name_order_under_any_hash_seed
 
 
 def test_the_strict_reader_loads_only_the_pinned_copy_of_ro_crates_context(monkeypatch):
-    """Round 5: qro/data/README.md says the reader refuses any other bytes; nothing held it."""
-    from qro import vocabulary as V
-    reader.rocrate_terms.cache_clear()
+    """Round 5: qro/data/README.md says the reader refuses any other bytes; nothing held it. Since P0.7 the
+    vocabulary loads the copy, for the reader's terms and the id rule's alike."""
+    caches = (reader.rocrate_terms, V.rocrate_context, V.context_terms)
+    for f in caches:
+        f.cache_clear()
     monkeypatch.setattr(V, "ROCRATE_CONTEXT_SHA256", "0" * 64)
     try:
-        with pytest.raises(RuntimeError, match="not the copy the vocabulary pins"):
-            reader.rocrate_terms()
+        for f in (reader.rocrate_terms, V.context_terms):
+            with pytest.raises(RuntimeError, match="not the copy the vocabulary pins"):
+                f()
     finally:
-        reader.rocrate_terms.cache_clear()
+        for f in caches:
+            f.cache_clear()
 
 
 def test_a_directory_the_walk_cannot_list_is_raised_not_passed_over(tmp_path, monkeypatch):
@@ -653,6 +681,30 @@ def test_paths_along_files_that_differ_only_by_case_are_refused(tmp_path, names,
     c = rewrite(crate(tmp_path), add)
     r = refused("graph-form", lambda: reader.read((c / canonical.DESCRIPTOR).read_bytes()))
     assert (r.detail, r.where) == (detail, where)
+
+
+def test_one_name_at_two_depths_is_two_paths(tmp_path):
+    """A file named y.txt below x, and a directory named y.txt at the top, are two paths and accepted; so are a file
+    and a directory whose names differ by case at two depths. A tree of the paths that never went down a level would
+    refuse each (P0.7's mutants)."""
+    c = rewrite(crate(tmp_path), lambda md: [listed(md, n) for n in ("x/y.txt", "y.txt/z.txt", "a/B", "b/c.txt")])
+    reader.read((c / canonical.DESCRIPTOR).read_bytes())
+
+
+def test_a_path_of_many_segments_costs_what_its_characters_do(tmp_path):
+    """P0.5's fourth verifier, note 1, MEASURED: the reader built every prefix of a File's path as a string, so a
+    path of 50,000 segments, 100 KB, took 149 s, its memory the square of its length. A tree of the paths' segments
+    holds them now (P0.7). MEASURED by the lead: 10,000 segments peaked at 192 MB that way, and at 2.8 MB now."""
+    import tracemalloc
+    name = "/".join(["a"] * 10_000) + "/x.txt"
+    data = (rewrite(crate(tmp_path), lambda md: listed(md, name)) / canonical.DESCRIPTOR).read_bytes()
+    tracemalloc.start()
+    try:
+        reader.read(data)
+        peak = tracemalloc.get_traced_memory()[1]
+    finally:
+        tracemalloc.stop()
+    assert peak < 32 * 2**20, peak
 
 
 def test_the_root_before_the_descriptor_is_refused_at_the_graph(tmp_path):

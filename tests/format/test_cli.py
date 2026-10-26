@@ -4,7 +4,8 @@
   - each misuse planted here: the wrong arguments, an empty name, a path not there, a path of the wrong kind, a
     path the host raises on, and a log, record, metadata file, listed file or directory the user may not read;
   - the fixture refused `step-unbuilt` without `--fixtures`, for its raw form and, with none, for its generator;
-  - the line printable ASCII, and read back whole by `unicode_escape`, for every code point;
+  - the line printable ASCII, and read back whole by `unicode_escape`, for every code point, and cut at LINE_MAX
+    with the count of what it left (P0.7);
   - a write the descriptor takes a few bytes at a time, whole; and a verdict that cannot be written, to a pipe nobody
     reads, a closed descriptor, or with both descriptors broken, exiting 3;
   - a crash, an exit and an interrupt inside the checker, exiting 3."""
@@ -20,7 +21,7 @@ import sys
 import pytest
 
 from qro import canonical, checker, custody, fixture
-from qro.__main__ import escape, main
+from qro.__main__ import LINE_MAX, USAGE, escape, main
 
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 RAW = "data/raw.counts.json"
@@ -310,6 +311,58 @@ def test_both_descriptors_broken_exit_3_and_raise_nothing(tmp_path):
     finally:
         os.close(out)
         os.close(err)
+
+
+def test_a_line_past_line_max_is_cut_where_no_escape_is_split_and_says_what_it_left():
+    """P1.1's third verifier, a note, MEASURED: six places in P1's readers quote a file's text whole, and a
+    hostile file put 3 MB into one REFUSED line. The line is cut at LINE_MAX escaped characters (P0.7), which
+    FORMAT.md item 16 states as 4,096: a LINE_MAX of 9,000 passed every test (P0.7's first verifier, a note)."""
+    assert LINE_MAX == 4096
+    assert escape("x" * (LINE_MAX + 1000), LINE_MAX) == "x" * LINE_MAX + " ... (1000 more characters)"
+    assert escape("x" * LINE_MAX, LINE_MAX) == "x" * LINE_MAX, "a line of LINE_MAX characters is whole"
+    cut = escape("a" * (LINE_MAX - 2) + chr(233) + "b", LINE_MAX)      # the escape of e acute is four characters
+    assert cut == "a" * (LINE_MAX - 2) + " ... (2 more characters)", cut[-40:]
+    # the count is of the text's characters, not the escapes' (P0.7's third verifier, T1: by the escaped length, the
+    # count passed every test, each cut after ASCII, where the two are one; here it would say -2096)
+    assert escape(chr(233) * 2000, LINE_MAX) == "\\xe9" * 1024 + " ... (976 more characters)"
+    assert escape("x" * (LINE_MAX + 1000)) == "x" * (LINE_MAX + 1000), "with no limit, escape cuts nothing"
+
+
+def test_the_process_cuts_a_refusal_quoting_a_long_id(tmp_path):
+    """The one line, as a user meets it: a refusal at an @id of 10,000 characters, which the line quotes."""
+    long_id = "x" * 10_000
+    c = crate(tmp_path, lambda md: md["@graph"].extend([{"@id": long_id, "@type": "Thing"}] * 2))
+    p = process(["check", "--fixtures", str(c)])
+    assert (p.returncode, p.stderr) == (1, b""), p.stderr[-300:]
+    line = p.stdout.decode("ascii")
+    assert line.startswith("REFUSED graph-form at xxx") and line.count(chr(10)) == 1, line[:100]
+    assert line.endswith(" more characters)" + chr(10)) and len(line) < LINE_MAX + 40, len(line)
+    assert line.index(" ... (") == 4096, line.index(" ... (")
+
+
+def test_the_process_cuts_a_misuse_line_on_its_error_descriptor():
+    """P0.7's third verifier, T2: the cut was held only on a REFUSED line at descriptor 1; misuse's line, exit 2, at
+    descriptor 2, by no test. It begins with the user's own argument, so only the exit code says what it is
+    (VALIDATION, the entry on P0.7's second verifier, D1)."""
+    name = "x" * 5000
+    p = process(["check", name])
+    whole = f"{name}: no such crate directory; {USAGE}"
+    assert (p.returncode, p.stdout) == (2, b""), p.stdout[:100]
+    assert p.stderr.decode("ascii") == name[:LINE_MAX] + f" ... ({len(whole) - LINE_MAX} more characters)" + chr(10)
+
+
+def test_the_checker_failing_has_its_line_cut_on_its_error_descriptor(tmp_path, monkeypatch):
+    """P0.7's third verifier, T2: the cut on the line of the checker failing, exit 3, at descriptor 2, was held by no
+    test. Its prefix still says what the line is."""
+    import qro.__main__ as cli
+
+    def crash(argv):
+        raise RuntimeError("y" * 5000)
+    monkeypatch.setattr(cli, "_verdict", crash)
+    code, out, err = run(tmp_path, ["check", "x"])
+    line = err.decode("ascii")
+    assert (code, out) == (3, b"") and line.startswith("FAILED: the checker itself failed, "), line[:100]
+    assert line.index(" ... (") == LINE_MAX and line.endswith(" more characters)" + chr(10)), line[-80:]
 
 
 def test_escape_is_read_back_whole_by_unicode_escape():
