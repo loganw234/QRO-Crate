@@ -12,4 +12,4 @@
 - [VALIDATION.md](VALIDATION.md): the ledger of runs that established
   something.
 - [reviews/](reviews/README.md): every verifier's report, the study's, P0's,
-  P0.1's, P0.2's, P0.3's, P0.4's, P0.5's and P1.1's.
+  P0.1's, P0.2's, P0.3's, P0.4's, P0.5's, P0.6's and P1.1's.

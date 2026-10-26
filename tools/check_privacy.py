@@ -11,9 +11,13 @@ carries one (rule 3). It does not guard against deliberate evasion, and it does 
 It reads every file git would commit (tracked, or untracked and not ignored; `git ls-files -z`, so no name is
 quoted away), its own source included, a symbolic link as its own text, which is what git commits; the staged
 version of each tracked file whose index differs from the file on disk, which a plain `git commit` takes (P0.2's
-verifier, round 4); and every commit message on HEAD's history. Every git it runs on a repository runs without
-the variables git lists as pointing it at a repository, GIT_DIR among them, and with git's configuration (P0.2's
-verifier, rounds 1 and 2). git log failing is a finding unless git says the branch has no commit yet: a commit
+verifier, round 4); every commit message on HEAD's history; and every blob that history holds and the index does
+not, which a push sends with the commits that hold it: a key committed and deleted in a later commit is pushed
+(P0.4's verifier, round 4, note 1). A finding in a blob already pushed, which no commit can take back, is listed as
+known where KNOWN names its blob and its alternative, each read and judged no secret. Every git it runs on a
+repository runs without the variables git lists as pointing it at a repository, GIT_DIR among them, with git's
+configuration (P0.2's verifier, rounds 1 and 2), and with replace refs ignored, as a push ignores them (P0.4's
+verifier, round 4, note 2). git log failing is a finding unless git says the branch has no commit yet: a commit
 gone, a branch ref emptied or garbage, and packed-refs corrupt among the causes (rounds 2 and 3). git log is
 asked for UTF-8, which overrides i18n.logOutputEncoding, and ends each message with a NUL, so a control byte such
 as 0x01 no longer splits one (round 4). A message's bytes not in UTF-8 are replaced. A file with a byte-order mark
@@ -34,13 +38,20 @@ What it cannot see (each limit stated by the behaviour it concedes):
   - a binary file, one with a NUL in its first 4,096 bytes and no byte-order mark, is not read. Each is listed by
     name in the summary, so none passes unseen;
   - commit authors' and committers' names and addresses are git's metadata, not messages: not read;
+  - only HEAD's history is read: another branch, a tag, a stash or a note, which `git push` sends only when asked
+    to, is not; nor is a blob of HEAD's history that is binary, which is listed by name;
+  - the blobs of HEAD's history that the index does not hold are read into memory at once, at about 1.5 MB/s (P0.6's
+    verifier, round 1, MEASURED: 120 versions of 1 MB took 78 s and 380 MB). This repository's history takes
+    seconds; the cost grows with it. In a partial clone, git fetches each blob it lacks from the promisor remote,
+    and the gate fails where that remote cannot be reached;
   - a message whose commit records an encoding of its own, as i18n.commitEncoding set to UTF-16 or IBM037 writes,
     git log converts from that encoding, which can garble it, and a key in it is then lost (MEASURED by P0.4's
     verifiers: IBM037 in both rounds, UTF-16 for a message not in ASCII); and git log writes a message only up to
     a NUL it holds, which `git commit` refuses and a commit built by hand can hold, so what follows the NUL is not
     read (P0.4's verifier, round 1, MEASURED, and the lead, git 2.45.2);
-  - a file whose name is not UTF-8, which Linux allows, stops the gate with an error, never a pass (P0.4's
-    verifier, round 2, MEASURED);
+  - a file whose name is not UTF-8, which Linux allows, stops the gate with an error, never a pass, where git
+    lists it among the files it would commit (P0.4's verifier, round 2, MEASURED); a path of HEAD's history that is
+    not UTF-8 is read, its name decoded with replacement (P0.6's verifier, round 2, MEASURED);
   - in a copy with no .git, commit messages are not read, and a symbolic link to a directory is neither read nor
     named (P0.4's verifier, round 3, MEASURED); nor are messages read where HEAD names a ref git reads as a branch
     with no commit, a ref deleted or replaced by a directory, or an emptied packed-refs, among the shapes; nor where
@@ -78,7 +89,15 @@ ALTERNATIVES = [
     ("path", "posix-home", r"(?i)(?<![A-Za-z0-9.])/(users|home)/" + _NAME),
     ("path", "backslash-home", r"(?i)(?<![A-Za-z0-9.:\\])\\home\\" + _NAME),
     ("path", "wsl-unc", r"(?i)\\\\wsl(\$|\.localhost)\\"),
+    # the same with forward slashes, as Path.as_posix writes it (P0.4's verifier, round 4, note 3); not after a
+    # scheme's colon or a host's characters, so a URL whose host is named wsl is not one
+    ("path", "wsl-unc-slash", r"(?i)(?<![A-Za-z0-9:./])//wsl(\$|\.localhost)/"),
+    # a file URL to the WSL host's home, as a browser or Path.as_uri writes it (P0.6's verifier, round 1, note)
+    ("path", "wsl-file-url", r"(?i)\bfile:/*wsl(\$|%24|\.localhost)/[^/\s]+/(home|users)/" + _NAME),
     ("path", "url-quoted-home", r"(?i)%2F(users|home)%2F|[a-z]%3A(%5C|%2F)users(%5C|%2F)"),
+    # a drive path percent-encoded with its colon kept, as encodeURI leaves it (round 4, note 3), after no letter or
+    # digit but an escape's, as `%20` before it is (P0.6's verifier, round 1, note)
+    ("path", "url-quoted-drive", r"(?i)(?:(?<=%[0-9A-F]{2})|(?<![A-Za-z0-9]))[a-z]:(%5C|%2F)+users(%5C|%2F)+" + _NAME),
     ("path", "file-url-home", r"(?i)(?<![A-Za-z0-9])[a-z]%3a/+(users|documents%20and%20settings)/+" + _NAME),
     ("path", "var-home", r"(?i)(?<![A-Za-z0-9.])/var/home/" + _NAME),
     ("path", "unc-home", r"(?i)\\\\[^\\\s]+\\(home|users)\\" + _NAME),
@@ -127,11 +146,13 @@ def git_env():
     (`git rev-parse --local-env-vars`) but its configuration's, GIT_CONFIG and those beginning GIT_CONFIG_, which
     say how git reads a repository, not which. With GIT_DIR and GIT_WORK_TREE naming another repository, the gate
     read that one's file list and commit messages (P0.2's verifier, round 1, G5); dropping the configuration's too
-    made git refuse a checkout it trusted only through them (round 2). Every git here runs in this."""
+    made git refuse a checkout it trusted only through them (round 2). Every git here runs in this, with replace
+    refs ignored, as a push ignores them: with one, git log showed another message than the one pushed (P0.4's
+    verifier, round 4, note 2, MEASURED)."""
     local = subprocess.run(["git", "rev-parse", "--local-env-vars"], capture_output=True, text=True,
                            check=True).stdout.split()
     drop = {k for k in local if k != "GIT_CONFIG" and not k.startswith("GIT_CONFIG_")}
-    return {k: v for k, v in os.environ.items() if k.upper() not in drop}
+    return dict({k: v for k, v in os.environ.items() if k.upper() not in drop}, GIT_NO_REPLACE_OBJECTS="1")
 
 
 def in_git(root):
@@ -245,6 +266,69 @@ def staged(root):
     return out
 
 
+# Findings in blobs already pushed, which no commit can take back, each read and judged no secret: the blob's id and
+# the alternative that finds it, and why. Reading earlier commits, the gate lists each as known, never as a failure.
+# A file's current bytes have no such list, since a file can be changed. tests/tools holds that each entry's
+# alternative finds something in its blob wherever git holds the blob; in a copy whose history does not reach the
+# blob, a shallow clone or a fresh git init, an entry is inert (P0.6).
+KNOWN = {
+    ("7671e68acfe2ba1b0cd39a5b050e10523eb811c7", "wsl-unc-slash"):
+        "P0.4's fourth verifier's example, in docs/reviews/P0.4/round4.md as pushed in 20d40e6, of a spelling the gate "
+        "then missed: the name in it is the placeholder `name`",
+    ("7671e68acfe2ba1b0cd39a5b050e10523eb811c7", "url-quoted-drive"):
+        "P0.4's fourth verifier's example, in docs/reviews/P0.4/round4.md as pushed in 20d40e6, of a spelling the gate "
+        "then missed: the name in it is the placeholder `name`",
+}
+
+
+def history(root):
+    """[(path, object id, bytes or None)]: each blob HEAD's history holds that the index does not, by the first path git
+    lists it at, its bytes None where git does not hold its object, which is a finding; or None where git cannot
+    list or read the history. git rev-list fails on a blob whose object is missing, so it is a finding that way
+    first (MEASURED); one git lists and then does not hold, as an object removed between the two calls, is read as
+    missing, never passed over. A push sends every commit's tree, so a key committed and deleted in a later commit
+    is pushed, though no file and no staged version holds it (P0.4's verifier, round 4, note 1, MEASURED). `git
+    rev-list --objects` lists them, and `git cat-file --batch` reads them, once each. git lists a path cut at its
+    first line feed, so a top-level name that begins with one is listed empty, as the root tree is, and is kept and
+    named for what it is (P0.6's verifier, round 1, D1: such a blob was dropped with the root tree, and a key in it
+    passed). The revision is ended by `--`, so that a file or a directory named HEAD at the root is no second
+    reading of it (D2: git then refused the listing, and a clean tree failed)."""
+    listing = subprocess.run(["git", "-C", str(root), "rev-list", "--objects", "HEAD", "--"], capture_output=True,
+                             env=git_env())
+    if listing.returncode != 0:
+        return None
+    named = {}
+    for line in listing.stdout.split(b"\n"):          # `oid` for a commit; `oid path` for a tree or a blob, its
+        oid, space, path = line.partition(b" ")         # path cut at its first line feed, so empty for the root
+        if re.fullmatch(rb"[0-9a-f]{40}|[0-9a-f]{64}", oid) and space:     # tree and for a name beginning with one
+            named.setdefault(oid, path.decode("utf-8", errors="replace") or "(a path beginning with a line feed)")
+    indexed = {oid for _, oid, _ in index(root)}
+    types = subprocess.run(["git", "-C", str(root), "cat-file", "--batch-check"],
+                           input=b"".join(oid + b"\n" for oid in named), capture_output=True, env=git_env())
+    if types.returncode != 0:
+        return None
+    blobs = [line.split(b" ")[0] for line in types.stdout.split(b"\n")
+             if line.split(b" ")[1:2] in ([b"blob"], [b"missing"]) and line.split(b" ")[0] not in indexed]
+    if not blobs:
+        return []
+    run = subprocess.run(["git", "-C", str(root), "cat-file", "--batch"], input=b"".join(o + b"\n" for o in blobs),
+                         capture_output=True, env=git_env())
+    if run.returncode != 0:
+        return None
+    batch, out, at = run.stdout, [], 0
+    for oid in blobs:
+        end = batch.index(b"\n", at)
+        header = batch[at:end].split(b" ")
+        if header[1:] == [b"missing"]:
+            out.append((named[oid], oid.decode("ascii"), None))
+            at = end + 1
+            continue
+        size = int(header[2])
+        out.append((named[oid], oid.decode("ascii"), batch[end + 1:end + 1 + size]))
+        at = end + 1 + size + 1
+    return out
+
+
 def mask(s):
     return s[:4] + "..." + f"[{len(s)} chars]"
 
@@ -265,7 +349,7 @@ def findings(text, alternatives=None):
 
 
 def check(root):
-    bad, unread, n, staged_read = [], [], 0, 0
+    bad, unread, known, n, staged_read, history_read = [], [], [], 0, 0, 0
     listed, repositories = files(root)
     # a nested repository, which git commits as a gitlink (P0.2's verifier, round 4)
     nested = [f"{p.relative_to(root).as_posix()}/: a nested repository, committed as a gitlink, never as its files"
@@ -307,10 +391,28 @@ def check(root):
             msgs += 1
             for kind, name, s in findings(body):
                 bad.append(f"commit {sha.strip()[:7]}: a {kind} ({name}), {mask(s)}")
+        if r.returncode == 0 and msgs:
+            blobs = history(root)
+            if blobs is None:
+                bad.append("earlier commits' files: unread, as git could not list or read them")
+            for path, oid, data in blobs or []:
+                text, why = (None, "unreadable: its object missing") if data is None else decode(data)
+                if text is None:
+                    (unread if why == "binary" else bad).append(f"{path} (history {oid[:7]}): {why}")
+                    continue
+                history_read += 1
+                for kind, name, s in findings(text):
+                    if (oid, name) in KNOWN:
+                        known.append(f"{path} (history {oid[:7]}): a {kind} ({name}), {mask(s)}: {KNOWN[oid, name]}")
+                    else:
+                        bad.append(f"{path} (history {oid[:7]}): a {kind} ({name}), {mask(s)}")
     summary = f"{n} files and {msgs} commit messages read; {len(unread)} binary files not read"
     if staged_read:
         summary += f"; {staged_read} staged versions that differ from their files read"
-    return bad, summary + "".join(f"\n  not read: {u}" for u in unread + nested)
+    if history_read:
+        summary += f"; {history_read} versions in earlier commits read"
+    return bad, summary + "".join(f"\n  not read: {u}" for u in unread + nested) + "".join(
+        f"\n  known, in a pushed commit: {k}" for k in known)
 
 
 # -- controls: each alternative, and each way of finding a file, watched to fail ---------------------------------
@@ -326,7 +428,10 @@ PLANTS = {
     "posix-home": "see /" + "home" + "/someone/x",
     "backslash-home": "see " + "\\" + "home" + "\\" + "someone",
     "wsl-unc": "see " + "\\\\" + "wsl$" + "\\Ubuntu\\x",
+    "wsl-unc-slash": "see " + "//" + "wsl$" + "/Ubuntu/home/someone",
     "url-quoted-home": "path=" + "%2F" + "Users" + "%2Fsomeone",
+    "url-quoted-drive": "see C:" + "%5C" + "Users" + "%5Csomeone",
+    "wsl-file-url": "see file:" + "//" + "wsl.localhost" + "/Ubuntu/" + "home" + "/someone",
     "file-url-home": "see file:///c" + "%3A" + "/" + "Users" + "/someone/x",
     "var-home": "see /var/" + "home" + "/someone/x",
     "unc-home": "see " + "\\\\" + "server" + "\\" + "home" + "\\" + "someone",
@@ -415,4 +520,12 @@ def run(root):
 
 
 if __name__ == "__main__":
+    # a name the output's code page cannot write is written as its escape, never a crash. Before P0.6 only a file in
+    # the tree could carry one; the history reader lets a file of an earlier commit carry one too (P0.6's verifier,
+    # round 2, D1, MEASURED: a tree that 8afeede's gate passed failed, a binary file named in CJK characters listed
+    # and stdout redirected in cp1252). Where stdout cannot be reconfigured, it is left as it is: None, under pythonw
+    # or a closed descriptor, where print writes nothing, or a console's stream with no reconfigure (round 3, D1,
+    # MEASURED: reconfiguring it raised AttributeError, and a clean tree failed)
+    if hasattr(sys.stdout, "reconfigure"):
+        sys.stdout.reconfigure(errors="backslashreplace")
     sys.exit(control(ROOT) if "--control" in sys.argv[1:] else run(ROOT))

@@ -91,7 +91,7 @@ None.
    - MEASURED: the gate exits 0 while the real message holds the key.
    - BELIEVED: `git push` ignores replace refs. `--no-replace-objects` would close this.
 3. **[older; pattern coverage]** Two spellings pass.
-   - MEASURED: the forward-slash UNC to WSL (`//wsl$/Ubuntu/home/name`, which `Path.as_posix` produces), and an encodeURI drive path whose colon stays (`C:%5CUsers%5Cname`).
+   - MEASURED: the forward-slash UNC to WSL (`<a home path>`, which `Path.as_posix` produces), and an encodeURI drive path whose colon stays (`<a home path>`).
    - The JSON-twice-escaped and 8.3 forms are found.
 4. **[test reach, older]** The registry pins the lint stage's directories, not its program.
    - MEASURED (`scripts\t_lint_typo.sh`, `logs\t_lint_typo.log`): in a scratch copy I changed `python -m ruff check …` to `python - ruff check …`.

@@ -9,8 +9,9 @@ Nothing here is a hand-kept list (P0's verifier, P0-3):
     (the study's other .py files are its instruments, below);
   - a tool's checks are read from its own source: each of "--check" and "--control" it names, in either quote,
     and its plain run unless its source makes a mode required;
-  - a negative control's stage, which the runner marks MUST_FAIL, runs no tool's check: it proves the runner can
-    say no. So the twin's stage cannot be deleted with the control's line standing in for it;
+  - a negative control's stage, which the runner marks MUST_FAIL, runs no tool's check: it shows that the command
+    line still refuses its plant, not that the runner counts a failure (below). So the twin's stage cannot be
+    deleted with the control's line standing in for it;
   - a stage runs a tool, or a test directory, only as its program, after an optional `env NAME=VALUE ...`:
     `python [-I] TOOL ...` or `bash verify/pytest-stage.sh DIR [--ignore=DIR ...]`. A line that only names one
     (`echo python TOOL`, `python -c pass TOOL`) runs nothing of it, and counts for nothing;
@@ -33,8 +34,9 @@ lines are the pinned ones (round 3, note 7), its refusal of a `pytest_plugins` l
 parcel's test files carry its prefix, so two parcels' never share a name (round 1, D3). Each `need_file` guards
 the next stage the runner calls, which runs what it guards, a pytest stage its directory and a tool's stage its
 script; each `need_env` names a variable the runner reads elsewhere, in no comment, and gives a reason naming it;
-every guard is called in the one form these rules read (P0.3; P0.4); and the quick budget is every stage but the
-six CLAUDE.md names (round 2, note 4.1.2; round 3, note 5; P0.3).
+every guard is called in the one form these rules read (P0.3; P0.4); a stage that runs a directory or a tool the
+tree does not hold yet is guarded by a `need_file` of it (P0.4's verifier, round 4, note 6); and the quick budget
+is every stage but the six CLAUDE.md names (round 2, note 4.1.2; round 3, note 5; P0.3).
 A test no stage runs is reported among the files git would commit (stray_tests; P0.1's verifier, round 4, N2): a
 test file outside tests/, and a module under tests/ that pytest does not collect but that holds a line beginning
 `def test` or `class Test`, pytest's own naming. git runs here as in the privacy gate, without the variables git
@@ -43,8 +45,18 @@ lists that is not there is not
 read (G4); and the lint must name every top-level directory holding a .py file git would commit (G2).
 Stated limits (P0's verifier, round 4, notes 1 to 3): this reads the runner's text, not its run. So it cannot see
 a stage the shell never reaches (inside `if false`, after an `exit 0`), a tool's own flag that masks its exit
-(`--exit-zero`, `--help`), or the runner's own exit status. Each run prints a line for every stage it ran, and
-the negative control shows on every run that the runner can still fail. And a test module is code pytest runs:
+(`--exit-zero`, `--help`, or ruff's options anywhere on the lint line, `--ignore=ALL` among them: P0.6's
+verifiers, rounds 1 and 2), or the runner's own exit status. Each run prints a line for every stage it ran. The
+negative control shows on every run that the command line still refuses its plant, not that the runner counts
+a failure, since the control's verdict is inverted: so a test runs the runner itself on a copy whose one stage
+fails, which it must count and exit 1 for (P0.4's verifier, round 4, note 5). While a stage's tool is absent,
+which of its checks the stage runs is read by nothing here; once the tool exists, its own source says (note 6).
+A stage whose own line reads a variable is held to its `need_env` (env_unguarded). One whose tests read the
+variable, and whose line does not, is held by nothing here: p1-crates', p2-crates' and p4-shacl's. Deleting one of
+those passes, and the stage then fails where the variable is unset, loudly, rather than skipping by name; the tests of
+the guards' forms take p4-shacl's call as their text, so deleting that one fails them, though no rule asks for it
+(P0.6's verifiers, round 2, note 6, and round 3, D2).
+And a test module is code pytest runs:
 one written to reach into pytest's own state, past the stage script's refusal of `pytest_plugins`, can take
 tests out of its stage, and no pin here can stop it (P0.1's verifier, round 3, G3). stray_tests reads lines, not
 code: a test written `async def test`, `def  test` or after a byte-order mark on the first line is not seen; it
@@ -164,7 +176,8 @@ def git_env():
     (`git rev-parse --local-env-vars`) but its configuration's, GIT_CONFIG and those beginning GIT_CONFIG_. With
     GIT_DIR and GIT_WORK_TREE naming another repository, committed_files listed that one's files, and a stray test
     passed (P0.2's verifier, round 1, G5); dropping the configuration's too made git refuse a checkout it trusted
-    only through them (round 2). As the privacy gate's."""
+    only through them (round 2). As the privacy gate's, but for GIT_NO_REPLACE_OBJECTS, which the gate sets as it
+    reads objects and `git ls-files`, reading the index, does not need (P0.6's verifier, round 2, note 14)."""
     import subprocess
     local = subprocess.run(["git", "rev-parse", "--local-env-vars"], capture_output=True, text=True,
                            check=True).stdout.split()
@@ -365,6 +378,8 @@ def shape_problems(root, runner_text):
     python_dirs = {d for d in python_dirs if not d.startswith(".")}
     if len(lint) != 1 or not python_dirs <= set(lint[0].split()):
         out.append(f"the lint does not name every directory holding Python: {sorted(python_dirs)}")
+    elif lint[0].split()[:4] != ["python", "-m", "ruff", "check"]:      # P0.4's verifier, round 4, note 4: `python -`
+        out.append(f"the lint is not `python -m ruff check`: {lint[0].strip()}")   # read an empty program, lint ok
     twin = re.search(r'^stage twin "[^"]*" -- \\\n(.*)$', runner_text, re.M)
     if twin is None or twin.group(1).split()[-2:] != ["controls.plant", "twin"]:
         out.append("the twin's stage does not plant the twin")
@@ -468,11 +483,21 @@ def test_a_guard_called_in_another_form_is_caught(new):
     assert planted != RUNNER and guards_off_form(planted) == [new.split(chr(10))[0]], guards_off_form(planted)
 
 
-def test_a_comment_line_naming_a_guard_is_no_call():
+@pytest.mark.parametrize("indent", ["", "  ", chr(9), " " + chr(9) + " "], ids=["none", "blanks", "a tab",
+                                                                             "blanks and a tab"])
+def test_a_comment_line_naming_a_guard_is_no_call(indent):
     """P0.4's verifier, round 3: no comment of the runner names a guard, so the stripping of a comment line was
-    held by nothing."""
-    planted = RUNNER.replace('need_env QRO_SHACL_PYTHON "', '  # need_env QRO_SHACL_PYTHO "x"' + chr(10)
+    held by nothing; round 4, note 7: a comment line indented by a tab was held by nothing either."""
+    planted = RUNNER.replace('need_env QRO_SHACL_PYTHON "', indent + '# need_env QRO_SHACL_PYTHO "x"' + chr(10)
                              + 'need_env QRO_SHACL_PYTHON "', 1)
+    assert planted != RUNNER and guards_off_form(planted) == []
+
+
+def test_a_word_that_only_holds_a_guards_name_is_no_call():
+    """P0.4's verifier, round 4, note 7: the guard word's look-behind was held by nothing, since the runner's own text
+    holds no word ending in a guard's name; its look-ahead is held by `needs` in the runner's messages, and here."""
+    line = ": xneed_env pre-need_file need_envx need_file-y unneed"
+    planted = RUNNER.replace("stage study ", line + chr(10) + chr(10) + "stage study ", 1)
     assert planted != RUNNER and guards_off_form(planted) == []
 
 
@@ -624,6 +649,141 @@ def test_the_engines_line_changes_with_its_packages(tmp_path):
     assert failed[0] != failed[1] and not set(failed) & set(seen), failed
 
 
+def unguarded(root, runner_text):
+    """Each stage that runs a directory or a tool the tree does not hold, with no `need_file` of it among the guards
+    between it and the stage before: it would fail, not skip by name, until its parcel builds it (P0.4's verifier,
+    round 4, note 6: a guard deleted was required by nothing). Derived from the tree, not listed: once a parcel's
+    directory exists, its stage runs, guarded or not."""
+    out, guards = [], []
+    lines = runner_text.splitlines()
+    for i, line in enumerate(lines):
+        if GUARD_CALL.fullmatch(line):
+            guards.append(line.split('"')[0].strip())
+            continue
+        m = re.match(r'stage ([a-z0-9-]+) "[^"]*" -- \\$', line)
+        if m is None:
+            continue
+        words = lines[i + 1].split() if i + 1 < len(lines) else []
+        if "verify/pytest-stage.sh" in words:
+            ran = words[words.index("verify/pytest-stage.sh") + 1:][:1]
+        elif "python" in words:
+            ran = [w for w in words[words.index("python") + 1:] if w != "-I"][:1]
+        else:
+            ran = []
+        for path in ran:
+            if "/" in path and not path.startswith("-") and not (root / path).exists() \
+                    and f"need_file {path}" not in guards:
+                out.append(f"stage {m.group(1)} runs {path}, which the tree does not hold, and no need_file guards it")
+        guards = []
+    return out
+
+
+def test_each_stage_of_what_the_tree_does_not_hold_is_guarded():
+    assert unguarded(ROOT, RUNNER) == []
+
+
+@pytest.mark.parametrize("command", ["bash verify/pytest-stage.sh tests/pzz", "python tools/gen_pzz.py --check",
+                                     "python -I tools/gen_pzz.py --check"],
+                         ids=["a pytest stage", "a tool's stage", "a tool's stage, isolated"])
+def test_a_stage_of_what_the_tree_does_not_hold_without_its_guard_is_caught(command):
+    """Note 6's plant, on a stage of its own, so that it holds whatever the parcels have built: unguarded, it is
+    named; guarded by a need_file of what it runs, it is not; guarded by another's, it is named again."""
+    path = command.split()[-2] if command.endswith("--check") else command.split()[-1]
+    stage_text = 'stage pzz "a stage of what is not built" -- ' + chr(92) + chr(10) + "  " + command + chr(10) + chr(10)
+
+    def runner_with(guard):
+        return RUNNER.replace("stage control-tests ", guard + stage_text + "stage control-tests ", 1)
+    want = [f"stage pzz runs {path}, which the tree does not hold, and no need_file guards it"]
+    assert unguarded(ROOT, runner_with("")) == want
+    assert unguarded(ROOT, runner_with(f'need_file {path} "not built"' + chr(10))) == []
+    assert unguarded(ROOT, runner_with('need_file tests/pyy "not built"' + chr(10))) == want
+    early = RUNNER.replace("stage lint ", f'need_file {path} "not built"' + chr(10) + "stage lint ", 1)
+    assert unguarded(ROOT, early.replace("stage control-tests ", stage_text + "stage control-tests ", 1)) == want
+
+
+def env_unguarded(runner_text):
+    """Each stage whose own command reads a variable, with no `need_env` of it among the guards between it and the
+    stage before: it would run on an empty value where the variable is unset, not skip by name (P0.6's verifier,
+    round 3, D2: the instruments stage's line reads QRO_MOTH_ROOT, and deleting its guard passed every rule here). A
+    stage whose tests read a variable, and whose line does not, is read by no rule here (the limits above)."""
+    out, guards = [], []
+    lines = runner_text.splitlines()
+    for i, line in enumerate(lines):
+        call = re.fullmatch(r'need_env ([A-Za-z_][A-Za-z0-9_]*) "[^"]*"', line)
+        if call:
+            guards.append(call.group(1))
+            continue
+        m = re.match(r'stage ([a-z0-9-]+) "[^"]*" -- \\$', line)
+        if m is None:
+            continue
+        command = re.sub(COMMENT, "", lines[i + 1]) if i + 1 < len(lines) else ""
+        out += [f"stage {m.group(1)} reads {name} with no need_env {name} before it"
+                for name in re.findall(r"[$][{]?([A-Za-z_][A-Za-z0-9_]*)", command) if name not in guards]
+        guards = []
+    return out
+
+
+def test_each_stage_that_reads_a_variable_is_guarded_by_it():
+    assert env_unguarded(RUNNER) == []
+    assert re.search(r'^need_env QRO_MOTH_ROOT "[^"]*"' + chr(10) + r'stage instruments ', RUNNER, re.M) \
+        and '"${QRO_MOTH_ROOT:-}"' in RUNNER, "the instruments stage reads the variable it is guarded by"
+
+
+@pytest.mark.parametrize("plant", ["deleted", "moved before the stage before", "another variable's"])
+def test_a_stage_that_reads_a_variable_without_its_guard_is_caught(plant):
+    """D2's plant: the instruments stage's guard deleted, moved before the stage before, where it guards that stage
+    instead, or naming another variable; and a stage of its own that reads one unguarded."""
+    block = re.search(r'^need_env QRO_MOTH_ROOT "[^"]*"' + chr(10) + "stage instruments ", RUNNER, re.M).group(0)
+    guard, stage = block[:-len("stage instruments ")], "stage instruments "
+    if plant == "deleted":
+        planted = RUNNER.replace(block, stage, 1)
+    elif plant == "moved before the stage before":
+        planted = RUNNER.replace(block, stage, 1).replace("stage privacy-controls ", guard + "stage privacy-controls ", 1)
+    else:
+        planted = RUNNER.replace(block, guard.replace("need_env QRO_MOTH_ROOT ", "need_env QRO_SHACL_PYTHON ") + stage, 1)
+    assert planted != RUNNER
+    assert env_unguarded(planted) == ["stage instruments reads QRO_MOTH_ROOT with no need_env QRO_MOTH_ROOT before it"]
+    own = RUNNER.replace("stage study ", 'stage zzenv "a stage that reads a variable" -- ' + chr(92) + chr(10)
+                         + '  python tools/zz.py "$ZZ_VAR"' + chr(10) + chr(10) + "stage study ", 1)
+    assert env_unguarded(own) == ["stage zzenv reads ZZ_VAR with no need_env ZZ_VAR before it"]
+
+
+def lint_copy(tmp_path, source):
+    """A tree the runner's lint stage runs in: the runner, the root's pyproject.toml, and a Python file in each
+    directory the lint names, read from the runner's own lint line, qro/x.py holding `source`. A list written here
+    failed the clean case once the lint named another directory (P0.6's verifier, round 1, note)."""
+    dirs = [line for line in stage_lines(RUNNER) if "ruff check" in line][0].split()[4:]
+    assert "qro" in dirs, dirs
+    for d in dirs:
+        (tmp_path / d).mkdir(parents=True)
+        (tmp_path / d / "__init__.py").write_bytes(b"")
+    (tmp_path / "verify").mkdir(exist_ok=True)
+    for rel in ("verify/run.sh", "pyproject.toml"):
+        (tmp_path / rel).write_bytes((ROOT / rel).read_bytes())
+    (tmp_path / "qro" / "x.py").write_bytes(source.encode("ascii"))
+    return tmp_path
+
+
+@pytest.mark.parametrize("source, rc, summary", [("X = 1" + chr(10), 0, "passed 1, failed 0"),
+                                                 ("import os" + chr(10), 1, "passed 0, failed 1")],
+                         ids=["clean", "a lint fault"])
+def test_the_runner_counts_a_failing_stage_and_exits_one(tmp_path, source, rc, summary):
+    """P0.4's verifier, round 4, note 5: with a stage's failure counted as none, every test here passed and the runner
+    exited 0; the negative control did not see it, as its stage's verdict is inverted. So the runner itself runs, on a
+    copy whose one stage fails: it must count the failure, say FAILED and exit 1. The same copy clean passes, so the
+    test is no straw man. It needs ruff in the interpreter, as the lint stage does (P0.6's verifier, round 2,
+    note 8)."""
+    import subprocess
+    import sys
+    root = lint_copy(tmp_path, source)
+    env = dict(os.environ, PATH=os.path.dirname(sys.executable) + os.pathsep + os.environ.get("PATH", ""))
+    for k in ("QRO_MOTH_ROOT", "QRO_SHACL_PYTHON", "STATEROOT"):
+        env.pop(k, None)
+    r = subprocess.run([runner_bash(), "verify/run.sh", "--only", "lint"], cwd=root, capture_output=True, text=True,
+                       env=env)
+    assert r.returncode == rc and summary in r.stdout and ("== FAILED" in r.stdout) is bool(rc), r.stdout[-800:]
+
+
 def quick_problems(runner_text):
     """CLAUDE.md: the quick budget is "all but study-plants, privacy-controls, instruments, p1-crates, p2-crates and
     p4-shacl" (round 2, note
@@ -699,7 +859,7 @@ def test_pytests_own_configuration_is_what_the_stages_assume():
 # The SHA-256 of verify/pytest-stage.sh's command lines, comments and blank lines left out: any line added to the
 # script, or changed, fails here until this is changed with it, on purpose (P0.1's verifier, round 3, note 7: an
 # `export PYTEST_ADDOPTS=...` added after the unset passed every named pin).
-STAGE_COMMANDS_SHA256 = "4b8df591bfad394a8a35a15acde5da9f35792a5f2b222b553e889e323f47d261"
+STAGE_COMMANDS_SHA256 = "591ed19eff1d3732cf21591e2eeeb22d6123244869759e626f5b08292b287774"
 
 
 def stage_commands(stage_text):
@@ -1041,8 +1201,10 @@ def test_a_second_negative_control_is_held_too():
     (("bash verify/pytest-stage.sh tests/custody\n", "bash verify/pytest-stage.sh tests/custody --deselect x\n"),
      "another option"),
     (("ruff check qro controls tools tests", "ruff check qro"), "every directory holding Python"),
+    (("python -m ruff check qro", "python - ruff check qro"), "is not `python -m ruff check`"),
     (("python -m controls.plant twin", "python -m controls.plant shot-moved"), "does not plant the twin")],
-    ids=["MUST_SAY emptied", "MUST_SAY a letter", "MUST_SAY no name", "MUST_SAY another name", "-k added", "--deselect added", "the lint cut to the package", "the twin made the control"])
+    ids=["MUST_SAY emptied", "MUST_SAY a letter", "MUST_SAY no name", "MUST_SAY another name", "-k added",
+         "--deselect added", "the lint cut to the package", "the lint run as no program", "the twin made the control"])
 def test_each_shape_plant_is_caught(plant, problem):
     planted = RUNNER.replace(*plant, 1)
     assert planted != RUNNER

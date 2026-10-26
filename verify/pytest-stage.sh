@@ -1,7 +1,8 @@
 #!/bin/bash
 # Copied from moth-quantum's verify/pytest-stage.sh at 3a73823 (study QRO-0, section 13's floor), unchanged below
-# this line but for QRO-Crate's refusal of a pytest_plugins line, below, and three options on the pytest line
-# (P0.1's verifier, rounds 1 to 3):
+# this line but for QRO-Crate's refusal of a pytest_plugins line, below; its last message, which names the
+# runner's guards, need_file and need_env, the runner having no `need` (P0.4's verifier, round 4, note 9); and
+# three options on the pytest line (P0.1's verifier, rounds 1 to 3):
 #   - `-c pyproject.toml`: pytest reads the root's pyproject.toml and no other configuration file. Without it,
 #     pytest takes the first one it finds among the test directory's ancestors, so a pytest.ini under tests/
 #     took 327 tests out of their stage, which still passed (round 1, D1). With it, the rootdir is the root
@@ -56,7 +57,7 @@ if printf '%s\n' "$summary" | grep -Eq 'failed|error'; then
 fi
 if printf '%s\n' "$summary" | grep -Eq 'skipped|xpassed|deselected'; then
   echo "pytest-stage: the summary names a test this stage did not hold to a verdict: $summary"
-  echo "pytest-stage: skip at stage level instead (need/need_file/need_env in verify/run.sh)"
+  echo "pytest-stage: skip at stage level instead (need_file/need_env in verify/run.sh)"
   exit 1
 fi
 exit 0

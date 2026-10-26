@@ -12,11 +12,17 @@
 #     every note, for QRO-Crate's longer stage names, and --list puts a space
 #     after it;
 #   - comments that named Quantum-Film's own files or variables are reworded,
-#     but for one, two lines on its golden stage above `packages=`, deleted.
+#     but for one, two lines on its golden stage above `packages=`, deleted;
+#   - the command guard `need`, which nothing here called, is gone (P0.4's
+#     verifier, round 3): need_file and need_env are kept.
 # It keeps what the template argues for:
 #   §3  a negative-control stage that must FAIL, for the reason it plants, and
 #       fails the run if it passes; its positive twin must pass. So the runner
-#       proves on every run that it can say no, and that it can say yes;
+#       proves on every run that QRO-Crate's command line can say no to the
+#       control's fault, and yes to its twin. That the runner counts any other
+#       stage's failure, and exits 1 for it, the control's inverted verdict
+#       cannot show: tests/docs/test_stage_registry.py runs the runner on a
+#       copy whose lint fails (P0.4's verifier, round 4, note 5);
 #   §4  the stage list is DERIVED from this file's own `stage` calls; there is
 #       no second list to drift;
 #   §5  every skip is printed BY NAME with a reason, and a skip happens only
@@ -397,7 +403,7 @@ stage study "study QRO-0's own gate: draft numbers, tables, section references, 
 stage study-plants "the study's gate, held to the failure each planted fault targets" -- \
   python -I docs/studies/qro0/check_study_plants.py docs/studies/QRO-0.md
 
-stage privacy "none of the gate's shapes of home path, address or key in a file git would commit, or a commit message" -- \
+stage privacy "none of the gate's shapes of home path, address or key in a file git would commit, a blob of an earlier commit, or a commit message" -- \
   python tools/check_privacy.py
 
 stage privacy-controls "the privacy gate catches each planted path, address and key" -- \

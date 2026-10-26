@@ -6,10 +6,12 @@ README says what this project is; this file says what will bite you.
 ## Start here: one command answers "does it still hold?"
 
 ```
-bash verify/run.sh --budget quick   # ~70 s: all but study-plants, privacy-controls, instruments, p1-crates,
-                                    #   p2-crates and p4-shacl
-bash verify/run.sh                  # ~125 s, every stage; instruments, p1-crates and p2-crates skip BY NAME
-                                    #   without QRO_MOTH_ROOT, p4-shacl without QRO_SHACL_PYTHON
+bash verify/run.sh --budget quick   # ~70 s idle (2026-10-16), ~170 s beside other work (2026-10-19): all
+                                    #   but study-plants, privacy-controls, instruments, p1-crates, p2-crates
+                                    #   and p4-shacl
+bash verify/run.sh                  # ~125 s idle (2026-10-16), 150 to 365 s beside other work (2026-10-19):
+                                    #   every stage; instruments, p1-crates and p2-crates skip BY NAME without
+                                    #   QRO_MOTH_ROOT, p4-shacl without QRO_SHACL_PYTHON
 bash verify/run.sh --list           # every stage, with * on what a budget selects
 ```
 
@@ -94,11 +96,15 @@ that reading cannot see.
    ALTERNATIVES table names, each with its own planted control: CRNs, IBM
    ids and accounts, named keys, bearer tokens, JWTs, Moth keys, presigned
    URLs, personal addresses and home paths. It reads every file git would
-   commit, UTF-16 included, and every commit message, and lists any binary
-   file it could not read by name. So a test's fixture shaped like a key, a
-   CRN, an address or a home path is built at run time, in pieces, as the
-   gate's own plants are (`"QISKIT_IBM_" + "TOKEN="`), never written whole in
-   a file (P0.1's verifier, round 4, N8).
+   commit, UTF-16 included, every blob of HEAD's history and every commit
+   message, and lists any binary file it could not read by name. A home
+   path, an address or a key committed and then deleted is still pushed, so
+   the gate fails on it until that history is rewritten, before a push; once
+   pushed and judged no secret, its blob is named in the gate's KNOWN (P0.6).
+   So a test's fixture shaped like a key, a CRN, an address or a home path is
+   built at run time, in pieces, as the gate's own plants are
+   (`"QISKIT_IBM_" + "TOKEN="`), never written whole in a file (P0.1's
+   verifier, round 4, N8).
 4. **Real QPU work is Logan's word, and is held until the M1 prototype
    exists** (study QRO-0, section 13). Read-only use of the key is cleared.
 5. **Nothing is committed or pushed without Logan's word.**

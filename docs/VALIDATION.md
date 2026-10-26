@@ -2973,3 +2973,415 @@ P1.2, the producer side, is not built: the records, the generators, the adapter,
   copy a job ran is accepted while another copy keeps the digest;
 - the cost table on P1.2's own page, where p1_steps.py is to point;
 - step 5's time on a result at the reader's cap, 6.1 s, tallying the rows for the verdict and again for each PUB.
+
+## 2026-10-19 - P0.5 committed; P0.6: P0.4's fourth verifier's ten notes
+
+**P0.5 is committed as 8afeede** and pushed to origin main, on Logan's standing word of 2026-10-16. The runner
+passed on the committed tree: 17 stages, 7 skipped by name, in 187 s of stage time beside other work. Its fourth
+verifier's notes are P0.7's, the lead's piece after this one.
+
+**What P0.6 is.** It is the lead's own piece after P0.5, and takes the ten notes P0.4's fourth verifier left, none of
+which blocked (the entry "P0.4's fourth verifier: READY, on the relaxed bar"). It was begun before the weekend on
+P0.5's first packet, rebuilt on its second, third and fourth, and applied to P0.5's commit. Nothing in it touches
+P0.5's files.
+
+**The privacy gate** (tools/check_privacy.py):
+- **Note 1, the history.** A push sends every commit's tree, so a key committed and then deleted in a later commit is
+  pushed, though no file and no staged version holds it. The gate now reads every blob of HEAD's history that the
+  index does not hold.
+  - `git rev-list --objects HEAD` lists them, `git cat-file --batch-check` keeps the blobs, and
+    `git cat-file --batch` reads each once.
+  - A finding names its path and its blob, as `notes.md (history 1a2b3c4)`. A binary blob is listed by name.
+  - git failing to list or read the history is a finding. A blob git lists and then does not hold is read as
+    missing, a finding too. git rev-list itself fails on a real missing blob, so that blob is a finding that way
+    first (MEASURED); the second arm is held by a simulated listing.
+- **Known findings.** A finding in a blob already pushed, which no commit can take back, is listed as known where the
+  gate's `KNOWN` table names its blob and its alternative. Each was read and judged no secret.
+  - It names two: P0.4's round4.md as pushed in 20d40e6, whose verifier quoted the two spellings note 3 adds, each
+    with the placeholder name `name`.
+  - The current round4.md holds both redacted as `<a home path>`, and docs/reviews/P0.4/README.md says so.
+  - A test holds that each entry's alternative finds something in its blob, wherever git holds the blob. A copy
+    whose history does not reach the blob, a shallow clone or a fresh `git init`, holds none, and the gate reads
+    none there. On this repository's history, a wrong entry would leave the blob's findings unknown, and the
+    privacy stage would fail.
+- **Note 2, replace refs.** Every git the gate runs ignores replace refs (`GIT_NO_REPLACE_OBJECTS=1`), as a push does.
+  A replace ref no longer shows the gate another message than the one pushed.
+  - A side effect (MEASURED): with packed-refs corrupt, `cat-file` no longer fails, as it was looking up replace
+    refs. So the staged reader's arm for a `cat-file` failure is reached by no real repository now, and its test
+    simulates the failure.
+- **Note 3, two spellings,** each with its plant:
+  - `wsl-unc-slash`, a UNC path to WSL with forward slashes, as `Path.as_posix` writes it;
+  - `url-quoted-drive`, a drive path percent-encoded with its colon kept.
+
+  Neither alternative finds a URL whose host is named wsl, nor a scheme ending in a letter before an encoded path.
+- **Notes 7 and 8, pipes.** A symbolic link to a pipe is read as its text, so the link check's place before the pipe
+  check is held. The pipe test makes a real pipe where the host can (`os.mkfifo`), and simulates one on Windows.
+- **The docstring** says what the gate reads now, and states the limit: only HEAD's history is read. Another branch,
+  a tag, a stash or a note, which `git push` sends only when asked to, is not.
+
+**The runner and the registry:**
+- **Note 4.** The registry pins the lint stage's program, `python -m ruff check`, with a plant. Before,
+  `python - ruff check` read an empty program and printed lint ok.
+- **Note 5.** A test runs the runner itself, on a copy whose one stage, the lint, fails. The runner must count the
+  failure, say FAILED and exit 1; the same copy clean must pass.
+  - The runner's header (its section 3) and the registry's docstring no longer say the negative control shows that
+    the runner can fail. Its verdict is inverted, so it shows only that the command line still refuses its plant.
+- **Note 6.** A stage that runs a directory or a tool the tree does not hold yet must be guarded by a `need_file` of
+  it.
+  - The rule is derived from the tree, not listed.
+  - It is tested with a stage of its own, so that it holds whatever the parcels have built.
+  - A stated limit: while a stage's tool is absent, which of its checks the stage runs is read by nothing.
+- **Note 7, the rest.** Neither of these is a guard call:
+  - a comment line indented by a tab, or by blanks and a tab;
+  - a word that only holds a guard's name (`xneed_env`, `pre-need_file`, `need_envx`).
+
+  The verifier's other two survivors are each right as shipped, and stated: `2>&1` in `packages`, and the failure
+  token's parts.
+- **Note 9.** verify/pytest-stage.sh's last message names the runner's two guards, `need_file` and `need_env`. Its
+  header says so, and the registry's pin of its command lines follows. The runner's header lists `need`'s removal
+  among its departures from moth-quantum's runner.
+- **Note 10.** CLAUDE.md's timings keep their idle figures, ~70 s and ~125 s, now dated 2026-10-16. Beside them it
+  gives what was measured beside other work on 2026-10-19: about 170 s for the quick budget, and 150 to 365 s for the
+  whole runner. The longest, 364 s, was P0.6's own run on P0.5's fourth packet, beside P0.5's fourth verifier and
+  P1.1's builder. Every stage took about twice as long as in its run on P0.5's second packet that morning, 195 s. The
+  idle figures predate P0.4's, P0.5's and P0.6's tests. The owner's word that several sessions share the machine made
+  a quiet one no condition of measuring.
+
+**Measured, by the lead:**
+- **30 hand mutants** (m_p06.py), each killed by its targeted test, 30 of 30 again on the tree as frozen (mut_p06c.log):
+  - the history not read, or its listing's failure no finding;
+  - the index's blobs read again, trees read as blobs, a blob git does not hold dropped;
+  - a binary blob made a failure, or an unreadable one passed over;
+  - a finding not counted;
+  - every finding known, none, or a known blob's every finding;
+  - replace refs read;
+  - each spelling gone, matched inside a word, or its backslash's code unread;
+  - the pipe check before the link check, or a pipe read;
+  - the lint's program unpinned;
+  - a failing stage not counted, or the runner exiting 0 on one;
+  - the guard rule never firing, firing on paths the tree holds, keeping guards from stage to stage, or reading no
+    tool's stage;
+  - a tab-indented comment line read;
+  - the guard word without its look-behind or its look-ahead;
+  - `need` named again in the stage script.
+
+  The first pass, of 29, left two alive, and each was taken. Trees read as blobs went unseen, since no test had a
+  directory: the binary-blob test now holds one, and that no tree is listed. A blob git does not hold was dropped
+  before the reader saw it, an arm no real repository reached: such a blob is now read as missing, a finding, and a
+  test simulates the listing.
+- **Found before freezing, both MEASURED:**
+  - **The check of the known list** first asked git for each blob, and failed if git had none. So the tool-tests
+    stage failed in a fresh `git init` of the tree. It would also have failed in a shallow clone made after P0.6's
+    commit, since no such blob is there.
+    - Now an entry is held only where git holds its blob.
+    - A test runs the check in a repository without the blob, and the old check, put back, fails that test.
+    - A control holds that the check catches an entry whose alternative finds nothing, and one that names no
+      alternative.
+    - In a depth-1 clone of a scratch commit of P0.6, which holds no such blob, the docs, tool-tests, privacy
+      and privacy-controls stages pass (run 20261019-090713-52996).
+  - **The gate on the unstaged change.** With P0.6 applied to the checkout but not staged, the gate failed: the
+    index still held round4.md as pushed, and a plain `git commit` would have taken that version. Once the change
+    was staged, it passed. This is P0.4's staged-version reader at work on this repository.
+- **The runner** on the tree as frozen but for this entry: run 20261019-090657-52800, 17 stages passed and 7
+  skipped by name, 199 s of stage time beside other work.
+  - 1,342 tests, 24 more than P0.5's: docs 175, tool-tests 142, vocab-tests 12, format 958, custody 23,
+    control-tests 32.
+  - The privacy gate read 265 files, 6 commit messages and 113 versions in earlier commits, and listed the two
+    known findings.
+
+**Next:** P0.6's verifier, on Sonnet and the full bar.
+
+## 2026-10-19 - P0.6's first verifier: NOT READY, two defects in the history reader, and the fixes
+
+**The verdict** (docs/reviews/P0.6/round1.md): NOT READY, on the full bar, the first of three.
+- **D1, code and a gate.** `git rev-list --objects` cuts a path at its first line feed. So a top-level name that
+  begins with one is listed empty, as the root tree is, and the history reader dropped both alike.
+  - A key committed under such a name and deleted in a later commit passed the gate, though a push sends it
+    (MEASURED by the verifier with `git pack-objects`).
+  - Its fuzz missed only such names: 42 of 80 repositories here, 27 of 60 under WSL.
+  - The reader's comment said such a path "leaves a line that is no oid". git cuts it instead.
+- **D2, code and a gate.** `git rev-list --objects HEAD` without `--` is ambiguous where a file or a directory named
+  HEAD is at the root (or `head`, where case is ignored). git refused the listing, and the gate failed a clean tree.
+  It failed closed, so no key passed.
+- **D3, prose.** The entry above, and a test's docstring, said the staged reader's `cat-file` failure is reached by no
+  real repository. A staged loose object cut to half its length reaches it: `git ls-files` reads the index, and
+  `git cat-file --batch` fails.
+- **D4, prose.** The registry's docstring still said the negative control "proves the runner can say no". The entry
+  above said that claim was gone.
+- **What held** (MEASURED by the verifier):
+  - its history fuzz over 460 repositories (branches, merges, renames, links, gitlinks, odd names, encodings) found
+    no other miss, against an independent route through `ls-tree`;
+  - missing, cut or garbage objects each fail closed;
+  - SHA-256 repositories, linked worktrees and shallow clones work;
+  - replace refs and grafts show the gate what a push sends;
+  - the known list excuses only its two findings, in one blob, and that blob's other bytes hold no secret;
+  - the runner passed in four trees, shallow clones among them, and the lead's 30 mutants were killed again.
+
+**The fixes:**
+- **D1.** A line of the listing is kept wherever it holds a space after the object id. A commit has none, and a tree
+  or a blob always has one, its path cut at the first line feed. An empty path is named `(a path beginning with a
+  line feed)`; the root tree, also empty, is a tree and is not read.
+  - A test builds such a commit from objects, since no file system here holds the name, and checks that git lists
+    it empty. The gate finds the key.
+- **D2.** The revision is ended by `--`. A test holds a file named HEAD, one named head, and a directory named HEAD,
+  each with a second commit so that the history is read.
+- **D3.** The test makes the failure for real, from a cut loose object, and checks that `git ls-files` still reads
+  the index. In the entry above, "is reached by no real repository now" is to be read as reached only by an object
+  git cannot read.
+- **D4.** The docstring says the negative control shows that the command line still refuses its plant, not that the
+  runner counts a failure.
+
+**Its notes, taken:**
+- **Test reach, where the code was right:**
+  - a replace ref on a blob of the history;
+  - git's variables naming another repository while the gate reads its own history;
+  - a SHA-256 repository's history;
+  - the known list on the same bytes as a current file, and as a staged version, each still a finding.
+- **The two spellings,** their forms and edges each held:
+  - `wsl-unc-slash`: its `.localhost` form, and each character of its lookbehind;
+  - `url-quoted-drive`: doubled separators, the `%2F` branch, and the name it requires (an encoded placeholder
+    passes).
+- **Two gaps closed:**
+  - `url-quoted-drive` is found after an escape such as `%20`, which ends in a digit, as encodeURI leaves a path
+    after a space;
+  - a new alternative, `wsl-file-url`, with its own plant, finds a file URL to the WSL host's home, as a browser or
+    `Path.as_uri` writes one. A URL of another scheme to that host is not one.
+- **Prose:**
+  - CLAUDE.md item 3 and the privacy stage's text say the gate reads every blob of HEAD's history. CLAUDE.md adds what
+    a contributor who commits a path and deletes it meets: the gate fails until that history is rewritten, before a
+    push.
+  - The gate's docstring states two more limits. History's blobs are read into memory at once, at about 1.5 MB/s:
+    120 versions of 1 MB took 78 s and 380 MB. And a partial clone fetches the blobs it lacks from its remote, failing
+    where that remote cannot be reached.
+  - The registry's stated limits name ruff's options after the lint's directories beside `--exit-zero`.
+- **lint_copy** reads the lint's directories from the runner's own line, so a new directory there no longer fails the
+  clean case.
+- **Two clarifications:**
+  - "Nothing in it touches P0.5's files" in the entry above means no line P0.5 wrote. CLAUDE.md and VALIDATION.md are
+    files both pieces change, in other places.
+  - CLAUDE.md's 150 s is P0.5's round-1 run, 151 s ("P0.5's first verifier" above).
+
+**Not taken, for P0.7:**
+- a file name outside the console's code page crashing the gate's last print, where stdout is not UTF-8 (older than
+  P0.6; the runner sets the encoding);
+- ruff's options after the lint's directories, to be pinned word for word.
+
+**Measured, by the lead:**
+- **47 hand mutants** (m_p06_r1.py), each killed by its targeted test, 47 of 47 (mut_p06_r1.log).
+  - The first 30 are P0.6's own, their texts moved where the fixes moved them.
+  - The 17 new ones are the fixes and the notes:
+    - the line feed's name dropped, or left unnamed;
+    - HEAD not ended by `--`;
+    - the staged arm's failure no finding;
+    - history read with replace refs, or listed with git's variables kept;
+    - 40 hex digits only;
+    - each spelling's new form, edge and name;
+    - the file URL's alternative gone, its encoded dollar, or any scheme.
+- **The runner** on the tree as frozen but for this entry: run 20261019-104842-22255, 17 stages passed and 7
+  skipped by name, 187 s of stage time beside other work.
+  - 1,365 tests, 23 more than the entry above: docs 175, tool-tests 165, vocab-tests 12, format 958, custody 23,
+    control-tests 32.
+  - The privacy gate read 267 files, 6 commit messages and 115 versions in earlier commits, and listed the two
+    known findings.
+  - With the fixed gate, P1.1's 21 files and P4's 51 hold no finding.
+
+**Next:** P0.6's second verifier, on Sonnet and the full bar, after the pause.
+
+## 2026-10-25 - P0.6's second verifier: NOT READY, a name the console cannot write; the fixes
+
+**Where P0.6's entries sit.** The two entries above were written on 2026-10-19, and are laid here as P0.6's two
+verifiers read them. P1.1 was merged first, as 37640f0, since it was READY and P0.6 was not; its entry sits before
+them. No file of P1.1's is P0.6's.
+
+**The verdict** (docs/reviews/P0.6/round2.md): NOT READY, on the full bar, the second of three.
+- **D1, code and a gate.** A file name the output's code page cannot write crashed the gate's last print.
+  - The case: stdout redirected, so written in cp1252, and a binary file named in CJK characters, committed and then
+    deleted.
+  - 8afeede's gate passed that tree. P0.6's prints the names only an earlier commit holds, so it exited 1, on a
+    UnicodeEncodeError.
+  - It failed closed. The runner sets PYTHONIOENCODING, so it was immune, and this repository's history holds no
+    such name.
+- **D2, prose.** The entry above calls that crash "older than P0.6". That is true of a file in the tree, and false
+  of a name only an earlier commit holds.
+- **What held** (MEASURED by the verifier):
+  - round 1's fixes, over 44 awkward names, and the first verifier's fuzz on fresh seeds;
+  - 19 kinds of object damage, 40 git configurations, and replace refs of a commit, a tree or a blob;
+  - the known list, and the three spellings over a corpus of their comments' own words;
+  - shallow clones of depth 1 and 2, and WSL;
+  - the lead's 47 mutants, killed again.
+
+**The fixes:**
+- **D1.** The gate's command line writes what its output cannot encode as an escape (`errors="backslashreplace"`).
+  A process test runs it with `PYTHONIOENCODING=cp1252`, on a binary file named in CJK characters, once in the tree
+  and once in an earlier commit only. Each run passes and names the file as `中文.bin`. The entry above
+  left this for P0.7 ("Not taken, for P0.7"), and it moves here.
+- **D2.** In the entry above, "older than P0.6" is to be read as true of a file in the tree alone. For a name only an
+  earlier commit holds, P0.6's history reader made the crash, and D1's fix ends it.
+
+**Its notes, taken:**
+- **Test reach, where the code was right:**
+  - history's `cat-file --batch` failure arm, from a loose object of an earlier commit cut to half its length: git
+    still lists it and reads its type, and the batch read fails (note 1);
+  - the replace flag on `rev-list` and on `cat-file --batch-check`: a key committed and deleted, then its commit
+    replaced by one with no key, or its blob by a tree (note 2). Each case checks first that the replace ref took.
+- **The spellings' edges, each held** (note 4):
+  - `wsl-file-url`: a URL to `/users/`, found; a placeholder for the name, a URL inside a word, and one with no
+    distribution, each passed;
+  - `url-quoted-drive`: two hex letters with no percent sign before them, and a digit before the drive letter, each
+    passed;
+  - `wsl-unc-slash`: a longer host, `wsl.localhost.example.org`, passed.
+- **The `need_env` half of P0.6's note 6, stated, not derived** (note 6). The lead had meant to derive it as the
+  `need_file` rule is: a stage whose line reads `${NAME:-}` is guarded by `need_env NAME`. But no stage's line reads
+  its variable; the stage's tests do. So the registry's docstring says what is left: deleting a `need_env` passes, and
+  the stage then fails where the variable is unset, loudly, rather than skipping by name.
+- **Prose:**
+  - the registry's limit: ruff's options "anywhere on the lint line" (note 7);
+  - the runner test's need of ruff and the SHA-256 test's of git 2.29, each stated in its docstring (notes 8 and 9);
+  - CLAUDE.md item 3: "a home path, an address or a key committed and then deleted" (note 13);
+  - the registry's `git_env` docstring: the gate also sets GIT_NO_REPLACE_OBJECTS, which `git ls-files` does not
+    need (note 14);
+  - the gate's limit on names that are not UTF-8: a path of HEAD's history is read, its name decoded with
+    replacement (note 15).
+
+**Not taken, for later:**
+- a test of a history path that is not UTF-8 (note 3; the code reads one, MEASURED by the verifier);
+- the guard rule on the `env NAME=VALUE python TOOL` form (note 5);
+- `jwt`'s cost on a crafted run of `-eyJ`, which grows as its square (note 10; older than P0.6);
+- a name that begins with a percent-encoded character, which every URL spelling misses (note 11; older).
+
+Note 12 found the cost limit true, and asks for nothing.
+
+**Measured, by the lead:**
+- **11 hand mutants** (m_p06_r2.py), each killed by its targeted test, 11 of 11 (mut_p06_r2.log): D1's output written
+  strictly; history's batch arm returning no finding; `rev-list`, and `batch-check`, honouring replace refs; and
+  the seven spelling edges.
+- **Round 1's 47** (m_p06_r1.py), killed again on this tree, 47 of 47 (mut_p06_r1_on_r3.log).
+- **The runner** on the tree as frozen but for this entry's figures: run `20261025-230418-12265-37640f0+dirty`, 18
+  stages passed and 6 skipped by name, 229 s of stage time beside P4's run and other work.
+  - 2,546 tests, 59 more than at P1.1's merge: docs 175, tool-tests 177, vocab-tests 12, format 958, custody 23,
+    control-tests 32, p1 1,169.
+  - The privacy gate read 294 files, 7 commit messages and 118 versions in earlier commits, and listed the two
+    known findings.
+
+**Next:** P0.6's third verifier, on Sonnet and the full bar, the third of three.
+
+## 2026-10-26 - P0.6's third verifier: NOT READY, a gate with no stdout; the cap reached; the fixes
+
+**The verdict** (docs/reviews/P0.6/round3.md): NOT READY, on the full bar, the third of three.
+- **D1, code and a gate, a regression.** Round 2's fix reconfigured stdout on every run. Where stdout is None
+  (pythonw, or a closed descriptor) or a stream with no `reconfigure` (a console's StringIO), it raised an
+  AttributeError, and a clean tree failed that 37640f0's gate passed. It failed closed, and the runner, which gives
+  stdout a file, was immune.
+- **D2, prose.** The entry above says that no stage's line reads its variable, and the registry's docstring says the
+  same. That is false of the instruments stage, whose line passes `${QRO_MOTH_ROOT:-}` to its tool, so the rule was
+  derivable there. And "deleting one passes here" was not true of p4-shacl's call, which the tests of the guards'
+  forms take as their text.
+- **What held** (MEASURED by the verifier):
+  - the freeze, and the runner in three copies, a clone with the real history among them: 18 stages passed and 6
+    skipped by name, 2,546 tests;
+  - D1's escape under 14 code pages, with stdout a pipe, a file or NUL, in both modes;
+  - the history reader against what a push sends: on the real clone, 412 blobs, 118 of the history and 294 of the
+    index, none missed and none extra;
+  - merges, octopuses, tags and reverts; line feeds and carriage returns in names, and 11 names not in UTF-8; UTF-16
+    and UTF-32 blobs and one of 20 MB; shallow clones of depth 1 to 5;
+  - the known list: its one blob and its two findings, and no excuse for the same bytes anywhere else;
+  - real encoders against the three spellings;
+  - 39 of its 45 mutants killed, the 6 survivors its notes and D2.
+- **The cap.** This is the third NOT READY, each on reasons narrower than the last. So P0.6's fourth verifier blocks
+  only on a defect in what the code does (CLAUDE.md item 6).
+
+**The fixes:**
+- **D1.** stdout is reconfigured where it can be, and left as it is where it cannot. Where it is None, print writes
+  nothing, as before P0.6. A process test runs the gate as `__main__` with stdout None and with a StringIO, in both
+  modes.
+- **D2.** The rule is derived where a stage's line gives it something to read.
+  - `env_unguarded`, in the registry, holds each stage whose own command reads a variable to a `need_env` of that
+    variable among the guards since the stage before. Today that is the instruments stage.
+  - Its plants: the guard deleted, moved before the stage before, or naming another variable; and a stage of its own
+    that reads one unguarded.
+  - The registry's docstring states the residual as p1-crates', p2-crates' and p4-shacl's, and says why deleting
+    p4-shacl's fails the tests of the guards' forms.
+  - In the entry above, "no stage's line reads its variable" is to be read as true of those three alone.
+
+**Its notes, taken as tests:**
+- a key under a history name that is not UTF-8 (`caf`, the byte 0xE9, `.md`), committed and deleted, is found, and
+  named with U+FFFD (note 1, and round 2's note 3);
+- history's `cat-file --batch-check` arm, simulated, since no damage reaches it once the listing has passed (note 2);
+- `url-quoted-drive` after a percent sign and no hex pair passes (note 3).
+
+**Not taken, for later:**
+- note 4: privacy-controls do not watch the history reader, though tool-tests do, and nothing says otherwise;
+- notes 5 to 7: an encoded space before a POSIX home path; a drive path whose encoded name begins with a non-ASCII
+  letter; `quote()` of a WSL path, and a file URL through the WSL host's `/mnt/c`. Each is older than P0.6, or within
+  "encoded other than as a listed alternative says".
+
+Notes 8 to 10 ask for nothing.
+
+**Measured, by the lead:**
+- **8 hand mutants** (m_p06_r3.py), each killed by its targeted test, 8 of 8 (mut_p06_r3.log):
+  - the reconfigure unguarded, and its guard inverted;
+  - history's batch-check arm returning no finding, and a history path decoded strictly;
+  - the lookbehind's percent pair widened to letters;
+  - `env_unguarded` keeping guards across stages, flagging no read, or counting any guard.
+- **The runner** on the tree as frozen but for this entry's figures: run `20261026-042014-37475-37640f0+dirty`, 18
+  stages passed and 6 skipped by name, 269 s of stage time beside three builds.
+  - 2,557 tests, 11 more than the entry above: docs 179, tool-tests 184, vocab-tests 12, format 958, custody 23,
+    control-tests 32, p1 1,169.
+  - The privacy gate read 295 files, 7 commit messages and 118 versions in earlier commits, and listed the two
+    known findings.
+
+**Next:** P0.6's fourth verifier, on Sonnet, blocking only on a defect in what the code does.
+
+## 2026-10-26 - P0.6's fourth verifier: READY, on the relaxed bar
+
+**The verdict** (docs/reviews/P0.6/round4.md): READY, on the relaxed bar the cap sets, where only a defect in what the
+code does blocks. It found none that P0.6 made or changed, and round 3's D1 and D2 hold.
+
+**What held** (MEASURED by the verifier):
+- the freeze, and the tree equal to the staged versions, byte for byte;
+- the runner in a `git init` copy and in a clone with the real history: 18 stages passed and 6 skipped by name,
+  2,557 tests. A copy with no .git, and a clone of depth 1, passed the stages that read git;
+- D1:
+  - 12 shapes of stream in-process, in both modes;
+  - real processes: stdout a file, an appended file, NUL, a pipe, or closed by Git Bash's `>&-`; 13 values of
+    `PYTHONIOENCODING`, UTF-8 mode, legacy stdio, unbuffered;
+  - Python 3.13.5, `-W error` and `-X dev`;
+- D2: `env_unguarded` flags exactly the deletion of the instruments stage's guard;
+- the history reader:
+  - 400 repositories built from plumbing (exotic names, gitlinks, merges), against `ls-tree` over every commit, with no
+    problem found;
+  - 160 repositories against 37640f0's gate, with no difference outside the history;
+  - damaged objects, packs, replace refs, partial and shallow clones of depth 1 to 9, reftable, linked worktrees;
+  - cost linear in commits;
+- the known list, its one blob and its two findings;
+- the lead's mutants of rounds 1 to 3, killed again, but for one of round 1's whose text now occurs twice.
+
+**Defects older than P0.6, and one contrived:**
+- **O1:** a clean sparse checkout is refused. Each tracked file it leaves out is a finding, `unreadable:
+  FileNotFoundError`, though the staged reader reads the index's version of it.
+- **O2:** a closed stdin (`<&-`) crashes the gate in its first git call, with WinError 6. It is round 3's D1 for stdin.
+- **O3:** `jwt` is quadratic on a crafted run of `-eyJ` (1 MB in 534 s). This is round 2's note 10; P0.6 applies it to
+  the history too.
+- **O4:** a stream whose `reconfigure` exists and raises crashes P0.6's new line. No console or harness is known to give
+  one.
+
+The verifier MEASURED O1 to O3 the same at 37640f0 and at 8afeede. So P0.6 neither made them nor changed them.
+
+**The lead's ruling** (the round's ledger, 2026-10-26T13:03:21Z):
+- READY stands.
+- O1, O2 and O4 are fixed in P0.7, the lead's next piece, with the report's notes:
+  - its test gaps: masking; two history-only blobs in one batch; three behaviours of the runner; a line reading two
+    variables; `url-quoted-drive`'s separator after `Users`;
+  - its prose: the `missing` arm, which a garbage object reaches, so "no real repository reached it" is true of a
+    deleted object only; the registry's third `need_env` case, a guard before a stage that reads no variable;
+  - a WSL path with a backslash host and slashes after it, which passes;
+  - the gate's git calls passing no `CREATE_NO_WINDOW`.
+- O3 stays for later. It needs crafted content, outside the gate's threat model.
+
+**The whole of P0.6** took four rounds and three send-backs:
+- the first on two defects in the history reader;
+- the second on a crash on a name its console cannot write;
+- the third on a crash with no stdout, and a sentence.
+
+It is committed as the next entry says. Its fixes, and its verifiers' measurements, are in its four entries above,
+from "P0.5 committed; P0.6", and in the reports.
