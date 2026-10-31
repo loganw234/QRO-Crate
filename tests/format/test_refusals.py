@@ -111,13 +111,31 @@ def step_unbuilt(c):
     return edit(c, lambda md: fixture.with_entity(md, {"@id": "#pub", "@type": "qro:Pub", "qro:commitment": "a" * 64}))     # step 4's field
 
 
+LINKS = []
+
+
 def link(path, target):
-    """A directory link: a junction on Windows, which needs no privilege; a symbolic link elsewhere."""
+    """A directory link: a junction on Windows, which needs no privilege; a symbolic link elsewhere. Each is removed
+    when its test ends, by unlink_made."""
     if os.name == "nt":
         import _winapi
         _winapi.CreateJunction(str(target), str(path))
     else:
         os.symlink(target, path, target_is_directory=True)
+    LINKS.append(path)
+
+
+@pytest.fixture(autouse=True)
+def unlink_made():
+    """Each link a plant made, removed when its test ends, while its target is there: pytest renames an old
+    temporary folder before it removes it, which leaves a link in one pointing at nothing, and on a host that opens
+    no dangling link, as this machine, pytest's own cleanup cannot then remove it (P0.8's first verifier, D3;
+    CLAUDE.md item 10)."""
+    yield
+    while LINKS:
+        path = LINKS.pop()
+        if path.name in os.listdir(path.parent):
+            (os.rmdir if os.name == "nt" else os.unlink)(path)
 
 
 def file_link(c):

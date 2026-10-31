@@ -19,6 +19,7 @@ built, the checker refuses `step-unbuilt`: it never passes what it has not check
 that fails on the crate's bytes is refused by its step's name, never a crash, but for a MemoryError: that is the
 host's, and the checker failing (FORMAT.md item 16). Stdlib only.
 """
+import errno
 import hashlib
 import importlib
 import importlib.util
@@ -139,6 +140,8 @@ def check(crate_dir):
     meta = crate / canonical.DESCRIPTOR
     if _is_link(meta):
         raise Refused("file-link", canonical.DESCRIPTOR, "the metadata file is a link: a crate holds files")
+    if _listed_not_there(meta):
+        raise Refused("file-link", canonical.DESCRIPTOR, LISTED_NOT_THERE)
     if not meta.is_file() or canonical.DESCRIPTOR not in os.listdir(crate):     # its exact name, on every host
         raise Refused("file-missing", canonical.DESCRIPTOR, "the crate has no metadata file")
     md = reader.read(meta.read_bytes())
@@ -160,6 +163,35 @@ def _is_link(p):
     return p.is_symlink() or (hasattr(p, "is_junction") and p.is_junction())
 
 
+LISTED_NOT_THERE = ("listed by its directory, but the host says it is not there: a link whose target is gone, or "
+                    "another entry no reader can hold to a digest")
+
+
+NOT_THERE_ERRNOS = (errno.ENOENT, errno.ENOTDIR, errno.EBADF, errno.ELOOP)
+NOT_THERE_WINERRORS = (21, 123, 1921)      # a device not ready, a name the host refuses, a link it cannot resolve
+
+
+def _listed_not_there(p):
+    """Whether p's directory lists it and the host, asked what it is, says it is not there: the errors pathlib 3.12
+    and 3.13 read so (FileNotFoundError, NotADirectoryError and the like). Every other failure of that question is
+    raised, whatever pathlib's `is_symlink` does, which from 3.14 answers False for every error where 3.12 and 3.13
+    raise (P0.8's fourth verifier, D1): a refused permission is item 16's misuse, and any other failure the
+    checker's own (P0.8's third verifier, D1). On a host that opens no dangling link, as the owner's machine was
+    found to be on 2026-10-30 (CLAUDE.md item 10), a link whose target is gone is one: its directory lists it,
+    os.walk takes it for a directory, and `_is_link` cannot ask it, so the walk descended into it and failed, exit
+    3, where the crate is refused (P0.8's first verifier, D1)."""
+    try:
+        os.lstat(p)
+        return False
+    except OSError as e:
+        if e.errno not in NOT_THERE_ERRNOS and getattr(e, "winerror", None) not in NOT_THERE_WINERRORS:
+            raise
+    try:
+        return p.name in os.listdir(p.parent)
+    except OSError:
+        return False
+
+
 def _unlistable(err):
     """A directory the walk cannot list is raised, never passed over: what the walk cannot see, it cannot check
     (P0's verifier, round 5, note 1). The command line answers it as misuse."""
@@ -167,9 +199,10 @@ def _unlistable(err):
 
 
 def walk(crate):
-    """Every file in the crate, by its exact relative name; refusing any link, so that every path stays in it, and
-    any other entry that is neither a regular file nor a directory, which no reader can hold to a digest. A
-    directory it cannot list raises the host's error."""
+    """Every file in the crate, by its exact relative name; refusing any link, so that every path stays in it, any
+    entry its directory lists that the host says is not there, and any other entry that is neither a regular file
+    nor a directory, which no reader can hold to a digest. Each is refused before the walk descends. A directory it
+    cannot list, or an entry the host raises on otherwise, raises the host's error."""
     found = []
     for dirpath, dirnames, filenames in os.walk(crate, followlinks=False, onerror=_unlistable):
         dirnames.sort()                      # in place, so the walk descends in name order on every host
@@ -178,6 +211,8 @@ def walk(crate):
             rel = p.relative_to(crate).as_posix()
             if _is_link(p):
                 raise Refused("file-link", rel, "a link in the crate: a crate holds files, never a way out of itself")
+            if _listed_not_there(p):
+                raise Refused("file-link", rel, LISTED_NOT_THERE)
             if name in filenames and not p.is_file():
                 raise Refused("file-link", rel, "neither a regular file nor a directory")
         found += [Path(dirpath, f).relative_to(crate).as_posix() for f in filenames]

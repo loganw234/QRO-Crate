@@ -3,6 +3,7 @@ P0-1, P0-2, P0-4, P0-5 and P0-7, and rounds 2 to 5). Most cases are one fault in
 one line of a custody log. The rest show the right answer at a rule's edge: names of every character the path
 alphabet admits, a Dataset nested two deep and a raw result of no shots, each accepted; and a directory the walk
 cannot list, raised."""
+import errno
 import hashlib
 import json
 import os
@@ -303,12 +304,34 @@ def link_dir(path, target):
         os.symlink(target, path, target_is_directory=True)
 
 
-def test_a_directory_link_whose_files_are_listed_with_their_digests_is_still_refused(tmp_path):
+@pytest.fixture
+def links():
+    """Directory links a test makes, each removed when the test ends, while its target is there. pytest renames an
+    old temporary folder before it removes it, which leaves a link in one pointing at nothing, and on a host that
+    opens no dangling link, as this machine, pytest's own cleanup cannot then remove it (P0.8's first verifier, D3;
+    CLAUDE.md item 10). A target the test removed is made again for the link's removal, and removed after it."""
+    made = []
+
+    def make(path, target):
+        link_dir(path, target)
+        made.append((path, target))
+    yield make
+    for path, target in reversed(made):
+        remade = not os.path.lexists(target)
+        if remade:
+            os.mkdir(target)
+        if path.name in os.listdir(path.parent):
+            (os.rmdir if os.name == "nt" else os.unlink)(path)
+        if remade:
+            os.rmdir(target)
+
+
+def test_a_directory_link_whose_files_are_listed_with_their_digests_is_still_refused(tmp_path, links):
     c = crate(tmp_path)
     outside = tmp_path / "outside"
     outside.mkdir()
     (outside / "secret.txt").write_bytes(b"outside\n")
-    link_dir(c / "data" / "jct", outside)
+    links(c / "data" / "jct", outside)
     rewrite(c, lambda md: listed(md, "data/jct/secret.txt", b"outside\n"))
     refused("file-link", lambda: checker.check(c))
 
@@ -338,6 +361,154 @@ def test_an_entry_neither_a_regular_file_nor_a_directory_is_refused(tmp_path, mo
     monkeypatch.setattr(type(c), "is_file", lambda self: False if self.name == "notes.txt" else real(self))
     r = refused("file-link", lambda: checker.check(c))
     assert (r.where, r.detail) == ("data/notes.txt", "neither a regular file nor a directory")
+
+
+@pytest.mark.parametrize("where", ["data/jct", "data/notes.txt", "data/a/b/jct", canonical.DESCRIPTOR])
+def test_a_link_whose_target_is_gone_is_refused_file_link_wherever_it_stands(tmp_path, links, where):
+    """P0.8's first verifier, D1, MEASURED: on this machine, which opens no dangling junction (CLAUDE.md item 10),
+    one in the walk was taken for a directory and descended into, and the checker failed, exit 3, where the crate is
+    refused; at the metadata file it was file-missing. A host that opens one refuses it by `_is_link`, this machine
+    by the walk's question of what the host says is not there: file-link, at its own place, on both."""
+    c = crate(tmp_path)
+    gone = tmp_path / "gone"
+    gone.mkdir()
+    p = c / where
+    if p.is_file():
+        p.unlink()
+    p.parent.mkdir(parents=True, exist_ok=True)
+    links(p, gone)
+    gone.rmdir()
+    assert not os.path.exists(p), "a link whose target is gone: the test's own control"
+    r = refused("file-link", lambda: checker.check(c))
+    assert r.where == where, r
+
+
+def test_a_link_whose_target_became_a_file_is_refused_file_link(tmp_path, links):
+    """This machine's lstat raises NotADirectoryError for a junction whose target is now a file."""
+    c = crate(tmp_path)
+    target = tmp_path / "target"
+    target.mkdir()
+    links(c / "data" / "jct", target)
+    target.rmdir()
+    target.write_bytes(b"a file where the link's directory was\n")
+    try:
+        r = refused("file-link", lambda: checker.check(c))
+        assert r.where == "data/jct", r
+    finally:
+        target.unlink()                     # so that the link is removed with its directory made again
+
+
+def test_as_a_process_a_link_whose_target_is_gone_is_one_refused_line(tmp_path, links):
+    """The command line's answer, where it was exit 3 and "the checker itself failed" on this machine."""
+    c = crate(tmp_path)
+    gone = tmp_path / "gone"
+    gone.mkdir()
+    links(c / "data" / "jct", gone)
+    gone.rmdir()
+    root = str(pathlib.Path(__file__).resolve().parents[2])
+    env = {k: v for k, v in os.environ.items() if k != "PYTHONSAFEPATH"}
+    env.update(PYTHONIOENCODING="utf-8", PYTHONPATH=root)
+    p = subprocess.run([sys.executable, "-m", "qro", "check", "--fixtures", str(c)], capture_output=True, env=env,
+                       cwd=root)
+    assert (p.returncode, p.stderr) == (1, b""), p.stderr[-300:]
+    assert p.stdout.startswith(b"REFUSED file-link at data/jct") and p.stdout.count(b"\n") == 1, p.stdout
+
+
+def plant_what_it_is(monkeypatch, path, error):
+    """The host's answer, asked what `path` is, planted for that path alone: both calls that ask it, os.lstat and
+    os.stat with follow_symlinks=False, which is what pathlib's lstat and is_symlink make, raise `error`. A real host
+    fails both; planting only one shows the checker an error its link test never sees (P0.8's third verifier, note
+    1)."""
+    real_lstat, real_stat = os.lstat, os.stat
+
+    def lstat(p, *args, **kwargs):
+        if pathlib.Path(p) == path:
+            raise error
+        return real_lstat(p, *args, **kwargs)
+
+    def stat(p, *args, follow_symlinks=True, **kwargs):
+        if not follow_symlinks and pathlib.Path(p) == path:
+            raise error
+        return real_stat(p, *args, follow_symlinks=follow_symlinks, **kwargs)
+    monkeypatch.setattr(os, "lstat", lstat)
+    monkeypatch.setattr(os, "stat", stat)
+
+
+PATHLIB = ["3.12 and 3.13", "3.14"]
+
+
+def pathlib_answers(monkeypatch, version):
+    """pathlib as the version answers: 3.12's and 3.13's `is_symlink` raise every error but those that mean "not
+    there"; from 3.14 it and `is_junction` answer False for every error, as os.path does. The checker's question must
+    give the same answers under both (P0.8's fourth verifier, D1)."""
+    if version == "3.14":
+        monkeypatch.setattr(pathlib.Path, "is_symlink", lambda self: os.path.islink(self))
+        monkeypatch.setattr(pathlib.Path, "is_junction", lambda self: os.path.isjunction(self))
+
+
+@pytest.mark.parametrize("version", PATHLIB)
+@pytest.mark.parametrize("error", [FileNotFoundError(errno.ENOENT, "the host says it is not there"),
+                                   NotADirectoryError(errno.ENOTDIR, "the host says it is not there")],
+                         ids=["FileNotFoundError", "NotADirectoryError"])
+@pytest.mark.parametrize("where", ["data/sub", "data/notes.txt", canonical.DESCRIPTOR])
+def test_an_entry_the_host_lists_and_says_is_not_there_is_refused_before_the_walk_descends(tmp_path, monkeypatch,
+                                                                                            where, error, version):
+    """The walk's question, planted, so that it is held on every host: the host, asked what a listed name is, says it
+    is not there, as this machine does of a junction whose target is gone, or is now a file. It is refused, by the
+    detail that says so, and the walk never lists it. The metadata file is refused before it is read, so the
+    question held there is check()'s own, not the walk's (P0.8's second verifier, notes)."""
+    c = crate(tmp_path)
+    (c / "data" / "sub").mkdir()
+    real_scandir, listed = os.scandir, []
+
+    def scandir(path="."):
+        listed.append(pathlib.Path(path))
+        return real_scandir(path)
+
+    def unread(data):
+        raise AssertionError("the metadata was read")
+    pathlib_answers(monkeypatch, version)
+    plant_what_it_is(monkeypatch, c / where, error)
+    monkeypatch.setattr(os, "scandir", scandir)
+    if where == canonical.DESCRIPTOR:
+        monkeypatch.setattr(reader, "read", unread)
+    r = refused("file-link", lambda: checker.check(c))
+    assert (r.where, r.detail) == (where, checker.LISTED_NOT_THERE)
+    assert c / "data" / "sub" not in listed, listed
+
+
+@pytest.mark.parametrize("version", PATHLIB)
+@pytest.mark.parametrize("error", [PermissionError(errno.EACCES, "refused"),
+                                   OSError(errno.EIO, "an error of the device")],
+                         ids=["a refused permission", "another error"])
+@pytest.mark.parametrize("where", ["data/sub", "data/notes.txt", canonical.DESCRIPTOR])
+def test_any_other_failure_of_asking_what_a_listed_entry_is_is_no_refusal(tmp_path, monkeypatch, where, error,
+                                                                           version):
+    """FORMAT.md item 12 (P0.8's third verifier, D1): only an answer that means "not there" is a refusal. Any other
+    failure is the host's, raised, so that the command line answers a refused permission as misuse, exit 2, and
+    any other error as the checker failing, exit 3; never `file-link`. Held under pathlib's answers of 3.14, where
+    the link test raises nothing, as of 3.12 and 3.13 (P0.8's fourth verifier, D1)."""
+    c = crate(tmp_path)
+    (c / "data" / "sub").mkdir()
+    pathlib_answers(monkeypatch, version)
+    plant_what_it_is(monkeypatch, c / where, error)
+    with pytest.raises(type(error)) as raised:
+        checker.check(c)
+    assert raised.value is error
+
+
+def test_a_crate_directory_that_is_not_there_is_file_missing_in_process(tmp_path):
+    """The command line names a missing crate directory as misuse first; in process, check() of one finds no
+    metadata file, and the question of what a listed entry is raises nothing of its own there."""
+    refused("file-missing", lambda: checker.check(tmp_path / "no-such-crate"))
+
+
+def test_a_crate_path_that_is_a_file_is_file_missing_in_process(tmp_path):
+    """The command line refuses a crate that is not a directory as misuse first; in process, check() of a file finds
+    no metadata file, its listing's NotADirectoryError swallowed by the question (P0.8's fourth verifier, note 1)."""
+    f = tmp_path / "a-file"
+    f.write_bytes(b"not a crate\n")
+    refused("file-missing", lambda: checker.check(f))
 
 
 # -- P0-7: a CHECKED term stands only where its step reads it -------------------------------------------------
@@ -764,7 +935,7 @@ class _Reversed:
         pass
 
 
-def test_the_walk_descends_in_name_order(tmp_path, monkeypatch):
+def test_the_walk_descends_in_name_order(tmp_path, monkeypatch, links):
     """Round 6, 8.3 item 3: the walk sorted a copy of its directories, and descended in the host's order.
     NTFS lists names in order already, so the host's listing is reversed here."""
     real = os.scandir
@@ -774,7 +945,7 @@ def test_the_walk_descends_in_name_order(tmp_path, monkeypatch):
     outside.mkdir()
     for d in ("h", "a", "m"):
         (c / d).mkdir()
-        link_dir(c / d / "link", outside)
+        links(c / d / "link", outside)
     r = refused("file-link", lambda: checker.check(c))
     assert r.where == "a/link"
 

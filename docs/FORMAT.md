@@ -110,7 +110,20 @@ can hold each one to the study.
     inside the crate on every host. The walk descends in name order, so a
     refusal names the same place on every host.
     So is any entry that is neither a regular file nor a directory, such as
-    a named pipe a reader would block on.
+    a named pipe a reader would block on, and any entry its directory lists
+    that the host, asked what it is, says is not there (FileNotFoundError,
+    NotADirectoryError and the like). Any other failure of that question, or
+    of reading the entry, is no refusal: a refused permission is misuse,
+    exit 2, as item 16 says, and any other error of the host's is the
+    checker failing, exit 3. On a host that opens no dangling link, as the
+    owner's machine was found to be on 2026-10-30 (CLAUDE.md item 10), a
+    link whose target is gone is an entry the host says is not there: the
+    walk refuses it before it descends, and the metadata file too (P0.8). A
+    corner differs by host: a dangling link at the metadata file's name in
+    another case, with no metadata file, is `file-missing` on a host that
+    cannot stat it; on one that can, it is `file-link` where the host folds
+    case and `file-missing` where it keeps case. The crate is refused on
+    every host.
 13. **Each term names the entities it may stand on** (its domain, in the
     table). A CHECKED term's step checks it on every entity its domain
     admits, and the reader refuses it anywhere else. So no CHECKED field sits

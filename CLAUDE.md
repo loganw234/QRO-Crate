@@ -192,3 +192,19 @@ that reading cannot see.
    `rmtree` of a computed ancestor. A subagent's shell starts in the real
    checkout and keeps no `cd`: write only by absolute path, or after a `cd`
    in the same command.
+10. **This machine opens no dangling junction** (found on 2026-10-30, in
+    the sandbox's folders, where it was measured; a restart did not change
+    it; P0.8). A junction whose target directory is gone is still listed by
+    its directory, and `os.scandir`'s entry calls it a junction, but
+    nothing can open it: `os.lstat` raises, so `os.path.lexists`, `islink`
+    and `isjunction` find nothing there, and `os.rmdir` cannot remove it
+    until its target is made again. A junction whose target exists behaves
+    as before. The checker refuses such an entry `file-link`, as one its
+    directory lists and the host says is not there (FORMAT.md item 12). So:
+    - a test that asks about a link whose target is gone tells the code of
+      it, as `simulate_links` in tests/tools/test_tools.py does, or makes
+      one and, before it ends, makes its target again and removes it;
+    - a test that makes any junction removes it before it ends, while its
+      target is there. pytest renames an old temporary folder before it
+      removes it, so a junction left in one, live when it was made, then
+      points at nothing and stays, in a folder pytest names `garbage-*`.

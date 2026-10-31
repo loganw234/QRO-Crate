@@ -3808,3 +3808,337 @@ code does blocks. It found none in the code, the gates or the tests and registry
 
 It is committed as the next entry says. Its fixes, and its verifiers' measurements, are in its six entries above,
 from "P0.6 committed; P0.7", and in the reports.
+
+## 2026-10-30 - P0.8: this machine's dangling junctions
+
+**P0.7 is committed and pushed** as 83503b0, with the entry above, on Logan's standing word. The runner on the
+committed tree, before the push: run `20261026-161022-21312-83503b0`, 18 stages passed and 6 skipped by name, 2,948
+tests.
+
+**What P0.8 is.** The lead's piece, and a narrow one. P2.1's merge was laid on 83503b0 in the lead's sandbox, and the
+runner failed one stage there: tool-tests, on P0.7's own test
+`test_a_link_left_dangling_where_a_tracked_file_was_is_not_passed_over` (run
+`20261030-200045-29506-83503b0+dirty`, 18 passed and 1 failed, P2's 509 tests among the passed). The test's control
+found nothing where it had made a dangling junction. The same test passed on 2026-10-26, on P0.7's committed tree,
+with tool-tests' 204 of 204. So the machine changed between the two runs, and the code did not. The notes gathered
+for P0's next piece wait for P0.9.
+
+**What the machine does now** (MEASURED in the sandbox's folders, through both launchers, at normal and low
+integrity, and again after the machine restarted):
+- **A junction whose target directory is gone is listed but cannot be opened.** os.listdir names it, os.scandir's
+  entry says it is a junction, and `dir` shows it as `<JUNCTION>`. But os.lstat raises FileNotFoundError, so
+  os.path.lexists, islink and isjunction are all False; os.readlink and os.rmdir raise FileNotFoundError too.
+- **It is not Python's:**
+  - CreateFileW with FILE_FLAG_OPEN_REPARSE_POINT and no access fails with error 2;
+  - a junction made by `mklink /J` behaves the same;
+  - GetFileInformationByName, the fast path of Python 3.12's stat, is not exported here.
+- **A junction whose target is a file** raises NotADirectoryError from lstat. Once its target directory is made
+  again, a junction is a junction to every call, and os.rmdir removes it.
+- **The cause is not known.** The machine's Defender platform (2026-10-21) and its drivers are older than the
+  change. A file system filter is BELIEVED; looking needs an elevated prompt, which is Logan's.
+
+**What it means for P0's code** (MEASURED or READ; P0's code is unchanged):
+- **The checker.** os.walk lists a dangling junction in a crate as a file. `_is_link` says no, and is_file says no,
+  so walk refuses the crate `file-link`, "neither a regular file nor a directory". A host that can open the junction
+  refuses it `file-link` too, "a link in the crate". The name the crate is refused by is the same on both hosts.
+- **The privacy gate.** Take a tracked file that git says is not in the working tree, with a dangling junction at
+  its path. It is passed over as nothing, and its index version is read, as a commit takes it. What git itself does
+  with a dangling junction at a gitlink's path was not measured.
+
+**The test** (tests/tools/test_tools.py) now tells the gate's `lexists` of the link. Since P0.4, simulate_links in
+the same file tells the gate of a symbolic link, because this machine cannot make one without privilege; the new
+test does the same for the dangling link. The helper `link_dir`, which only this test used, is removed. MEASURED:
+the test passes, and it fails with `exists` in place of `lexists` in `passed_over`, the mutant it was written to
+kill.
+
+**CLAUDE.md item 10** states the machine's dangling junctions for every agent. A test that needs a link whose target
+is gone tells the code of it, and never makes one. A dangling junction left behind stays until its target is made
+again, and pytest names the folder it cannot clear `garbage-*`.
+
+**What the parcels meet:**
+- **P4:** three of its tests make a dangling junction, and fail on this machine
+  (`test_profile_itself_a_link_to_nothing_is_a_link_too`, in both modes, and
+  `test_a_link_below_profile_that_leads_nowhere_is_listed_and_removed_like_any_other`). Run on P4's fifth packet:
+  p4's 917 passed and 3 failed; profile passed; p4-shacl's 236 passed. MEASURED, P4's tool on the two states, as the
+  tests call it:
+  - with `profile/` itself a dangling junction, both modes exit 1, "profile/context.jsonld is missing";
+  - with a dangling junction below `profile/`, both modes exit 3: a directory the host cannot list.
+
+  Neither writes or removes anything. P4 adapts its three tests before its merge.
+- **P1.2:** its tests pass here. On its third packet, which it built on 37640f0 and so without P0.7's test: run
+  `20261030-202241-992-57fec09`, 19 passed and 5 skipped by name, p1's 1,726 tests and p1-crates' 39, as before.
+
+**The runner on P0.8's tree:** run `20261030-202810-2526-83503b0+dirty`, 18 stages passed and 6 skipped by name,
+2,948 tests, tool-tests' 204 among them. Its 44 warnings are pytest's own: it cannot clear old temporary folders
+that hold dangling junctions, which P4's tests left (item 10).
+
+## 2026-10-30 - P0.8's first verifier: NOT READY, the checker on this machine; the fixes
+
+**The verdict** (round1.md of P0.8's reviews, placed at its commit): NOT READY, on three defects.
+- **D1, code: the checker on this machine.** A crate holding a junction whose target is gone failed the checker in
+  six of eight places: exit 3, "the checker itself failed, FileNotFoundError". FORMAT.md item 12 refuses such a
+  crate `file-link`, on every host. At the metadata file it was `file-missing`. MEASURED by the verifier, through
+  both launchers, in process and as processes. The cause:
+  - os.walk lists such a junction as a directory, since the directory's listing says so;
+  - `_is_link` cannot ask it, since os.lstat raises;
+  - the walk descends into it, and listing it fails.
+- **D2, prose.** The entry above, "P0.8: this machine's dangling junctions", says of the checker that os.walk lists
+  such a junction as a file, and that the walk refuses it `file-link`. Each sentence is false, as D1 shows. The
+  lead had reasoned them from the code and labelled them MEASURED, and had run nothing. **This entry corrects them.**
+- **D3, prose.** The stranded `garbage-*` folders are mostly P0's own tests'. pytest renames an old temporary folder
+  before it removes it, so a junction left in one, live when it was made, then points at nothing. Three tests of
+  tests/format leave theirs. CLAUDE.md item 10's rule missed them, and the entry above blamed P4's tests alone.
+
+**What held** (MEASURED by the verifier):
+- the freeze;
+- the runner in two copies: 18 passed and 6 skipped by name, 2,948 tests, the privacy gate over the real history
+  (301 files, 10 commit messages and 143 earlier versions);
+- the machine's behaviour, through 24 variants of CreateFileW;
+- the old test failing here at its control;
+- the new test killing the mutant it was written for, and five more of `passed_over`'s and `held`'s;
+- the gate against git with a dangling junction at four places:
+  - at a skip-worktree path;
+  - at a tracked file's path;
+  - at a gitlink's, where git and the gate agree: nothing staged, nothing committed, nothing read;
+  - untracked.
+
+**The fixes:**
+- **The checker** (qro/checker.py). An entry its directory lists and the host cannot open, os.lstat raising, is
+  refused `file-link`, with the detail `UNOPENABLE`. The walk refuses it before it descends, and the metadata file
+  is asked before it is looked for. `_is_link` is unchanged, and so is P4's tool, which asks it. FORMAT.md item 12
+  says so. MEASURED on this machine: each place the verifier tried is refused `file-link` at its own place, in
+  process and as a process (exit 1, one REFUSED line).
+- **Its tests** (tests/format/test_hostile.py), each `file-link` at its own place:
+  - a real junction whose target is gone, at four places: a name listed by nothing, a listed file's, two levels
+    down, the metadata file. It is refused on this machine and on a host that opens it alike;
+  - one whose target became a file;
+  - one as a process;
+  - the walk's question planted, so that it is held on every host, at a directory, a file and the metadata file,
+    the walk never listing what it refused.
+- **D3.** Every junction a P0 test makes is removed when the test ends, while its target is there: the `links`
+  fixture in test_hostile.py, and `unlink_made` in test_refusals.py. MEASURED: after the format tests, no link is
+  left under the run's temporary folder. CLAUDE.md item 10 says why, and where it was measured, and that the
+  checker refuses such an entry.
+- **Notes taken:**
+  - item 10 scoped to the sandbox's folders, where it was measured;
+  - "since 2026-10-30" made "found on 2026-10-30", since the change came between 2026-10-26 and 2026-10-30;
+  - the new test's docstring names the test that holds the other half,
+    `test_a_sparse_checkout_passes_and_what_it_leaves_out_is_read`.
+- **Mutants:** five of the new code, each killed by its target, through sbx.sh (the lead's scratch, p08/r2fix/).
+- **Left as it is:** the `garbage-*` folders already stranded in the sandbox's temporary folder. Their junctions'
+  targets cannot be read, so they cannot be made again; they are inside the sandbox, and harmless. The entry above's
+  "44 warnings" were pytest's own, the count of one stage's run; the verifier counted 362 and 235 over its runs.
+- **The lead's probes,** outside the tree, now leave nothing.
+
+**The runner on the fixed tree:** run `20261030-214813-15810-83503b0+dirty`, 18 stages passed and 6 skipped by name,
+2,957 tests, the format stage's 1,327 among them, nine of them new. The 160 warnings each of format and tool-tests
+shows are pytest's, about the `garbage-*` folders stranded before this round.
+
+## 2026-10-30 - P0.8's second verifier: NOT READY, on one sentence; the fixes
+
+**The verdict** (round2.md of P0.8's reviews, placed at its commit): NOT READY, on one sentence, with no defect in what
+the code does, in a gate or in a test.
+- **D1, prose.** FORMAT.md item 12 said that an entry its directory lists "that the host cannot open" is refused
+  `file-link`, which is wider than the code: the code asks whether os.lstat raises. The fault that shows it: a file
+  another handle holds with no sharing is listed, can be stat'd, and cannot be read. The checker answers it exit 2, as
+  item 16 says of a path the user may not read, where item 12 read as `file-link`. The docstring and the detail text
+  said the same.
+
+**What held** (MEASURED by the verifier):
+- the freeze;
+- the runner in two copies, 2,957 tests each, the privacy gate over the real history (301 files, 10 commit messages
+  and 147 earlier versions);
+- round 1's fix at every place, as processes too; a dangling junction as a custody log, a record or a crate is
+  never exit 3;
+- 23 crate shapes, before the fix and after: seven rows changed, each now `file-link`, and the other sixteen are the
+  same;
+- P0's tests leaving no junction over five sessions in a row, where the old test stranded two;
+- the gate's half;
+- the native NtOpenFile failing too, STATUS_OBJECT_NAME_NOT_FOUND;
+- the restart, the machine having booted at 2026-10-30 20:15:07;
+- the walk's cost, about a quarter more for one more lstat an entry, and linear.
+
+**The fixes:**
+- **D1:** item 12 says "that the host cannot stat, `os.lstat` raising on it", and that an entry the host can stat
+  and cannot read is item 16's misuse, exit 2. The docstring and `UNOPENABLE` say "cannot stat".
+- **Notes taken:**
+  - the planted test raises NotADirectoryError as well as FileNotFoundError, so that narrowing the question to one
+    error fails on every host (the verifier's MA);
+  - at the metadata file it holds that the refusal comes before the metadata is read, so that `check()`'s own question
+    is held on every host, not only the walk's beside it (U2);
+  - a test that `check()` of a crate directory that is not there is `file-missing` in process (the verifier's MB);
+  - the corner of a dangling link at the metadata file's name in another case, stated in item 12: `file-missing` on
+    a host that cannot stat it, `file-link` on one that can.
+- **Corrections of the two entries above,** which stand as written:
+  - the first's rule, "a test that needs a link whose target is gone ... never makes one": item 10 now allows one,
+    made and removed with its target made again;
+  - the second's "their junctions' targets cannot be read, so they cannot be made again" does not follow. A stranded
+    junction's target is its folder's old numbered path, which can be made again, as the second verifier did in its
+    own folder. The lead clears the shared ones when no agent runs pytest there;
+  - the first's "the machine's Defender platform (2026-10-21) and its drivers are older than the change": its
+    signatures are not, updated on 2026-10-30 at 11:11, inside the window.
+- **Notes left for P0.9:**
+  - the question's case-folded and reordered mutants, and its detail text's (the verifier's MC, MD and MH), which
+    change no refusal's name;
+  - that a P0 test leaves no junction behind is held by the fixtures' text, not by a test (TA, TB).
+- **Mutants:** seven, each killed by its target: MA, MB and round 1's five (the lead's scratch, p08/r3fix/), through
+  sbx.sh.
+
+**The runner on the fixed tree:** run `20261030-225613-24475-83503b0+dirty`, 18 stages passed and 6 skipped by name,
+2,961 tests, the format stage's 1,331 among them.
+
+## 2026-10-30 - P0.8's third verifier: NOT READY, on two sentences; the cap reached; the fixes
+
+**The verdict** (round3.md of P0.8's reviews, placed at its commit): NOT READY, on two sentences of FORMAT.md item 12,
+with no defect in what the code does, in a gate or in a test.
+- **D1, prose:** "any entry its directory lists that the host cannot stat" is still wider than the code. The walk
+  and `check()` ask `_is_link` first, whose `is_symlink` raises for every failure of the question but those that mean
+  "not there" (ENOENT, ENOTDIR, EBADF, ELOOP, and Windows' errors 21, 123 and 1921). So only those reach the new
+  question. MEASURED by the verifier, under Python 3.12.15 and 3.13.5: a refused permission at a listed entry is
+  exit 2, item 16's misuse, and another error (EIO, ENAMETOOLONG, EINVAL, Windows' 1920) is exit 3, where item 12
+  said `file-link` for each. Its second sentence, "an entry the host can stat and cannot read ... is item 16's
+  misuse", was wider than item 16 too.
+- **D2, prose:** the wrong-case corner was stated for a host that folds case alone. On one that keeps case it is
+  `file-missing` either way.
+
+**What held** (MEASURED by the verifier):
+- the freeze;
+- the runner in two copies, 2,961 tests each, 13 of them new since 83503b0;
+- round 1's fix at every place, as processes too, and under Python 3.13.5;
+- 28 crate shapes before and after: eleven rows changed, each as expected, the other refusals in the same order;
+- P0's tests leaving no junction over six sessions in a row;
+- every test of the round holding what it names;
+- the three corrected sentences true;
+- the gate's half;
+- the walk's cost, linear.
+
+**The cap is reached** (CLAUDE.md item 6). P0.8's three NOT READYs came on narrower reasons each time:
+- first, the checker failing on this machine;
+- then one sentence's width;
+- now two sentences, of the same kind.
+
+So its fourth verifier blocks only on a defect in what the code does.
+
+**The fixes:**
+- **D1:** item 12 says what the code asks. An entry its directory lists is refused `file-link` when the host, asked
+  what it is, says it is not there (FileNotFoundError, NotADirectoryError and the like). Any other failure of that
+  question, or of reading the entry, is no refusal: a refused permission is misuse, exit 2, as item 16 says, and any
+  other error of the host's is the checker failing, exit 3. The question is named for what it asks:
+  `_listed_not_there` and `LISTED_NOT_THERE`, before `_unopenable` and `UNOPENABLE`. The walk's docstring and
+  CLAUDE.md item 10 say the same.
+- **D2:** the corner restated: `file-missing` on a host that cannot stat the link; on one that can, `file-link`
+  where the host folds case and `file-missing` where it keeps case.
+- **Notes taken:**
+  - the planted tests plant both calls that ask what an entry is, os.lstat and os.stat with
+    `follow_symlinks=False`, which is pathlib's, as a real host fails both (the verifier's note 1);
+  - a new test holds that a refused permission and another error, at a listed directory, a listed file and the
+    metadata file, are raised, never `file-link`. It kills the verifier's N4, the question asked before the link
+    test, which had passed every test, and its twin at the metadata file;
+  - the fixtures' docstrings say that pytest's own cleanup cannot remove a stranded link, not that nothing can.
+- **Notes left for P0.9:**
+  - an NTFS stream on a listed file is accepted, as before P0.8, its default stream the one the digest covers;
+  - TA and TB, the fixtures' removal held by their text alone;
+  - the case-folded and reordered mutants of round 2's notes.
+- **Mutants:** nine, each killed by its target: N4, its twin at the metadata file, and round 3's seven under the
+  question's new name (the lead's scratch, p08/r4fix/), through sbx.sh.
+
+**The runner on the fixed tree:** run `20261030-234824-2578-83503b0+dirty`, 18 stages passed and 6 skipped by name,
+2,967 tests, the format stage's 1,337 among them.
+
+## 2026-10-31 - P0.8's fourth verifier: NOT READY, on Python 3.14's pathlib; the fixes
+
+**The verdict** (round4.md of P0.8's reviews, placed at its commit): NOT READY, on the relaxed bar, on one defect in
+what the code does, latent on this machine.
+- **D1, code, on Python 3.14 and later.** The checker's question took only "not there" errors because `_is_link`'s
+  `Path.is_symlink()` raised every other first. That is pathlib's behaviour in 3.12 and 3.13. In 3.14,
+  `Path.is_symlink()` answers False for every OSError (READ by the verifier: the 3.14 documentation's "Changed in
+  version 3.14" note, its source, and the branch's `Lib/pathlib/__init__.py`). There, every failure of the question
+  reached it, and a refused permission or another error at a listed entry was refused `file-link`, exit 1, with a
+  reason the host did not give. `requires-python` is ">=3.12", so 3.14 is a Python the tree takes. MEASURED by the
+  verifier, under an emulation of 3.14's pathlib on 3.12.15: the six tests of that answer failed, and the command
+  line's mapping gave exit 1 where items 12 and 16 say 2 or 3. Nothing is accepted that should be refused.
+
+**What held** (MEASURED by the verifier, on 3.12.15 and 3.13.5):
+- the freeze;
+- the runner in two copies, 2,967 tests each;
+- round 1's fix at 17 shapes, in process and as three kinds of process;
+- a model-based fuzz of 600 random trees with no mismatch, where the same harness on 83503b0 found 42;
+- every fix of rounds 1 to 3, and its mutants of them, each killed by the test that holds it;
+- P0's tests leaving no junction, passing or failing;
+- the machine as item 10 says;
+- the gate;
+- the walk's cost.
+
+**The fixes:**
+- **D1:** the question classifies the host's error itself. It answers "not there" only for ENOENT, ENOTDIR, EBADF
+  and ELOOP, and Windows' errors 21, 123 and 1921, the list pathlib 3.12 and 3.13 read so (`NOT_THERE_ERRNOS` and
+  `NOT_THERE_WINERRORS` in qro/checker.py). It raises every other, whatever pathlib's `is_symlink` does. Nothing
+  changes on 3.12 or 3.13, where the link test raises first.
+- **The tests hold it on every interpreter:** the planted tests run under pathlib's answers of 3.12 and 3.13 and
+  under those of 3.14 (`pathlib_answers`, `is_symlink` and `is_junction` answering as os.path does). MEASURED: the
+  format tests pass, 1,182, and so do the two files under the verifier's emulation of 3.14 (437), where without
+  the fix six failed.
+- **Notes taken:**
+  - a test that `check()` of a crate path that is a file is `file-missing` in process, which kills the verifier's
+    M5;
+  - the real-junction test's docstring says "says is not there";
+  - the long line rewrapped.
+- **Notes left for P0.9:** within one directory the walk asks directories before files, and on a host that opens
+  dangling links a dangling symbolic link to a directory sorts among the files, so with two link-like entries of
+  different kinds in one directory the place named could differ by host, though the refusal's name cannot
+  (BELIEVED, not run).
+- **Mutants:** eleven, each killed (the lead's scratch, p08/r5fix/), through sbx.sh: the classification's two (R1,
+  R2), M5 (R3), and round 4's eight that still apply. N4 and its twin are now killed by other tests than their
+  target, since the question's own classification answers what their order once decided.
+
+**The runner on the fixed tree:** run `20261031-004932-9144-83503b0+dirty`, 18 stages passed and 6 skipped by name,
+2,980 tests.
+
+## 2026-10-31 - P0.8's fifth verifier: READY, on the relaxed bar
+
+**The verdict** (docs/reviews/P0.8/round5.md): READY, on the relaxed bar the cap sets, with no defect in what the code
+does that a crate or the command line can reach, and no gate, stage, test or registry that passes a fault it claims
+to catch.
+
+**What held** (MEASURED by the verifier):
+- the freeze, and the runner in two copies, 2,980 tests each; the privacy gate over the real history, 40 of 40 of its
+  controls caught;
+- the question's classification against pathlib's own, `_ignore_error`, on 2,301 planted errors, every errno and
+  every Windows error from 0 to 2,199, on 3.12.15 and on 3.13.5: 0 mismatches. The command line as a process, 51
+  rows, gives exit 1, 2 and 3 as items 12 and 16 say, under pathlib's answers of 3.14 as under the real ones;
+- the suites under the emulation of 3.14's pathlib: tests/format, custody, vocabulary and controls, 1,417, and
+  tests/p1, 1,169; the source of 3.14's `Lib/pathlib/__init__.py` READ, the six methods the emulation models;
+- 17 shapes of round 1, in process and as three kinds of process; a model-based fuzz of 200 fresh trees, 0
+  mismatches; 550 random crates against 83503b0: the 315 with no dangling-style junction the same in exit, stdout
+  and stderr, the 235 with one each `file-link` or refused first by its changed metadata;
+- P0's tests leaving no junction, over some 40 sessions, mutants among them;
+- 32 mutants of its own: the classification's, the question's, the walk's and `check()`'s.
+
+**Below the bar, about the code:**
+- **C1:** in process, `checker.check()` of a crate path holding a NUL character, or longer than 32,767 characters on
+  Windows, now raises ValueError, where it was `file-missing`: the question calls os.lstat itself and catches
+  OSError alone. No crate's name can hold a NUL, and the command line refuses such a path before `check()`, exit 2.
+- **C2:** on Windows a name ending in a dot or a space is listed by its directory and cannot be stat'd, since lstat
+  strips the character. A file so named was `file-link` before and is now, by another detail. A directory so named
+  was walked, or failed exit 3, and is now refused `file-link`, as item 12 says.
+
+**Corrections of the entries above, which stand as written:**
+- "eleven [mutants], each killed" (the fourth verifier's entry): two of them, N4 and its twin at the metadata file,
+  the order of the link test and the question swapped, are equivalent now, the question classifying by itself. The
+  lead's harness counted them killed "not by its target": at low integrity, the bash tests of its fallback run fail
+  whatever the mutant, the trap its own note records (P0.9's notes, item 12). Nine of the eleven were killed.
+- "the format tests pass, 1,182" (the same entry): those are four files of tests/format, not the stage, whose count
+  is 1,350.
+
+**Notes, for P0.9** (SCRATCH\p08\notes.md):
+- the classification's constants are held in part: EBADF, ELOOP and Windows' 21, 123 and 1921 dropped, or EINVAL
+  added, pass every test; a test that compares the tuples with pathlib's own lists on 3.12 and 3.13 would hold them;
+- C1's one line, `except ValueError: return False`;
+- Windows' error 21, "not ready", is a PermissionError Python lists among "not there", so item 12's "a refused
+  permission is misuse" is wider than the list: the list should be named, not paraphrased;
+- `pathlib_answers` patches `is_junction`, which already answered False for every error in 3.12 and 3.13;
+- the module docstring of qro/checker.py, step 2, does not name the new refusal.
+
+**The whole of P0.8** took five rounds and four send-backs: the first on the checker failing on this machine, and
+the lead's false sentence; the second on one sentence's width; the third on two more, the cap then reached; the
+fourth on Python 3.14's pathlib. It is committed as the next entry says.

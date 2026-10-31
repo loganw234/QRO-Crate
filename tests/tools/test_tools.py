@@ -170,17 +170,6 @@ def git_tree(tmp_path, files, message="a clean commit"):
     return r
 
 
-def link_dir(path, target):
-    """A directory link: a junction on Windows, which needs no privilege; a symbolic link elsewhere. No skip: the
-    runner fails a stage that skips a test (a copy of tests/format/test_hostile.py's, never imported from it)."""
-    import os
-    if os.name == "nt":
-        import _winapi
-        _winapi.CreateJunction(str(target), str(path))
-    else:
-        os.symlink(target, path, target_is_directory=True)
-
-
 def test_the_gate_exits_1_on_a_key_in_a_tracked_file_and_0_on_a_clean_tree(tmp_path):
     clean = git_tree(tmp_path / "a", {"notes.md": "nothing to see" + chr(10)})
     planted = git_tree(tmp_path / "b", {"notes.md": privacy.PLANTS["named:QISKIT_IBM_TOKEN"] + chr(10)})
@@ -975,19 +964,23 @@ def test_a_skip_worktree_file_still_on_disk_is_read(tmp_path):
             assert bad == [] and privacy.control(r) == 0, bad
 
 
-def test_a_link_left_dangling_where_a_tracked_file_was_is_not_passed_over(tmp_path):
+def test_a_link_left_dangling_where_a_tracked_file_was_is_not_passed_over(tmp_path, monkeypatch):
     """P0.7's second verifier, note 4: the pass-over asks `lexists`, and `exists` in its place passed every test, the
     two differing only at a link whose target is gone. A file git says is not in the working tree is passed over only
-    where nothing at all stands at its path: a dangling link there is something, which the gate reads."""
-    import os
+    where nothing at all stands at its path: a dangling link there is something, which the gate reads. The link is
+    told to the gate's `lexists`, as simulate_links tells it a symbolic link: this machine, found so on 2026-10-30,
+    opens no dangling junction, not even its reparse point, so that `lexists` finds nothing where a directory's
+    listing still names one, and the real junction this test made failed its control (P0.8, docs/VALIDATION.md).
+    The other half, where nothing is seen at the path, as this machine sees a dangling junction, is held by
+    test_a_sparse_checkout_passes_and_what_it_leaves_out_is_read: passed over, and the index's version read."""
     r = git_tree(tmp_path / "t", {"notes.md": "nothing to see" + chr(10), "conf.md": "a note" + chr(10)})
     subprocess.run(["git", "-C", str(r), "update-index", "--skip-worktree", "conf.md"], check=True,
                    env=hermetic_git(tmp_path / "t"))
     (r / "conf.md").unlink()
-    (tmp_path / "gone").mkdir()
-    link_dir(r / "conf.md", tmp_path / "gone")
-    (tmp_path / "gone").rmdir()
-    assert os.path.lexists(r / "conf.md") and not os.path.exists(r / "conf.md"), "a dangling link: the test's control"
+    lexists = privacy.os.path.lexists
+    monkeypatch.setattr(privacy.os.path, "lexists", lambda p: Path(p).name == "conf.md" or lexists(p))
+    assert privacy.os.path.lexists(r / "conf.md") and not privacy.os.path.exists(r / "conf.md"), \
+        "a dangling link: the test's control"
     gone = privacy.absent(r)
     assert "conf.md" in gone and not privacy.passed_over(r, "conf.md", gone)
     bad, summary = privacy.check(r)
