@@ -4142,3 +4142,127 @@ to catch.
 **The whole of P0.8** took five rounds and four send-backs: the first on the checker failing on this machine, and
 the lead's false sentence; the second on one sentence's width; the third on two more, the cap then reached; the
 fourth on Python 3.14's pathlib. It is committed as the next entry says.
+
+## 2026-10-31 - P0.8 committed; P2.1 merged: the golden measures' core
+
+**P0.8 is committed and pushed** as d98295e, with the entry above, on Logan's standing word. The runner on the
+committed tree, before the push: run `20261031-020641-2887-d98295e`, 18 stages passed and 6 skipped by name, 2,980 tests.
+
+**What P2.1 is.** P2 is the golden measures' parcel. It measures what a crate's law and coherence PUBs did; it says
+of each measure whether it tells the law from its classical twins (signal) or only shows the run is sound
+(integrity); and it holds a compile's gate lists to the logical circuits they claim to be. Its design is P2.md items 1
+to 14 in the round's ledger, approved with the lead's decisions on it (lead.md 2026-10-16T00:24:00Z). P2.1 is its
+core, built on Opus in its own worktree from 37640f0. It adds 33 files, and changes one, docs/README.md, by its
+page's line:
+- **qro/p2_law.py:** the law file `qro-law/1`, the twins, every measure's expected value, and the classes;
+- **qro/p2_interval.py:** `qro-hoeffding-kl/1`, the certified intervals, in integers;
+- **qro/p2_sim.py:** the readers of gate lists and logical circuits, the simulator, and the memo;
+- **qro/p2_hold.py:** `qro-exact-hold/1`;
+- **qro/p2_measures.py:** the estimators, the family and its intervals, the entities, and the seam with P1's
+  generator;
+- **qro/p2_steps.py:** steps 6 and 7;
+- **qro/p2_report.py:** the floor, the z statistics and the standard errors, read by no step;
+- **qro/register_p2.py:** steps 6 and 7, each with its entry rule, and nothing else;
+- **tests/p2/:** P2's tests and their builder, p2_builder.py, which writes P2's own synthetic crates;
+- **tests/p2/data/:** ten of Quantum-Film's files, kingston's morning bundle of 2026-10-05 and the source circuit,
+  copied byte for byte from moth-quantum at 3a73823, and their README with its MIT notice (the lead's decision 9 on
+  P2's design: P2.2 replaces each copy with a read of P1's twin where the twin carries the same bytes);
+- **docs/P2.md:** P2's page, which names, for each claim, the tests that hold it, and says where none does.
+
+P2.2 is not built: the controls `class-declared` and `compile-broken`, the tests on P1's twin, and the `p2-crates`
+stage on v0's two crates.
+
+**What the steps hold** (docs/P2.md, sections "Step 6" and "Step 7"):
+- **Where they enter** (the lead's E1, lead.md 2026-10-26T10:52:46Z): step 6 only on a term whose step is 6 or an
+  entity typed `qro:Measuring`, `qro:Contrast` or `qro:Measurement`, and step 7 only on a term whose step is 7 or an
+  entity typed `qro:Hold`. So P0's fixture, which carries none of them, costs P2 one look at its graph's keys and
+  types, and is accepted with every `qro.p2_*` module unimportable.
+- **Step 6, `measure-class`:** exactly one question, with the measure set `qro-measures/1` and its two twins; the law
+  file read strictly and held to the question's own circuit, every layout's probability, the mass outside them and
+  each observable within 1e-10; every Contrast's class and values as computed, a class never read from a crate;
+  every law and coherence
+  Pub measured from its raw bytes through P1.1's `pub_counts`, each certified interval at alpha 1/20 over the crate's
+  family.
+- **Step 7, `compile-uncontrolled`:** one Hold for each Compile, under `qro-exact-hold/1`; every gate list a
+  manifest names that the crate carries held to its logical circuit, and that circuit to its role, whatever any claim
+  says, in every Compile and at every entry of its manifest; no gate list in a Compile's `object` or `result` that
+  its manifest does not name; and the Hold's word the one the gate lists' presence gives.
+- **The intervals** are Hoeffding's bound in its KL form. Each end is a point on the grid j / 2^48 proven outside
+  the set in integers, so no rounding narrows an interval and every host writes the same endpoints.
+
+**Measured through the built code** (each pinned by a test the page names):
+- v0's law: 78,482 bytes, its SHA-256 pinned; 4,368 layouts of 5 crystals on the 4 x 4 tile, over 4,096, with 1,360
+  forbidden; X0X1 = Y0Y1 = 3/8; and the study's section 7, every value and class of its two columns;
+- kingston's four morning gate lists hold, every outcome within 1e-14 of its logical circuit's; the plants on them
+  are refused, and the phase plant is accepted, as limit 1 states;
+- kingston's pooled five-crystal share less fez's, at family 70, is [12330612205551 / 2^48, 16819644152847 /
+  2^48], the study's [+0.0438, +0.0598].
+
+**Changes from the approved design, each taken by the lead:**
+- **E1,** where the steps enter (above). The design's rule made step 6 refuse the crates of 17 of P1.1's tests,
+  which carry none of P2's terms. Limit 15 states what the change concedes, and step 9 is its cover.
+- **E2,** eleven silences of the design, each taken as P2.1 proposed (lead.md 2026-10-26T10:52:46Z). Among them, the
+  measure set's three needs of a law, each refused `measure-class`; and a law-role circuit held to the question's
+  `qro:law` where the crate carries one, and refused where it does not.
+- **Three refusals, at round 2's fixes** (lead.md 2026-10-26T21:29:31Z):
+  - a coherence Pub whose raw result Atlas's rule decodes, which round 1's code measured as an x0x1 of 1/30 from the
+    all-Z layouts;
+  - a gate list in a Compile's `object` that its manifest does not name, as one in its `result` was;
+  - the QASM reader's cap, counting gates rather than lines, and barrier lines apart, at 100,000 each.
+
+  The third verifier measured that none refuses what an honest crate holds.
+
+**The three rounds** (docs/reviews/P2.1/):
+1. **NOT READY,** with no wrong answer, on five gates and a sentence:
+   - the central invariant was untested where a Hold says `withheld` and some gate lists are carried;
+   - two checked terms and two counts had no plant;
+   - a coherence circuit's sign was not held;
+   - T1 let through faults that read the metadata file;
+   - the page's "every claim here is held by a test" was false while those stood.
+
+   The deletion of 2026-10-26 took P2.1's builder's transcript. A new builder, on Opus, took the fixes over from
+   P2.1's record.
+2. **NOT READY,** with no wrong answer, on two gates and a limit:
+   - step 7's loops were held by no plant past the first Compile and the manifest's middle entries;
+   - three parts of the memo's keys were held by no test;
+   - limit 13 left the references out of the cost.
+3. **READY,** on the full bar. Every round-2 fix held. Of the second verifier's mutants, all were killed but one,
+   which is equivalent. Measured wide again:
+   - 6,866 edits of every P2 term on four crates, 229 raw edits and 6,300 values;
+   - the law file and its digest by the verifier's own kernel;
+   - 2,644 intervals against mpmath bisection at 90 digits, alike under 3.13.5;
+   - its own simulator against v0's real files;
+   - the memo across 21 crates in 126 warm replays;
+   - 43 hostile files as processes;
+   - 777 mutants, 718 killed. Of the 59 live, 44 are equivalent or unreachable, and 15 are bounds no test pins.
+
+**Measured at the merge:**
+- P2.1's own mutants:
+  - at the build, 30 hand mutants and 550 automatic ones, every survivor equivalent or on a boundary, or killed by a
+    test added;
+  - at round 1's fixes 27, and at round 2's 51, all killed after their baselines;
+- the verifiers' mutants: round 1's 902 automatic and 81 hand, whose live gaps round 1's fixes took as tests, and
+  which the second verifier found killed, with the nine round 1 left unrun; round 2's 664; round 3's 777;
+- P0.7's id rule, which refuses an absolute IRI whose scheme is a term of the context: P2's tests pass under it, so
+  the crates they hold accepted carry none (P0.7's fourth verifier's note 2: "no parcel writes one" was measured on
+  P1.1 and P4 alone);
+- the runner on the merged tree: run `20261031-021409-1151-d98295e+dirty`, 19 stages passed and 5 skipped by name
+  (p4, p1-crates, p2-crates, profile and p4-shacl), 3,489 tests, p2's 509 among them.
+
+**The stated limits** are docs/P2.md's "What it concedes", items 1 to 16, each naming the test that pins what it
+concedes, or saying that none does.
+
+**Left for P2.2,** with its page's "What P2.1 leaves to P2.2" (P2.1's third verifier's notes, lead.md
+2026-10-26T23:02:20Z):
+- N1 to N4, bounds where the code is right and no test pins them, each one test:
+  - a gate list of exactly 100,000 gates;
+  - a `cx`, `ry` or barrier index equal to the width;
+  - the one-qubit boundary;
+  - in p2_law: one crystal, the observables' edge, `_CLASSES`' 64, a never-co-occupied pair's default, and `_det`'s
+    pivot swap;
+- N7, three test files that hold one non-ASCII character each;
+- the budget on the exact hold's work left open for P2.2's design (lead.md 2026-10-26T18:56:48Z), counting
+  references, as limit 13 now says.
+
+N5 goes to P3's design: `p2_interval.pooled` takes a float or bool total, where `interval()` refuses a float. N6
+is by design.
