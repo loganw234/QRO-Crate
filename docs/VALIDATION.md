@@ -4266,3 +4266,159 @@ concedes, or saying that none does.
 
 N5 goes to P3's design: `p2_interval.pooled` takes a float or bool total, where `interval()` refuses a float. N6
 is by design.
+
+## 2026-10-31 - P2.1 committed; P4 merged: the profile
+
+**P2.1 is committed and pushed** as 06292d9, with the entry above, on Logan's standing word. The runner on the
+committed tree, before the push: run `20261031-022531-5087-06292d9`, 19 stages passed and 5 skipped by name, 3,489 tests.
+
+**What P4 is.** P4 makes what a tool that reads RO-Crates, and cannot run QRO-Crate's checker, needs of the profile:
+- a Profile Crate that describes it;
+- the description the profile's IRI resolves to;
+- SHACL shapes in Turtle;
+- examples.
+
+All of it is generated from the vocabulary table, so a row and its shape cannot disagree. The checker is the
+authority: each shape says in `qs:claims` which of the checker's refusals it mirrors, and the tests hold that when a
+must shape fails, the checker refuses the crate. Its design is P4.md items 1 to 10 in the round's ledger, approved
+with the lead's decisions on it (lead.md 2026-10-16T00:24:00Z). Logan's four answers to it (lead.md
+2026-10-16T01:14:00Z):
+- the SHACL engine installed;
+- the profile's IRIs as placeholders until he registers w3id.org;
+- a `v0.1` tag at the release;
+- rocrate-validator cleared, if needed.
+
+P4 was built on Sonnet in its own worktree from 7f40400, and brought to 8afeede and then to 37640f0. Its round-4
+fixes were a new builder's, from P4's record, after the deletion of 2026-10-26, and the host round's and round 6's
+another's. It adds 59 files, and changes one,
+docs/README.md, by its page's line:
+- **tools/gen_profile.py:** the generator: `--write` renders profile/, and `--check`, the `profile` stage, refuses
+  drift;
+- **qro/p4_model.py, qro/p4_shapes.py, qro/p4_turtle.py:** a SHACL Core subset as data, the shapes the table makes,
+  and their Turtle;
+- **qro/p4_expand.py, qro/p4_eval.py:** a crate's metadata as triples, as RO-Crate's pinned context expands it, and
+  an evaluator of the shapes against them, which `python -m qro check` never calls;
+- **qro/p4_profile.py, qro/p4_examples.py:** the Profile Crate, its description, the matrix, its check and the
+  stated limits; the plants, the positive examples, and the judge that runs the checker and the evaluator on one
+  crate;
+- **profile/:** the eleven files the generator writes beside P0's context.jsonld: the Profile Crate, README.md and
+  EXAMPLES.md, the validator's profile and its four shape files, and a copy of P0's fixture crate;
+- **tests/p4/:** the quick stage's tests and their helpers;
+- **tests/p4shacl/:** the engine stage. It runs pyshacl 0.40.1 and rdflib 7.6.0 by the interpreter `QRO_SHACL_PYTHON`
+  names, with `-I` and a socket guard, and holds that environment to its requirements file;
+- **docs/P4.md:** P4's page.
+
+**The rounds** (docs/reviews/P4/):
+1. **NOT READY,** on the full bar, on six defects. In defect 1, the reader admitted ids that RDF reads otherwise
+   (blank nodes, ids beginning `@`, dot segments and network paths, compact IRIs), so a real engine failed a must
+   shape on a crate the checker accepted. The reader's part was the lead's, P0.5, and P4's part followed it.
+   Defects 2 to 6:
+   - claims too narrow for alias keys, empty lists and the verifier's 21 classes;
+   - `--check` exiting 3 on a misshapen Profile Crate;
+   - the Profile Crate's context entity with no absolute IRI, and its artifacts with no `encodingFormat`;
+   - false limits and docstrings;
+   - a date gate and two assertions that could not fail.
+2. **NOT READY,** on the full bar, on must shapes that failed where the checker refuses by a name their claims did
+   not hold. They came in three families of one-edit crates: an id twice, a case clash, or a file and a directory;
+   an edited top-level context; a File entity added with no file on disk. The sweeps' pool lacked them, and eight
+   sentences stated the property they broke.
+   Ruled: every must shape claims the six refusals of steps 1 and 2 that can come before its own (`FORM`).
+3. **NOT READY,** on the full bar, the cap then reached. On Windows `os.walk(followlinks=False)` descends a
+   junction, so `--write` removed a file outside the tree through a junction in profile/. Two sentences of the limits
+   were false.
+4. **NOT READY,** past the cap, on one defect in what the code does: a junction at `profile/` itself was walked, read
+   through and written through, and `--write` removed a file outside the tree through it. The first run of the round
+   was stopped by the deletion, and the second read its work.
+5. **READY,** on the relaxed bar, with no defect of the four kinds its brief named. Measured:
+   - soundness on seven richer bases of the verifier's own: 203,837 single-edit crates, and none where a must shape
+     fails while steps 1 to 3 accept, or fails with no failing shape claiming the checker's refusal;
+   - 5,315 crates through pyshacl, 0 differences from the evaluator;
+   - 11,000 random shapes over random graphs, 0 disagreements;
+   - 600 random trees of links, hard links, case clashes, directories where files go and the rest, 0 violations;
+   - 102 of the fifth round's own mutants re-run, all killed; the 39 that need the engine were not re-run.
+
+   **Then the machine changed** (P0.8's entries above). Three of P4's tests made a dangling junction, which this
+   machine cannot open, and failed here, though the tool did nothing unsafe. In a short round, a new builder from
+   P4's record made each tell the tool of the link instead, the tool's code unchanged, and stated the host's
+   behaviour as a limit (P4.md 2026-10-31T04:44:52Z).
+6. **NOT READY,** on the relaxed bar, on a test that passed faults it claimed to catch. The rewritten test of a link
+   below `profile/` that leads nowhere told only `os.scandir` and `Path.stat` of the path. Nine mutants that decide
+   "this link leads nowhere" by another call survived it, where the old test, on a host that opens such a link, had
+   killed them. Ruled: the stand-in tells every call that could ask, with controls; and every real-junction test
+   removes its link after the test, pass or fail. Both done (P4.md 2026-10-31T06:28:47Z).
+7. **READY,** on the relaxed bar. Measured:
+   - exactly six files changed from the sixth packet, the tool the same program;
+   - the stated limit true in 15 real states as processes, nothing changed in any;
+   - the sixth verifier's twelve mutants killed but A08;
+   - its own 147 mutants writing the decision with 21 calls at 7 sites: 20 of the calls killed everywhere;
+   - no junction left by a passing run, or by 39 failing mutant runs.
+
+**Below the fifth verifier's bar, and the lead's ruling on it** (lead.md 2026-10-26T23:28:41Z): six findings about
+what the code does, each low in reach.
+- **C1, the exception, until it is fixed, to the tool's "a link is never read through"** (its docstring, and docs/P4.md
+  "Links"). Where a link stands at a place where a rendered directory goes, `--check`'s `drift()` asks `is_dir()` of
+  the rendered paths behind it: five `os.stat` calls through the link. They read existence and type only. The exit
+  never changes, and the text changes only where the link's target holds a directory at that path. It writes,
+  removes and decides nothing, so it does not hold the merge.
+- **C2 to C6:**
+  - an unreadable context is exit 1, where another unreadable file is exit 3, and the exit-1 list does not name P0's
+    context;
+  - `--write` removes before it writes, so a directory it cannot remove fails it before any write, which is unstated;
+  - a stray in a case-clash directory is told "run --write" where `--write` refuses;
+  - the evaluator raises on an integer literal past 4,300 digits, which no crate reaches;
+  - a stray's name is printed raw, not through `escape`.
+
+**Below the seventh verifier's bar** (lead.md 2026-10-31T07:30:47Z): one sentence false, and test gaps.
+- **False, until P4.2 fixes it:** the page, the docstring and a test's docstring say that a junction at
+  `context.jsonld` whose target became a file is read as NotADirectoryError, and the tree refused as one whose
+  context is missing. The read raises OSError, errno 22, and the tool answers exit 1, "profile/context.jsonld cannot
+  be read (OSError)". The exit and the refusal are as stated.
+- **Gaps:** the stand-in tells no `os.utime`, nor a path spelled with a trailing separator or a `.` component, at
+  six sites; A08 is reached by no test; the teardown guard reads `link_dir(` alone; `os.access` is told "no" where
+  a real dangling junction says yes; and "this host" stands in three older sentences of the page.
+
+**Measured at the merge:**
+- P4's own hand mutants, round by round in its ledger: 283 at the build, 434 at round 1's fixes, 58 at main, 40
+  for the `ref` terms' claims, then 48, 25 and 141 at rounds 2 to 4's fixes, 138 at the host round and 176 at round
+  6's, all killed but A08 and an equivalent;
+- the fifth verifier's own: 24 of the generator, 17 killed and 6 surviving (2 equivalent on this host, 4 test gaps
+  where the code is right), and 16 of 16 of the shapes and the evaluator;
+- the runner on the merged tree, with `QRO_SHACL_PYTHON` set: run `20261031-023349-432-06292d9+dirty`, 22 stages
+  passed and 2 skipped by name (p1-crates and p2-crates), 4,658 tests, p4's 933 and p4-shacl's 236 among them.
+
+**The lead's items at the merge** (lead.md 2026-10-19T11:12:37Z, restated 2026-10-26T11:18:27Z and 14:00:58Z):
+- **The `profile` stage's text** is P4's proposal (P4.md 2026-10-16T17:33:51Z). The Profile Crate is said to hold
+  "the rules of RO-Crate 1.3's profiles page that its check lists (docs/P4.md)", no longer "what RO-Crate 1.3 asks".
+- **The `p4-shacl` stage's text** gains its clause: the claims' whole sweep and the Profile Crate's 20,000-edit fuzz
+  run there too.
+- **VALIDATION's stale names.** The entry "P0.4 committed; P0.5: every @id in one spelling of the IRI it names"
+  names P4's edge plants `edge-blank-node-id` and `edge-absolute-file-id`. They are `abstains-blank-node-id` and
+  `abstains-absolute-file-id` now, with `abstains-network-path-id` and `abstains-dot-segment-id` (P4.md
+  2026-10-19T17:40:48Z).
+- **CLAUDE.md's timings** are left to P0.9: they want runs with no agent beside them, and every run of this merge's
+  night ran beside others.
+
+**The stated limits** are docs/P4.md's "The stated limits", written once in qro/p4_profile.py as `LIMITS` and
+rendered into profile/README.md.
+
+**Left for P4.2,** which may come before P4.1, the twin, which waits on P1.2:
+- first, the false sentence on `context.jsonld` above, and the seventh verifier's closure of the stand-in: one that
+  is not there at all, shown only in its parent's listing, which needs no call told;
+- C1: the walk asks nothing below a link, and a test spies `stat` there;
+- then C6, and C2 to C5;
+- the sixth and seventh verifiers' notes: the limit tests hold the tool and not the host; A08; the teardown guard's
+  one spelling; `os.access`; "this host";
+- the fifth verifier's prose notes:
+  - "never read through";
+  - the `casefold` limit, stated one way only;
+  - limit 2's OWL-RL list;
+  - three banners that name shapes of 1_structure.ttl;
+  - `--help`'s cut sentence;
+- its test gaps where the code is right:
+  - a file symlink;
+  - `casefold` against `lower`;
+  - a file at `profile`;
+  - removals named in a failure line;
+  - a working directory inside what is removed;
+- as before: the description in HTML, each `termCode` as a key, rocrate-validator, and the permanent IRI, which
+  is Logan's to register.

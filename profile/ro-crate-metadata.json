@@ -1,0 +1,923 @@
+{
+  "@context": [
+    "https://w3id.org/ro/crate/1.3/context",
+    {
+      "qro": "https://github.com/loganw234/QRO-Crate/blob/main/docs/VOCABULARY.md#"
+    }
+  ],
+  "@graph": [
+    {
+      "@id": "ro-crate-metadata.json",
+      "@type": "CreativeWork",
+      "about": {
+        "@id": "https://github.com/loganw234/QRO-Crate/blob/main/profile/README.md"
+      },
+      "conformsTo": {
+        "@id": "https://w3id.org/ro/crate/1.3"
+      }
+    },
+    {
+      "@id": "https://github.com/loganw234/QRO-Crate/blob/main/profile/README.md",
+      "@type": [
+        "Dataset",
+        "Profile"
+      ],
+      "datePublished": "2026-10-16",
+      "description": "An RO-Crate profile for quantum runs, and the checker that holds a crate to it. This is the profile's own crate: its description, vocabulary and context, its SHACL shapes, and its examples.",
+      "hasPart": [
+        {
+          "@id": "EXAMPLES.md"
+        },
+        {
+          "@id": "README.md"
+        },
+        {
+          "@id": "context.jsonld"
+        },
+        {
+          "@id": "examples/fixture/"
+        },
+        {
+          "@id": "validator/qro-crate/"
+        }
+      ],
+      "hasResource": [
+        {
+          "@id": "#hasContext"
+        },
+        {
+          "@id": "#hasExamples"
+        },
+        {
+          "@id": "#hasShapes"
+        },
+        {
+          "@id": "#hasSpecification"
+        },
+        {
+          "@id": "#hasVocabulary"
+        },
+        {
+          "@id": "#shouldConformToProcessRun"
+        }
+      ],
+      "isProfileOf": {
+        "@id": "https://w3id.org/ro/crate/1.3"
+      },
+      "license": {
+        "@id": "https://creativecommons.org/licenses/by/4.0/"
+      },
+      "name": "QRO-Crate",
+      "version": "0.1"
+    },
+    {
+      "@id": "#hasContext",
+      "@type": "ResourceDescriptor",
+      "hasArtifact": {
+        "@id": "https://raw.githubusercontent.com/loganw234/QRO-Crate/main/profile/context.jsonld"
+      },
+      "hasRole": {
+        "@id": "http://www.w3.org/ns/dx/prof/role/vocabulary"
+      }
+    },
+    {
+      "@id": "#hasExamples",
+      "@type": "ResourceDescriptor",
+      "hasArtifact": [
+        {
+          "@id": "EXAMPLES.md"
+        },
+        {
+          "@id": "examples/fixture/data/notes.txt"
+        },
+        {
+          "@id": "examples/fixture/data/raw.counts.json"
+        },
+        {
+          "@id": "examples/fixture/ro-crate-metadata.json"
+        }
+      ],
+      "hasRole": {
+        "@id": "http://www.w3.org/ns/dx/prof/role/example"
+      }
+    },
+    {
+      "@id": "#hasShapes",
+      "@type": "ResourceDescriptor",
+      "hasArtifact": [
+        {
+          "@id": "validator/qro-crate/must/1_structure.ttl"
+        },
+        {
+          "@id": "validator/qro-crate/must/2_terms.ttl"
+        },
+        {
+          "@id": "validator/qro-crate/must/3_domains.ttl"
+        },
+        {
+          "@id": "validator/qro-crate/profile.ttl"
+        },
+        {
+          "@id": "validator/qro-crate/should/1_absence.ttl"
+        }
+      ],
+      "hasRole": {
+        "@id": "http://www.w3.org/ns/dx/prof/role/validation"
+      }
+    },
+    {
+      "@id": "#hasSpecification",
+      "@type": "ResourceDescriptor",
+      "hasArtifact": {
+        "@id": "README.md"
+      },
+      "hasRole": {
+        "@id": "http://www.w3.org/ns/dx/prof/role/specification"
+      }
+    },
+    {
+      "@id": "#hasVocabulary",
+      "@type": "ResourceDescriptor",
+      "hasArtifact": {
+        "@id": "https://github.com/loganw234/QRO-Crate/blob/main/docs/VOCABULARY.md#"
+      },
+      "hasRole": {
+        "@id": "http://www.w3.org/ns/dx/prof/role/vocabulary"
+      }
+    },
+    {
+      "@id": "#shouldConformToProcessRun",
+      "@type": "ResourceDescriptor",
+      "hasArtifact": {
+        "@id": "https://w3id.org/ro/wfrun/process/0.6"
+      },
+      "hasRole": {
+        "@id": "http://purl.org/dc/terms/conformsTo"
+      }
+    },
+    {
+      "@id": "EXAMPLES.md",
+      "@type": "File",
+      "contentSize": "11510",
+      "description": "The matrix of examples: what the checker and the shapes each say of every example and plant.",
+      "encodingFormat": "text/markdown",
+      "name": "EXAMPLES.md",
+      "sha256": "585624d7391aca55821d97c55f5e23439e1943cf122e32308fc17baa74ec14c6"
+    },
+    {
+      "@id": "README.md",
+      "@type": "File",
+      "about": {
+        "@id": "https://github.com/loganw234/QRO-Crate/blob/main/profile/README.md"
+      },
+      "contentSize": "60705",
+      "description": "The profile description: what the profile is, how a crate declares it, what the shapes hold and cannot see.",
+      "encodingFormat": "text/markdown",
+      "name": "README.md",
+      "sha256": "3e615098a2cf8bd677cfcbcfd3a78f58eecc6efdcfadd11626a9f12e1ff0b583"
+    },
+    {
+      "@id": "context.jsonld",
+      "@type": "File",
+      "contentSize": "106",
+      "description": "The JSON-LD context a QRO crate inlines after RO-Crate 1.3's; P0's file, generated from the vocabulary.",
+      "encodingFormat": "application/ld+json",
+      "name": "context.jsonld",
+      "sameAs": {
+        "@id": "https://raw.githubusercontent.com/loganw234/QRO-Crate/main/profile/context.jsonld"
+      },
+      "sha256": "dc9b2d4b894f37b5fdfa1743b7209b7d2e50a878cbe0d0fe0b2d8e95802eb278"
+    },
+    {
+      "@id": "examples/fixture/",
+      "@type": "Dataset",
+      "description": "The smallest crate every one of P0's checker steps reads: the positive example. The checker accepts it with --fixtures.",
+      "hasPart": [
+        {
+          "@id": "examples/fixture/data/notes.txt"
+        },
+        {
+          "@id": "examples/fixture/data/raw.counts.json"
+        },
+        {
+          "@id": "examples/fixture/ro-crate-metadata.json"
+        }
+      ],
+      "name": "P0's fixture crate"
+    },
+    {
+      "@id": "examples/fixture/data/notes.txt",
+      "@type": "File",
+      "contentSize": "53",
+      "description": "A note the fixture lists.",
+      "encodingFormat": "text/plain",
+      "name": "examples/fixture/data/notes.txt",
+      "sha256": "0cf4ac14a2752af83c699088890326691aeff2208901dbc520a790589880a8f1"
+    },
+    {
+      "@id": "examples/fixture/data/raw.counts.json",
+      "@type": "File",
+      "contentSize": "23",
+      "description": "The fixture's raw result.",
+      "encodingFormat": "application/json",
+      "name": "examples/fixture/data/raw.counts.json",
+      "sha256": "5721802cb700ccbf26384808669e4be1ea6fcaaa23acdf602f7d1fb87a7fb73e"
+    },
+    {
+      "@id": "examples/fixture/ro-crate-metadata.json",
+      "@type": "File",
+      "contentSize": "2247",
+      "description": "The fixture crate's metadata.",
+      "encodingFormat": "application/json",
+      "name": "examples/fixture/ro-crate-metadata.json",
+      "sha256": "07108708b477bfcbbf9cf27bdcac7dce7a27fbc30a07f34d587d88724cccb05d"
+    },
+    {
+      "@id": "http://www.w3.org/ns/json-ld#Context",
+      "@type": "DefinedTerm",
+      "name": "JSON-LD Context",
+      "url": "https://www.w3.org/TR/json-ld/"
+    },
+    {
+      "@id": "https://creativecommons.org/licenses/by/4.0/",
+      "@type": "CreativeWork",
+      "description": "Creative Commons Attribution 4.0 International",
+      "name": "CC BY 4.0"
+    },
+    {
+      "@id": "https://github.com/loganw234/QRO-Crate/blob/main/docs/VOCABULARY.md#",
+      "@type": "DefinedTermSet",
+      "encodingFormat": "text/html",
+      "name": "the QRO-Crate vocabulary",
+      "url": "https://github.com/loganw234/QRO-Crate/blob/main/docs/VOCABULARY.md"
+    },
+    {
+      "@id": "https://github.com/loganw234/QRO-Crate/blob/main/docs/VOCABULARY.md#Compile",
+      "@type": "DefinedTerm",
+      "description": "a bundle's compile: the logical circuits frozen into the circuits sent",
+      "inDefinedTermSet": {
+        "@id": "https://github.com/loganw234/QRO-Crate/blob/main/docs/VOCABULARY.md#"
+      },
+      "name": "qro:Compile",
+      "termCode": "Compile"
+    },
+    {
+      "@id": "https://github.com/loganw234/QRO-Crate/blob/main/docs/VOCABULARY.md#Contrast",
+      "@type": "DefinedTerm",
+      "description": "one measure's class against one twin",
+      "inDefinedTermSet": {
+        "@id": "https://github.com/loganw234/QRO-Crate/blob/main/docs/VOCABULARY.md#"
+      },
+      "name": "qro:Contrast",
+      "termCode": "Contrast"
+    },
+    {
+      "@id": "https://github.com/loganw234/QRO-Crate/blob/main/docs/VOCABULARY.md#Decode",
+      "@type": "DefinedTerm",
+      "description": "a job's raw result read through a named rule",
+      "inDefinedTermSet": {
+        "@id": "https://github.com/loganw234/QRO-Crate/blob/main/docs/VOCABULARY.md#"
+      },
+      "name": "qro:Decode",
+      "termCode": "Decode"
+    },
+    {
+      "@id": "https://github.com/loganw234/QRO-Crate/blob/main/docs/VOCABULARY.md#Hold",
+      "@type": "DefinedTerm",
+      "description": "the exact hold of one compile's gate lists",
+      "inDefinedTermSet": {
+        "@id": "https://github.com/loganw234/QRO-Crate/blob/main/docs/VOCABULARY.md#"
+      },
+      "name": "qro:Hold",
+      "termCode": "Hold"
+    },
+    {
+      "@id": "https://github.com/loganw234/QRO-Crate/blob/main/docs/VOCABULARY.md#Job",
+      "@type": "DefinedTerm",
+      "description": "a provider's job: one submission",
+      "inDefinedTermSet": {
+        "@id": "https://github.com/loganw234/QRO-Crate/blob/main/docs/VOCABULARY.md#"
+      },
+      "name": "qro:Job",
+      "termCode": "Job"
+    },
+    {
+      "@id": "https://github.com/loganw234/QRO-Crate/blob/main/docs/VOCABULARY.md#Measurement",
+      "@type": "DefinedTerm",
+      "description": "one measure's value on one PUB, with its certified interval",
+      "inDefinedTermSet": {
+        "@id": "https://github.com/loganw234/QRO-Crate/blob/main/docs/VOCABULARY.md#"
+      },
+      "name": "qro:Measurement",
+      "termCode": "Measurement"
+    },
+    {
+      "@id": "https://github.com/loganw234/QRO-Crate/blob/main/docs/VOCABULARY.md#Measuring",
+      "@type": "DefinedTerm",
+      "description": "the measuring of a crate's PUBs by its question's measure set",
+      "inDefinedTermSet": {
+        "@id": "https://github.com/loganw234/QRO-Crate/blob/main/docs/VOCABULARY.md#"
+      },
+      "name": "qro:Measuring",
+      "termCode": "Measuring"
+    },
+    {
+      "@id": "https://github.com/loganw234/QRO-Crate/blob/main/docs/VOCABULARY.md#Pub",
+      "@type": "DefinedTerm",
+      "description": "one circuit of a job: its role, basis, commitment and decoded record",
+      "inDefinedTermSet": {
+        "@id": "https://github.com/loganw234/QRO-Crate/blob/main/docs/VOCABULARY.md#"
+      },
+      "name": "qro:Pub",
+      "termCode": "Pub"
+    },
+    {
+      "@id": "https://github.com/loganw234/QRO-Crate/blob/main/docs/VOCABULARY.md#Question",
+      "@type": "DefinedTerm",
+      "description": "the question: circuits, law, twins, decode rule and measure set",
+      "inDefinedTermSet": {
+        "@id": "https://github.com/loganw234/QRO-Crate/blob/main/docs/VOCABULARY.md#"
+      },
+      "name": "qro:Question",
+      "termCode": "Question"
+    },
+    {
+      "@id": "https://github.com/loganw234/QRO-Crate/blob/main/docs/VOCABULARY.md#RawResult",
+      "@type": "DefinedTerm",
+      "description": "a raw result: the provider's bytes, fixed before anything decodes them",
+      "inDefinedTermSet": {
+        "@id": "https://github.com/loganw234/QRO-Crate/blob/main/docs/VOCABULARY.md#"
+      },
+      "name": "qro:RawResult",
+      "termCode": "RawResult"
+    },
+    {
+      "@id": "https://github.com/loganw234/QRO-Crate/blob/main/docs/VOCABULARY.md#Snapshot",
+      "@type": "DefinedTerm",
+      "description": "a calibration snapshot: the provider's text",
+      "inDefinedTermSet": {
+        "@id": "https://github.com/loganw234/QRO-Crate/blob/main/docs/VOCABULARY.md#"
+      },
+      "name": "qro:Snapshot",
+      "termCode": "Snapshot"
+    },
+    {
+      "@id": "https://github.com/loganw234/QRO-Crate/blob/main/docs/VOCABULARY.md#alpha",
+      "@type": "DefinedTerm",
+      "description": "the crate's certified intervals hold together with probability at least 1 - alpha",
+      "inDefinedTermSet": {
+        "@id": "https://github.com/loganw234/QRO-Crate/blob/main/docs/VOCABULARY.md#"
+      },
+      "name": "qro:alpha",
+      "termCode": "alpha"
+    },
+    {
+      "@id": "https://github.com/loganw234/QRO-Crate/blob/main/docs/VOCABULARY.md#basis",
+      "@type": "DefinedTerm",
+      "description": "the basis each qubit is read in, qubit 0 first",
+      "inDefinedTermSet": {
+        "@id": "https://github.com/loganw234/QRO-Crate/blob/main/docs/VOCABULARY.md#"
+      },
+      "name": "qro:basis",
+      "termCode": "basis"
+    },
+    {
+      "@id": "https://github.com/loganw234/QRO-Crate/blob/main/docs/VOCABULARY.md#bitOrder",
+      "@type": "DefinedTerm",
+      "description": "the order the decode is told the provider's bits come in; held by the known answer",
+      "inDefinedTermSet": {
+        "@id": "https://github.com/loganw234/QRO-Crate/blob/main/docs/VOCABULARY.md#"
+      },
+      "name": "qro:bitOrder",
+      "termCode": "bitOrder"
+    },
+    {
+      "@id": "https://github.com/loganw234/QRO-Crate/blob/main/docs/VOCABULARY.md#calibration",
+      "@type": "DefinedTerm",
+      "description": "the snapshot or snapshots a job's calibration link names",
+      "inDefinedTermSet": {
+        "@id": "https://github.com/loganw234/QRO-Crate/blob/main/docs/VOCABULARY.md#"
+      },
+      "name": "qro:calibration",
+      "termCode": "calibration"
+    },
+    {
+      "@id": "https://github.com/loganw234/QRO-Crate/blob/main/docs/VOCABULARY.md#calibrationLink",
+      "@type": "DefinedTerm",
+      "description": "how a job's calibration snapshot is tied to its shots (section 6)",
+      "inDefinedTermSet": {
+        "@id": "https://github.com/loganw234/QRO-Crate/blob/main/docs/VOCABULARY.md#"
+      },
+      "name": "qro:calibrationLink",
+      "termCode": "calibrationLink"
+    },
+    {
+      "@id": "https://github.com/loganw234/QRO-Crate/blob/main/docs/VOCABULARY.md#class",
+      "@type": "DefinedTerm",
+      "description": "the law's expected value against the twin's: computed, never declared",
+      "inDefinedTermSet": {
+        "@id": "https://github.com/loganw234/QRO-Crate/blob/main/docs/VOCABULARY.md#"
+      },
+      "name": "qro:class",
+      "termCode": "class"
+    },
+    {
+      "@id": "https://github.com/loganw234/QRO-Crate/blob/main/docs/VOCABULARY.md#clock",
+      "@type": "DefinedTerm",
+      "description": "the clock an entity's times are on",
+      "inDefinedTermSet": {
+        "@id": "https://github.com/loganw234/QRO-Crate/blob/main/docs/VOCABULARY.md#"
+      },
+      "name": "qro:clock",
+      "termCode": "clock"
+    },
+    {
+      "@id": "https://github.com/loganw234/QRO-Crate/blob/main/docs/VOCABULARY.md#commitment",
+      "@type": "DefinedTerm",
+      "description": "a PUB's commitment, recomputed and held to the one the provider echoed; `none` where no provider held one",
+      "inDefinedTermSet": {
+        "@id": "https://github.com/loganw234/QRO-Crate/blob/main/docs/VOCABULARY.md#"
+      },
+      "name": "qro:commitment",
+      "termCode": "commitment"
+    },
+    {
+      "@id": "https://github.com/loganw234/QRO-Crate/blob/main/docs/VOCABULARY.md#decodeRule",
+      "@type": "DefinedTerm",
+      "description": "the rule a raw result is read through; step 5 re-decodes under it",
+      "inDefinedTermSet": {
+        "@id": "https://github.com/loganw234/QRO-Crate/blob/main/docs/VOCABULARY.md#"
+      },
+      "name": "qro:decodeRule",
+      "termCode": "decodeRule"
+    },
+    {
+      "@id": "https://github.com/loganw234/QRO-Crate/blob/main/docs/VOCABULARY.md#device",
+      "@type": "DefinedTerm",
+      "description": "the device a job ran on, or a snapshot is of",
+      "inDefinedTermSet": {
+        "@id": "https://github.com/loganw234/QRO-Crate/blob/main/docs/VOCABULARY.md#"
+      },
+      "name": "qro:device",
+      "termCode": "device"
+    },
+    {
+      "@id": "https://github.com/loganw234/QRO-Crate/blob/main/docs/VOCABULARY.md#deviceKind",
+      "@type": "DefinedTerm",
+      "description": "whether a device is a quantum processor",
+      "inDefinedTermSet": {
+        "@id": "https://github.com/loganw234/QRO-Crate/blob/main/docs/VOCABULARY.md#"
+      },
+      "name": "qro:deviceKind",
+      "termCode": "deviceKind"
+    },
+    {
+      "@id": "https://github.com/loganw234/QRO-Crate/blob/main/docs/VOCABULARY.md#exactHold",
+      "@type": "DefinedTerm",
+      "description": "holds: every gate list the compile's manifest names is carried and passes the exact hold",
+      "inDefinedTermSet": {
+        "@id": "https://github.com/loganw234/QRO-Crate/blob/main/docs/VOCABULARY.md#"
+      },
+      "name": "qro:exactHold",
+      "termCode": "exactHold"
+    },
+    {
+      "@id": "https://github.com/loganw234/QRO-Crate/blob/main/docs/VOCABULARY.md#family",
+      "@type": "DefinedTerm",
+      "description": "how many certified intervals the crate carries: the union bound's count",
+      "inDefinedTermSet": {
+        "@id": "https://github.com/loganw234/QRO-Crate/blob/main/docs/VOCABULARY.md#"
+      },
+      "name": "qro:family",
+      "termCode": "family"
+    },
+    {
+      "@id": "https://github.com/loganw234/QRO-Crate/blob/main/docs/VOCABULARY.md#generator",
+      "@type": "DefinedTerm",
+      "description": "the generator that regenerates this metadata from the records",
+      "inDefinedTermSet": {
+        "@id": "https://github.com/loganw234/QRO-Crate/blob/main/docs/VOCABULARY.md#"
+      },
+      "name": "qro:generator",
+      "termCode": "generator"
+    },
+    {
+      "@id": "https://github.com/loganw234/QRO-Crate/blob/main/docs/VOCABULARY.md#heldCompile",
+      "@type": "DefinedTerm",
+      "description": "the compile whose gate lists are held",
+      "inDefinedTermSet": {
+        "@id": "https://github.com/loganw234/QRO-Crate/blob/main/docs/VOCABULARY.md#"
+      },
+      "name": "qro:heldCompile",
+      "termCode": "heldCompile"
+    },
+    {
+      "@id": "https://github.com/loganw234/QRO-Crate/blob/main/docs/VOCABULARY.md#historyAtRunning",
+      "@type": "DefinedTerm",
+      "description": "the snapshot the history returns at the job's running time, carried beside the link",
+      "inDefinedTermSet": {
+        "@id": "https://github.com/loganw234/QRO-Crate/blob/main/docs/VOCABULARY.md#"
+      },
+      "name": "qro:historyAtRunning",
+      "termCode": "historyAtRunning"
+    },
+    {
+      "@id": "https://github.com/loganw234/QRO-Crate/blob/main/docs/VOCABULARY.md#holdRule",
+      "@type": "DefinedTerm",
+      "description": "the exact hold's rule and version",
+      "inDefinedTermSet": {
+        "@id": "https://github.com/loganw234/QRO-Crate/blob/main/docs/VOCABULARY.md#"
+      },
+      "name": "qro:holdRule",
+      "termCode": "holdRule"
+    },
+    {
+      "@id": "https://github.com/loganw234/QRO-Crate/blob/main/docs/VOCABULARY.md#implementation",
+      "@type": "DefinedTerm",
+      "description": "an implementation and its version, for a definition whose version is in the body",
+      "inDefinedTermSet": {
+        "@id": "https://github.com/loganw234/QRO-Crate/blob/main/docs/VOCABULARY.md#"
+      },
+      "name": "qro:implementation",
+      "termCode": "implementation"
+    },
+    {
+      "@id": "https://github.com/loganw234/QRO-Crate/blob/main/docs/VOCABULARY.md#inScope",
+      "@type": "DefinedTerm",
+      "description": "the shots in the measure's domain, counted from the raw bytes",
+      "inDefinedTermSet": {
+        "@id": "https://github.com/loganw234/QRO-Crate/blob/main/docs/VOCABULARY.md#"
+      },
+      "name": "qro:inScope",
+      "termCode": "inScope"
+    },
+    {
+      "@id": "https://github.com/loganw234/QRO-Crate/blob/main/docs/VOCABULARY.md#jobId",
+      "@type": "DefinedTerm",
+      "description": "the provider's job id",
+      "inDefinedTermSet": {
+        "@id": "https://github.com/loganw234/QRO-Crate/blob/main/docs/VOCABULARY.md#"
+      },
+      "name": "qro:jobId",
+      "termCode": "jobId"
+    },
+    {
+      "@id": "https://github.com/loganw234/QRO-Crate/blob/main/docs/VOCABULARY.md#kitCommit",
+      "@type": "DefinedTerm",
+      "description": "the commit of the code that submitted the job",
+      "inDefinedTermSet": {
+        "@id": "https://github.com/loganw234/QRO-Crate/blob/main/docs/VOCABULARY.md#"
+      },
+      "name": "qro:kitCommit",
+      "termCode": "kitCommit"
+    },
+    {
+      "@id": "https://github.com/loganw234/QRO-Crate/blob/main/docs/VOCABULARY.md#knownAnswer",
+      "@type": "DefinedTerm",
+      "description": "the known-answer PUB whose verdict holds this decode's order",
+      "inDefinedTermSet": {
+        "@id": "https://github.com/loganw234/QRO-Crate/blob/main/docs/VOCABULARY.md#"
+      },
+      "name": "qro:knownAnswer",
+      "termCode": "knownAnswer"
+    },
+    {
+      "@id": "https://github.com/loganw234/QRO-Crate/blob/main/docs/VOCABULARY.md#law",
+      "@type": "DefinedTerm",
+      "description": "the law table: a File in qro-law/1 form, held to its sum, its support and the question's law circuit",
+      "inDefinedTermSet": {
+        "@id": "https://github.com/loganw234/QRO-Crate/blob/main/docs/VOCABULARY.md#"
+      },
+      "name": "qro:law",
+      "termCode": "law"
+    },
+    {
+      "@id": "https://github.com/loganw234/QRO-Crate/blob/main/docs/VOCABULARY.md#lawCircuit",
+      "@type": "DefinedTerm",
+      "description": "the question's circuit that lays the law; step 6 simulates it and holds the law table and its coherences to it",
+      "inDefinedTermSet": {
+        "@id": "https://github.com/loganw234/QRO-Crate/blob/main/docs/VOCABULARY.md#"
+      },
+      "name": "qro:lawCircuit",
+      "termCode": "lawCircuit"
+    },
+    {
+      "@id": "https://github.com/loganw234/QRO-Crate/blob/main/docs/VOCABULARY.md#lawValue",
+      "@type": "DefinedTerm",
+      "description": "a scalar measure's expected value under the law",
+      "inDefinedTermSet": {
+        "@id": "https://github.com/loganw234/QRO-Crate/blob/main/docs/VOCABULARY.md#"
+      },
+      "name": "qro:lawValue",
+      "termCode": "lawValue"
+    },
+    {
+      "@id": "https://github.com/loganw234/QRO-Crate/blob/main/docs/VOCABULARY.md#line",
+      "@type": "DefinedTerm",
+      "description": "the job line: Quantum-Film's record of the job and its commitments, written before any result was read",
+      "inDefinedTermSet": {
+        "@id": "https://github.com/loganw234/QRO-Crate/blob/main/docs/VOCABULARY.md#"
+      },
+      "name": "qro:line",
+      "termCode": "line"
+    },
+    {
+      "@id": "https://github.com/loganw234/QRO-Crate/blob/main/docs/VOCABULARY.md#lower",
+      "@type": "DefinedTerm",
+      "description": "the certified interval's lower end, rounded outward",
+      "inDefinedTermSet": {
+        "@id": "https://github.com/loganw234/QRO-Crate/blob/main/docs/VOCABULARY.md#"
+      },
+      "name": "qro:lower",
+      "termCode": "lower"
+    },
+    {
+      "@id": "https://github.com/loganw234/QRO-Crate/blob/main/docs/VOCABULARY.md#measure",
+      "@type": "DefinedTerm",
+      "description": "which measure of the set",
+      "inDefinedTermSet": {
+        "@id": "https://github.com/loganw234/QRO-Crate/blob/main/docs/VOCABULARY.md#"
+      },
+      "name": "qro:measure",
+      "termCode": "measure"
+    },
+    {
+      "@id": "https://github.com/loganw234/QRO-Crate/blob/main/docs/VOCABULARY.md#measureSet",
+      "@type": "DefinedTerm",
+      "description": "the measure set's definition and version",
+      "inDefinedTermSet": {
+        "@id": "https://github.com/loganw234/QRO-Crate/blob/main/docs/VOCABULARY.md#"
+      },
+      "name": "qro:measureSet",
+      "termCode": "measureSet"
+    },
+    {
+      "@id": "https://github.com/loganw234/QRO-Crate/blob/main/docs/VOCABULARY.md#measuredPub",
+      "@type": "DefinedTerm",
+      "description": "the Pub whose shots are measured",
+      "inDefinedTermSet": {
+        "@id": "https://github.com/loganw234/QRO-Crate/blob/main/docs/VOCABULARY.md#"
+      },
+      "name": "qro:measuredPub",
+      "termCode": "measuredPub"
+    },
+    {
+      "@id": "https://github.com/loganw234/QRO-Crate/blob/main/docs/VOCABULARY.md#newestValue",
+      "@type": "DefinedTerm",
+      "description": "the newest measurement date inside a snapshot, read from its text",
+      "inDefinedTermSet": {
+        "@id": "https://github.com/loganw234/QRO-Crate/blob/main/docs/VOCABULARY.md#"
+      },
+      "name": "qro:newestValue",
+      "termCode": "newestValue"
+    },
+    {
+      "@id": "https://github.com/loganw234/QRO-Crate/blob/main/docs/VOCABULARY.md#rawForm",
+      "@type": "DefinedTerm",
+      "description": "the form a raw result's bytes take; the checker must know it to count them",
+      "inDefinedTermSet": {
+        "@id": "https://github.com/loganw234/QRO-Crate/blob/main/docs/VOCABULARY.md#"
+      },
+      "name": "qro:rawForm",
+      "termCode": "rawForm"
+    },
+    {
+      "@id": "https://github.com/loganw234/QRO-Crate/blob/main/docs/VOCABULARY.md#record",
+      "@type": "DefinedTerm",
+      "description": "the PUB's decoded record: Quantum-Film's device-run file",
+      "inDefinedTermSet": {
+        "@id": "https://github.com/loganw234/QRO-Crate/blob/main/docs/VOCABULARY.md#"
+      },
+      "name": "qro:record",
+      "termCode": "record"
+    },
+    {
+      "@id": "https://github.com/loganw234/QRO-Crate/blob/main/docs/VOCABULARY.md#role",
+      "@type": "DefinedTerm",
+      "description": "what a PUB's circuit was for",
+      "inDefinedTermSet": {
+        "@id": "https://github.com/loganw234/QRO-Crate/blob/main/docs/VOCABULARY.md#"
+      },
+      "name": "qro:role",
+      "termCode": "role"
+    },
+    {
+      "@id": "https://github.com/loganw234/QRO-Crate/blob/main/docs/VOCABULARY.md#shots",
+      "@type": "DefinedTerm",
+      "description": "the shots a raw result holds, counted from its bytes, never stated beside them (rule 7)",
+      "inDefinedTermSet": {
+        "@id": "https://github.com/loganw234/QRO-Crate/blob/main/docs/VOCABULARY.md#"
+      },
+      "name": "qro:shots",
+      "termCode": "shots"
+    },
+    {
+      "@id": "https://github.com/loganw234/QRO-Crate/blob/main/docs/VOCABULARY.md#signature",
+      "@type": "DefinedTerm",
+      "description": "the signature slot, `none` in v0 (section 9.2)",
+      "inDefinedTermSet": {
+        "@id": "https://github.com/loganw234/QRO-Crate/blob/main/docs/VOCABULARY.md#"
+      },
+      "name": "qro:signature",
+      "termCode": "signature"
+    },
+    {
+      "@id": "https://github.com/loganw234/QRO-Crate/blob/main/docs/VOCABULARY.md#stamp",
+      "@type": "DefinedTerm",
+      "description": "a snapshot's own stamp, read from its text",
+      "inDefinedTermSet": {
+        "@id": "https://github.com/loganw234/QRO-Crate/blob/main/docs/VOCABULARY.md#"
+      },
+      "name": "qro:stamp",
+      "termCode": "stamp"
+    },
+    {
+      "@id": "https://github.com/loganw234/QRO-Crate/blob/main/docs/VOCABULARY.md#trustedTime",
+      "@type": "DefinedTerm",
+      "description": "the trusted-time slot, `none` in v0 (section 9.2)",
+      "inDefinedTermSet": {
+        "@id": "https://github.com/loganw234/QRO-Crate/blob/main/docs/VOCABULARY.md#"
+      },
+      "name": "qro:trustedTime",
+      "termCode": "trustedTime"
+    },
+    {
+      "@id": "https://github.com/loganw234/QRO-Crate/blob/main/docs/VOCABULARY.md#twin",
+      "@type": "DefinedTerm",
+      "description": "the twin a class is computed against",
+      "inDefinedTermSet": {
+        "@id": "https://github.com/loganw234/QRO-Crate/blob/main/docs/VOCABULARY.md#"
+      },
+      "name": "qro:twin",
+      "termCode": "twin"
+    },
+    {
+      "@id": "https://github.com/loganw234/QRO-Crate/blob/main/docs/VOCABULARY.md#twinValue",
+      "@type": "DefinedTerm",
+      "description": "its expected value under the twin",
+      "inDefinedTermSet": {
+        "@id": "https://github.com/loganw234/QRO-Crate/blob/main/docs/VOCABULARY.md#"
+      },
+      "name": "qro:twinValue",
+      "termCode": "twinValue"
+    },
+    {
+      "@id": "https://github.com/loganw234/QRO-Crate/blob/main/docs/VOCABULARY.md#twins",
+      "@type": "DefinedTerm",
+      "description": "the classical twins the question names",
+      "inDefinedTermSet": {
+        "@id": "https://github.com/loganw234/QRO-Crate/blob/main/docs/VOCABULARY.md#"
+      },
+      "name": "qro:twins",
+      "termCode": "twins"
+    },
+    {
+      "@id": "https://github.com/loganw234/QRO-Crate/blob/main/docs/VOCABULARY.md#upper",
+      "@type": "DefinedTerm",
+      "description": "the certified interval's upper end, rounded outward",
+      "inDefinedTermSet": {
+        "@id": "https://github.com/loganw234/QRO-Crate/blob/main/docs/VOCABULARY.md#"
+      },
+      "name": "qro:upper",
+      "termCode": "upper"
+    },
+    {
+      "@id": "https://github.com/loganw234/QRO-Crate/blob/main/docs/VOCABULARY.md#value",
+      "@type": "DefinedTerm",
+      "description": "the measure's value, an exact ratio of whole counts; none when no shot is in scope",
+      "inDefinedTermSet": {
+        "@id": "https://github.com/loganw234/QRO-Crate/blob/main/docs/VOCABULARY.md#"
+      },
+      "name": "qro:value",
+      "termCode": "value"
+    },
+    {
+      "@id": "https://github.com/loganw234/QRO-Crate/blob/main/docs/VOCABULARY.md#valuesDigest",
+      "@type": "DefinedTerm",
+      "description": "the SHA-256 of a calibration's values, every date excluded",
+      "inDefinedTermSet": {
+        "@id": "https://github.com/loganw234/QRO-Crate/blob/main/docs/VOCABULARY.md#"
+      },
+      "name": "qro:valuesDigest",
+      "termCode": "valuesDigest"
+    },
+    {
+      "@id": "https://github.com/loganw234/QRO-Crate/blob/main/docs/VOCABULARY.md#writer",
+      "@type": "DefinedTerm",
+      "description": "the writer, and its version",
+      "inDefinedTermSet": {
+        "@id": "https://github.com/loganw234/QRO-Crate/blob/main/docs/VOCABULARY.md#"
+      },
+      "name": "qro:writer",
+      "termCode": "writer"
+    },
+    {
+      "@id": "https://github.com/loganw234/QRO-Crate/blob/main/docs/VOCABULARY.md#writtenAt",
+      "@type": "DefinedTerm",
+      "description": "when the writer wrote the crate",
+      "inDefinedTermSet": {
+        "@id": "https://github.com/loganw234/QRO-Crate/blob/main/docs/VOCABULARY.md#"
+      },
+      "name": "qro:writtenAt",
+      "termCode": "writtenAt"
+    },
+    {
+      "@id": "https://raw.githubusercontent.com/loganw234/QRO-Crate/main/profile/context.jsonld",
+      "@type": "CreativeWork",
+      "conformsTo": {
+        "@id": "http://www.w3.org/ns/json-ld#Context"
+      },
+      "description": "The context a QRO crate inlines after RO-Crate 1.3's: it maps the prefix qro to the vocabulary's namespace. The copy in this crate is context.jsonld. Its IRI is provisional (limit 11).",
+      "encodingFormat": "application/ld+json",
+      "name": "the QRO-Crate JSON-LD context",
+      "version": "0.1"
+    },
+    {
+      "@id": "https://w3id.org/ro/crate/1.3",
+      "@type": [
+        "CreativeWork",
+        "Profile"
+      ],
+      "name": "RO-Crate Metadata Specification",
+      "version": "1.3"
+    },
+    {
+      "@id": "https://w3id.org/ro/wfrun/process/0.6",
+      "@type": [
+        "CreativeWork",
+        "Profile"
+      ],
+      "encodingFormat": "text/html",
+      "name": "Process Run Crate",
+      "version": "0.6"
+    },
+    {
+      "@id": "validator/qro-crate/",
+      "@type": "Dataset",
+      "description": "The profile's SHACL Core shapes in the layout rocrate-validator reads: a profile description and a folder for each requirement level.",
+      "hasPart": [
+        {
+          "@id": "validator/qro-crate/must/1_structure.ttl"
+        },
+        {
+          "@id": "validator/qro-crate/must/2_terms.ttl"
+        },
+        {
+          "@id": "validator/qro-crate/must/3_domains.ttl"
+        },
+        {
+          "@id": "validator/qro-crate/profile.ttl"
+        },
+        {
+          "@id": "validator/qro-crate/should/1_absence.ttl"
+        }
+      ],
+      "name": "the shapes as a rocrate-validator profile"
+    },
+    {
+      "@id": "validator/qro-crate/must/1_structure.ttl",
+      "@type": "File",
+      "contentSize": "15563",
+      "description": "Must-level shapes: the graph's structure.",
+      "encodingFormat": "text/turtle",
+      "name": "validator/qro-crate/must/1_structure.ttl",
+      "sha256": "d2e2ce9c7fa2de18e1c0ee948b79fe7314056745be6cbfe4ac54f07997357c76"
+    },
+    {
+      "@id": "validator/qro-crate/must/2_terms.ttl",
+      "@type": "File",
+      "contentSize": "53549",
+      "description": "Must-level shapes: a shape for each term's one spelling.",
+      "encodingFormat": "text/turtle",
+      "name": "validator/qro-crate/must/2_terms.ttl",
+      "sha256": "b640590ef3b05ebc56feda159acaf8c84303dbebab774b405f605691b4dc8c9d"
+    },
+    {
+      "@id": "validator/qro-crate/must/3_domains.ttl",
+      "@type": "File",
+      "contentSize": "26551",
+      "description": "Must-level shapes: a shape for each term's domain.",
+      "encodingFormat": "text/turtle",
+      "name": "validator/qro-crate/must/3_domains.ttl",
+      "sha256": "aee0eac34a8d16eb5a941f62f6a85839728a75c6e7555099000492d6b89d661b"
+    },
+    {
+      "@id": "validator/qro-crate/profile.ttl",
+      "@type": "File",
+      "contentSize": "564",
+      "description": "The rocrate-validator profile description.",
+      "encodingFormat": "text/turtle",
+      "name": "validator/qro-crate/profile.ttl",
+      "sha256": "d25c45226a7b013438148aab6f152a31e189a2147d8e11318cba6afba764085c"
+    },
+    {
+      "@id": "validator/qro-crate/should/1_absence.ttl",
+      "@type": "File",
+      "contentSize": "5804",
+      "description": "Should-level shapes: rule 2, absence written as a word.",
+      "encodingFormat": "text/turtle",
+      "name": "validator/qro-crate/should/1_absence.ttl",
+      "sha256": "27622bd28e1ce8fd663077a14f449cbbec04d1751263fd1172f174bab9cab45e"
+    }
+  ]
+}

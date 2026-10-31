@@ -12,7 +12,9 @@
 - [VALIDATION.md](VALIDATION.md): the ledger of runs that established
   something.
 - [reviews/](reviews/README.md): every verifier's report, the study's, P0's,
-  P0.1's, P0.2's, P0.3's, P0.4's, P0.5's, P0.6's, P0.7's, P0.8's, P1.1's
-  and P2.1's.
+  P0.1's, P0.2's, P0.3's, P0.4's, P0.5's, P0.6's, P0.7's, P0.8's, P1.1's,
+  P2.1's and P4's.
 - [P2.md](P2.md): P2's golden measures: the measure set and its classes, the certified intervals, the exact
   hold of a compile's gate lists, steps 6 and 7, and what each concedes.
+- [P4.md](P4.md): the profile: its Profile Crate, shapes and examples, how
+  they are generated and held to the checker, and the engine stage.

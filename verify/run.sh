@@ -372,12 +372,12 @@ stage p2-crates "P2 on v0's two crates: every gate list held, the measures and s
 # the quick budget once the tool exists. The engine's stage needs a SHACL engine outside the tree, named by
 # QRO_SHACL_PYTHON, which only Logan allows, so it is out of the quick budget.
 need_file tools/gen_profile.py "P4's generator is not built yet: there is no tools/gen_profile.py"
-stage profile "the profile's generated files regenerate byte for byte; the Profile Crate holds what RO-Crate 1.3 asks" -- \
+stage profile "the profile's generated files regenerate byte for byte; the Profile Crate holds the rules of RO-Crate 1.3's profiles page that its check lists (docs/P4.md)" -- \
   python tools/gen_profile.py --check
 
 need_env QRO_SHACL_PYTHON "no SHACL engine is named (QRO_SHACL_PYTHON: a Python with pyshacl 0.40.1, outside the tree)"
 need_file tests/p4shacl "P4's engine stage is not built yet: there is no tests/p4shacl"
-stage p4-shacl "a SHACL engine reads P4's shapes and judges each example as the evaluator does" -- \
+stage p4-shacl "a SHACL engine reads P4's shapes and judges each example as the evaluator does; the claims' whole sweep and the Profile Crate's 20,000-edit fuzz run here too" -- \
   bash verify/pytest-stage.sh tests/p4shacl
 
 stage control-tests "the controls' registry walked both ways; each built control comes out as section 11 says" -- \

@@ -1,0 +1,90 @@
+{
+  "@context": [
+    "https://w3id.org/ro/crate/1.3/context",
+    {
+      "qro": "https://github.com/loganw234/QRO-Crate/blob/main/docs/VOCABULARY.md#"
+    }
+  ],
+  "@graph": [
+    {
+      "@id": "ro-crate-metadata.json",
+      "@type": "CreativeWork",
+      "about": {
+        "@id": "./"
+      },
+      "conformsTo": [
+        {
+          "@id": "https://w3id.org/ro/crate/1.3"
+        }
+      ]
+    },
+    {
+      "@id": "./",
+      "@type": "Dataset",
+      "conformsTo": [
+        {
+          "@id": "https://github.com/loganw234/QRO-Crate/blob/main/profile/README.md"
+        },
+        {
+          "@id": "https://w3id.org/ro/wfrun/process/0.6"
+        }
+      ],
+      "datePublished": "2026-10-14",
+      "description": "The smallest crate every one of P0's checker steps reads \u2014 the controls' twin.",
+      "hasPart": [
+        {
+          "@id": "data/notes.txt"
+        },
+        {
+          "@id": "data/raw.counts.json"
+        }
+      ],
+      "license": {
+        "@id": "https://creativecommons.org/licenses/by/4.0/"
+      },
+      "name": "QRO-Crate P0 fixture",
+      "qro:generator": "qro-fixture",
+      "qro:signature": "none",
+      "qro:trustedTime": "none",
+      "qro:writer": "qro 0.1.0, fixture",
+      "qro:writtenAt": "2026-10-14T00:00:00Z"
+    },
+    {
+      "@id": "data/notes.txt",
+      "@type": "File",
+      "contentSize": "53",
+      "encodingFormat": "text/plain",
+      "sha256": "0cf4ac14a2752af83c699088890326691aeff2208901dbc520a790589880a8f1"
+    },
+    {
+      "@id": "data/raw.counts.json",
+      "@type": [
+        "File",
+        "qro:RawResult"
+      ],
+      "contentSize": "23",
+      "encodingFormat": "application/json",
+      "qro:rawForm": "qro-fixture-counts",
+      "qro:shots": 8,
+      "sha256": "5721802cb700ccbf26384808669e4be1ea6fcaaa23acdf602f7d1fb87a7fb73e"
+    },
+    {
+      "@id": "https://github.com/loganw234/QRO-Crate/blob/main/profile/README.md",
+      "@type": [
+        "CreativeWork",
+        "Profile"
+      ],
+      "name": "QRO-Crate",
+      "version": "0.1"
+    },
+    {
+      "@id": "https://w3id.org/ro/wfrun/process/0.6",
+      "@type": [
+        "CreativeWork",
+        "Profile"
+      ],
+      "name": "Process Run Crate",
+      "version": "0.6"
+    }
+  ]
+}
