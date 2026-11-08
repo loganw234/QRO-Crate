@@ -192,7 +192,9 @@ def test_the_known_answer_alone_at_none_with_a_mirrored_circuit_passes_every_ste
     assert check(m, tmp_path)
 
 
-def test_a_job_copied_under_new_ids_passes_every_step_of_the_checker_but_the_ninth(loaded, tmp_path):
+def test_a_job_copied_under_new_ids_passes_every_step_of_the_checker(loaded, tmp_path):
+    """Steps 1 to 8, and this file's pass-through step 9; the real generator accepts it too, as the records agree
+    (limit 16, held in tests/p1/test_p1_controls.py)."""
     m = ibm_model()
     copy_job(m, "joblaw")
     assert check(m, tmp_path)

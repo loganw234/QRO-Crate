@@ -4601,3 +4601,177 @@ files and adds one:
 - **as ruled:** a UNC server spelt with a trailing dot stays refused; the JSON-escaped WSL mirror spelling is stated as
   a gap, not closed.
 - **CLAUDE.md's timings,** which want runs with no agent beside them.
+
+## 2026-11-07 - P0.9 committed; P1.2 merged: the adapter's producer side
+
+**P0.9 is committed and pushed** as af372ed, with the entry above, on Logan's standing word. The runner on the
+committed tree, before the push: run `20261107-200113-50767-af372ed`, 22 stages passed and 2 skipped by name,
+5,215 tests.
+
+**What P1.2 is.** P1 is the adapter parcel (the entry "P1.1 merged: the adapter's checker side"). P1.2 is its
+producer side. It builds two crates, the IBM crate and the Atlas crate, outside the tree, from Quantum-Film's records:
+moth-quantum's at 3a73823, and this repository's read of 2026-10-14. It also adds the generators step 9 runs, and the
+seven controls. Its builders, all on Sonnet:
+- the first, in its own worktree from 37640f0;
+- after round 6, a new builder, from its record;
+- for round 8, which brought it onto main, a third, in a new worktree from 8fe0268.
+
+It adds 80 files and changes six:
+- **qro/p1_records.py:** the readers of Quantum-Film's records and of the read of 2026-10-14;
+- **qro/p1_generate.py:** the generators `qro-p1-ibm` and `qro-p1-atlas`, their guards G1 to G12, and the seam with
+  P2, `call_p2`;
+- **qro/p1_adapter.py:** the command line, `python -m qro.p1_adapter ibm|atlas --moth DIR --out DIR [--records DIR]
+  [--slice]`, and `build()`;
+- **qro/register_p1.py:** `GENERATORS`, beside P1.1's `STEPS` and `RAW_FORMS`, which it does not change;
+- **controls/plants_p1.py:** the seven controls of the design's item 10, the toolkit P2's plants use, and the twin's
+  crate built with P2's module and without it;
+- **tests/p1/data/moth/:** the twin, 56 of Quantum-Film's files, its LICENSE among them, copied byte for byte from
+  moth-quantum at 3a73823;
+- **tests/p1/ and tests/p1crates/:** P1.2's tests, and the `p1-crates` stage. That stage builds both real crates where
+  `QRO_MOTH_ROOT` names moth-quantum, and holds them to the page and to the whole checker;
+- **docs/P1.md:** P1's page, and its line in docs/README.md;
+- **qro/p2_measures.py, tests/p2/test_p2_contract.py and docs/P2.md:** P2's side of the seam, in round 8's reach by the
+  lead's ruling. `question_files` gives no file for a crate with no source circuit P2 knows, where it raised.
+- **tests/p1/test_p1_pipeline.py:** P1.1's test, renamed (below).
+
+**The two crates** (MEASURED by round 8's builder and by the lead, the adapter run as a process on main, with P2's
+module present). Each is accepted by every step the tree builds, 1 to 9.
+- **The IBM crate:** 1,074 files and 53,443,198 bytes, 1,595 entities, identity `88259c78…`.
+- **The Atlas crate:** 32 files and 5,076,857 bytes, 116 entities, identity `f657f60e…`.
+
+Each holds P2's question/law.json and P2's entities. Nothing of either is committed: Moth's data never enters the
+repository, and IBM's calibration snapshots are not licensed to.
+
+**The seam with P2** (lead.md 2026-11-08T01:38:42Z):
+- **A crate P2 has no law for carries none of P2's terms.** `question_files` returns no file for it, P1's generators
+  call `contribute` only for a crate that holds files under `question/`, and steps 6 and 7 accept a crate that carries
+  none of their terms.
+  - **The cost:** a crate of another question, or one whose source circuit's bytes moved, is built and accepted with
+    no measures, and claims none.
+- **A raise of P2's functions on a crate P2 serves,** but the host's (OSError, MemoryError), is the records refused by
+  the seam: exit 1, one line naming `qro.p2_measures`, never exit 3.
+
+**The rounds** (docs/reviews/P1.2/):
+1. **NOT READY,** on the full bar, on three code defects. In two of them the checker accepted a crate:
+   - an Atlas commitments line for a job the crate does not carry was never recomputed;
+   - an entity was written twice under one @id.
+
+   In the third, records the adapter cannot use were answered exit 3. Three sentences were false, limit 16's among
+   them (below).
+
+   Then the deletion: a hand mutant of the builder's own cleanup ran `shutil.rmtree` on the users folder (the
+   entries of 2026-10-26). The round's fixes were made in the sandbox, and the cleanup was rebuilt: a failed build
+   removes only what it made, and nothing recursively.
+2. **NOT READY,** on the full bar, on an `--out` the adapter cannot use, still answered exit 3: a last component
+   ending in a space, and a directory it cannot list. Three sentences were false. The rebuilt cleanup held every
+   attack:
+   - a failure at each of a build's 73 writes;
+   - 28 foreign objects;
+   - swaps.
+3. **NOT READY,** on the full bar, on two false sentences: limit 21's list of what is held by digests alone, and the
+   G9 row. The cap was reached.
+4. **NOT READY,** past the cap, on two defects in what the code does:
+   - a lone surrogate in a record was answered exit 3, where the records are refused;
+   - an extended-length `--out` (`\\?\C:\...`) was built inside the repository, since `os.path.realpath` keeps the
+     prefix.
+5. **NOT READY,** on three wrong exit codes:
+   - a lone surrogate nested about 1,000 levels deep, which the recursive check did not reach;
+   - a network, extended-length or device `--out` with no share or no name;
+   - a `--moth` or `--records` the host will not let the adapter look at.
+
+   Each class was closed at its boundary.
+6. **NOT READY,** on two defects in the check of the checkout:
+   - git's output was read in the locale's code page, so a name git writes in UTF-8, under `core.quotePath false`,
+     gave exit 3;
+   - an untracked file that the checkout's own settings ignore was built into the crate, exit 0.
+
+   Ruled: every file the build takes from the checkout is 3a73823's own, a regular file in HEAD's tree whose blob is
+   the bytes copied. The lead first measured the real checkout: 958 of 958 files equal.
+7. **READY,** on the relaxed bar. Round 6's fixes held under every route its verifier built:
+   - an untracked name in every spelling it tried, under either `core.quotePath`;
+   - a file that ignore rules, attributes, a filter, a forged stat or a submodule hide from `git status`, each exit 2;
+   - thirteen broken git states, exit 2 or a benign build.
+
+   Its two notes for the lead:
+   - **F1:** the page said "A checkout cannot lose a file without `git status` or `git ls-files -v` saying so". That
+     is false where the checkout's own configuration sets `core.fsmonitor` to a hook that reports no change: a
+     snapshot deleted there was seen by neither, and the IBM crate was built of 1,072 files and accepted, as limit 4
+     says of a crate without one of Quantum-Film's five. The sentence is restated (below);
+   - **N2:** the hold's wiring in `build` is pinned by tests for three classes of file only, where the code is right.
+
+   **Then the merge failed** (lead.md 2026-10-31T16:07:56Z).
+   - Laid onto main at 8fe0268, which had gained P0.6 to P0.8, P2.1 and P4 since 37640f0, the runner failed `p1`
+     (160 of 1,831 tests) and `p1-crates` (5 of 42).
+   - P1.2's tests expected a tree without P2's module, and a slice with no source circuit gave exit 3, where P2's
+     `question_files` raised.
+   - The crates built on that tree were accepted by the whole checker.
+
+   Nothing was committed. After Logan's week away, the lead ruled the seam and laid P1.2 onto main in a new worktree.
+8. **READY,** on the relaxed bar, on P1.2 brought onto main by a new builder.
+   - **What the round did:**
+     - the seam's ruling met on both sides, with P2's three files changed only as ruled;
+     - each test holding one tree;
+     - the counts restated;
+     - the deep-record tests traced to P0.7's `LINE_MAX` cut, where the code was right.
+   - **What its verifier measured:**
+     - both runners, on the packet and laid on main at af372ed: 23 stages passed and 1 skipped by name;
+     - the real crates as above, and as built with P2 absent, accepted too;
+     - a stand-in P2 raising 15 classes in each function, as processes: each gave the ruled exit, with nothing left;
+     - 13 hostile names from `question_files`, each refused;
+     - deep records to 20,000 levels;
+     - 9 mutants of its own, all killed.
+   - **Its two notes,** on the page's account of the seam, are taken at the merge (below):
+     - a crate built without P2's module, or stripped of P2's files and entities, is accepted with no measures, so
+       the checker cannot tell it from a crate P2 has no law for;
+     - a P2 module that cannot be imported makes the adapter exit 3.
+
+**Corrected here: P1.1's merge entry.** The log is append-only, so the correction is made here. Its limit 22 says a
+job copied whole under new ids "is accepted by every step but 9, the cover". That is false: step 9 accepts it too,
+since the records agree, and P1.2's limit 16 says so (round 1's D4). P1.1's test named for step 9, `..._but_the_ninth`,
+is renamed for what it holds (lead.md 2026-10-26T19:31:39Z).
+
+**The lead's edits:**
+- **at round 8's base,** for round 7's F1: docs/P1.md's sentence is restated. A checkout cannot lose a file without
+  `git status` or `git ls-files -v` saying so, but for one whose own configuration makes git say what is not so.
+  Under a `core.fsmonitor` hook that reports no change, a file deleted from the checkout is seen by neither, and the
+  build takes the checkout without it, since it holds each file it takes to HEAD's tree and not HEAD's tree to the
+  files it takes.
+- **after round 8's build:** tests/p1/test_p1_merged.py, written with CRLF line endings, is rewritten LF (CLAUDE.md
+  item 2), nothing else changed.
+- **at the merge,** for round 8's notes 1 and 2, two passages of docs/P1.md's seam section:
+  - its stated cost now names a crate built without P2's module, or stripped of P2's files and entities;
+  - its last paragraph said that a crate built before P2 lands is refused after. That had been false since the round-8
+    ruling, which the eighth verifier measured on the real IBM crate. It now says what is so: such a crate is accepted
+    with none of P2's measures, and a P2 module that cannot be imported makes the adapter exit 3.
+
+**Measured at the merge:**
+- P1.2's hand mutants, round by round in its ledger:
+  - 281 at the build: 279 killed, 2 equivalent;
+  - 58, 26, 9, 16 and 18 at rounds 1 to 5's fixes;
+  - 26 at round 6's;
+  - 19 at round 8's;
+
+  all killed but the two equivalent.
+- the runner on the merged tree, staged, with `QRO_MOTH_ROOT` and `QRO_SHACL_PYTHON` set: run
+  `20261107-214921-64805-af372ed+dirty`, 23 stages passed and 1 skipped by name (p2-crates), 5,975 tests, p1's
+  1,880, p1-crates' 42, p2's 509, p4's 1,047 and p4-shacl's 236 among them.
+
+**The stated limits** are docs/P1.md's.
+
+**Left:**
+- **For Logan:** the Atlas job id literals in P1's tests: in P1.2's tests/p1/test_p1_records.py, and in P1.1's
+  tests/p1/test_p1_graph.py, on main since P1.1's merge. Moth's data and its licence are Logan's to settle, and the
+  tests stay as they are until Logan rules.
+- **P2.2 and P4.1,** which waited on this merge: P2's plants, on P1's twin and toolkit; and P4's twin.
+- **For P1's next piece, round 7's notes:**
+  - F1's closure in code: HEAD's tree under the directories the plan walks held to the files the build takes, so
+    that a tracked file the plan does not take is refused;
+  - N2's test: a byte flipped in a file of each class, in a committed checkout of the twin, its size and mtime kept,
+    where `git status` says clean and the build must exit 2;
+  - N3: the adapter's docstring says "Clean is two things" and names three clauses, the first two `check_moth`'s.
+- **For P1's or P2's next piece, round 8's note 1 in code:** the generator asking `question_files` whether P2 has a
+  law for the crate, so that a crate built without P2's module, or stripped of P2's measures, is refused where P2 has
+  a law for it.
+- **For the lead, round 7's N4:** the study's instruments run `git status --porcelain` in moth-quantum without
+  `--no-optional-locks`. Its verifier believes they are what touched moth-quantum's `.git` directory at the end of a
+  full run; its index was not rewritten.

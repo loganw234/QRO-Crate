@@ -17,7 +17,9 @@ family M, the number of certified measurements that hold a value, mapped to the 
 
 THE CONTRACT with P1's generator (item 9), by module name:
   question_files(crate_dir) -> {"law.json": bytes}: the pauli-4x4 law, made from its integer kernel, for a crate that
-      holds the source circuit P2 knows (found by SHA-256 among its files); a crate without it raises.
+      holds the source circuit P2 knows (found by SHA-256 among its files); {} for a crate without it, which P2 has no
+      law for and which carries none of P2's terms (the lead's ruling, 2026-11-08): P1's generators call `contribute`
+      only for a crate that holds files under question/.
   contribute(crate_dir, entities) -> (question_terms, new_entities): P2's four terms for the question, and P2's
       entities: `#measuring`, the twenty Contrasts, the Measurements and one Hold per Compile. It reads P1's entities,
       the crate's files (the law file, the law circuit, each Compile's manifest, the raw results through pub_counts and
@@ -195,7 +197,8 @@ def contrast_entity(c):
 # -- the contract with P1's generator ---------------------------------------------------------------------------------
 def question_files(crate_dir):
     """{"law.json": the pauli-4x4 law file}, for a crate that holds the source circuit P2 knows: keys relative to the
-    crate's question/ directory. ValueError for a crate with no such circuit (P2 knows no other question's law)."""
+    crate's question/ directory. {} for a crate with no such circuit: P2 knows no other question's law, so that crate
+    carries none of P2's terms (the lead's ruling, 2026-11-08)."""
     root = Path(crate_dir)
     for dirpath, dirnames, filenames in os.walk(root):
         dirnames.sort()
@@ -205,8 +208,7 @@ def question_files(crate_dir):
             data = Path(dirpath, name).read_bytes()
             if hashlib.sha256(data).hexdigest() == p2_law.SOURCE_CIRCUIT:
                 return {"law.json": p2_law.law_bytes()}
-    raise ValueError(f"no file of the crate is the source circuit {p2_law.SOURCE_CIRCUIT[:16]}..., the one law circuit "
-                     f"{p2_law.MEASURE_SET} has a law for")
+    return {}
 
 
 def _file_bytes(crate_dir, entity, what):

@@ -1,5 +1,5 @@
-"""What P1 registers with the checker (FORMAT.md, item 20; P1's design, item 9; P1.1): steps 4, 5 and 8, and the
-readers of P1's three raw forms. The producer's half, P1's generators, is registered when it lands.
+"""What P1 registers with the checker (FORMAT.md, item 20; P1's design, item 9; P1.1, P1.2): steps 4, 5 and 8, the
+readers of P1's three raw forms, and the two generators step 9 runs, `qro-p1-ibm` and `qro-p1-atlas`.
 
 `checker.load()` imports this module on every check, so it imports nothing but the standard library, and each
 function it declares returns at once, before it imports any other module of P1's, when the metadata holds no entity
@@ -49,7 +49,18 @@ def read_atlas_known_answer_vector(data):
     return p1_forms.read_atlas_vector(data)
 
 
+def generate_ibm(crate_dir):
+    from qro import p1_generate
+    return p1_generate.ibm(crate_dir)
+
+
+def generate_atlas(crate_dir):
+    from qro import p1_generate
+    return p1_generate.atlas(crate_dir)
+
+
 STEPS = {4: step4, 5: step5, 8: step8}
 RAW_FORMS = {"ibm-sampler-result/v1": read_ibm_sampler_result,
              "atlas-tomography-result/v1": read_atlas_tomography_result,
              "atlas-known-answer-vector/v1": read_atlas_known_answer_vector}
+GENERATORS = {"qro-p1-ibm": generate_ibm, "qro-p1-atlas": generate_atlas}

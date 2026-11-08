@@ -246,11 +246,16 @@ def test_question_files_gives_v0s_law_for_a_crate_that_holds_the_source_circuit(
     assert p2_measures.question_files(tmp_path) == {"law.json": p2_law.law_bytes()}
 
 
-def test_question_files_never_reads_the_metadata_file_and_refuses_another_question(tmp_path):
+def test_question_files_never_reads_the_metadata_file_and_gives_no_file_for_another_question(tmp_path):
+    """A crate P2 has no law for carries none of P2's terms (the lead's ruling, 2026-11-08): the answer is no file, an
+    empty dict, never a raise, whether the crate holds another circuit, the source circuit only as its metadata file's
+    bytes, or nothing."""
     (tmp_path / canonical.DESCRIPTOR).write_bytes(data("circuit-ed767c01bd4b851d.qasm"))
     (tmp_path / "law.qasm").write_bytes(data("law.qasm"))
-    with pytest.raises(ValueError, match="no file of the crate is the source circuit ed767c01bd4b851d"):
-        p2_measures.question_files(tmp_path)
+    assert p2_measures.question_files(tmp_path) == {}
+    empty = tmp_path / "empty"
+    empty.mkdir()
+    assert p2_measures.question_files(empty) == {}
 
 
 def test_question_files_skips_the_roots_metadata_file_alone(tmp_path):
