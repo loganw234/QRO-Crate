@@ -59,7 +59,7 @@
 
 **Prose and other:**
 - FORMAT.md item 16's rewritten sentence reads badly: "as any `Exception` they raise is but a `MemoryError`".
-- The mirror spelling `//wsl$\Ubuntu\home\x`, and the mixed forms `/\wsl$…`, `\/wsl$…` and `//wsl.localhost\…`, are found by no alternative (MEASURED, `wsl_forms.py`). This is older than P0.7 and below the key threat model.
+- The mirror spelling `<a home path>`, and the mixed forms `/\wsl$…`, `\/wsl$…` and `//wsl.localhost\…`, are found by no alternative (MEASURED, `wsl_forms.py`). This is older than P0.7 and below the key threat model.
 
 ## What I did not do
 

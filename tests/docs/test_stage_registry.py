@@ -30,8 +30,13 @@ No two stages share a name (round 6, 8.1 item 5). pytest's own configuration is 
 pytest_configuration_problems says (round 6, 8.1 item 4; P0.1's verifier, rounds 1 to 3, D1, R2-1 and G1): a
 stage reads the root's pyproject.toml alone, with exactly the options the stages assume, norecursedirs empty
 among them, and no conftest.py; none of either sits at the root or under tests/; and the stage script's command
-lines are the pinned ones (round 3, note 7), its refusal of a `pytest_plugins` line among them (round 3, G3). A
-parcel's test files carry its prefix, so two parcels' never share a name (round 1, D3). Each `need_file` guards
+lines are the pinned ones (round 3, note 7), its refusal of a `pytest_plugins` line among them (round 3, G3). ruff's
+own configuration is pinned as ruff_configuration_problems says (P0.9; P0.7's second verifier, note 9; P0.9's first
+verifier, D1): pyproject.toml's [tool.ruff] table exactly, and no ruff.toml, no .ruff.toml and no other pyproject.toml
+with a [tool.ruff] table, in any case, where ruff reads for the lint: at the root, and in the directories the runner's
+one ruff line names and every directory below them, whatever such a directory holds and through no link below them,
+as ruff reads it. A parcel's test files carry its prefix, so two parcels' never share
+a name (round 1, D3). Each `need_file` guards
 the next stage the runner calls, which runs what it guards, a pytest stage its directory and a tool's stage its
 script; each `need_env` names a variable the runner reads elsewhere, in no comment, and gives a reason naming it;
 every guard is called in the one form these rules read (P0.3; P0.4); a stage that runs a directory or a tool the
@@ -890,6 +895,659 @@ def pytest_configuration_problems(root):
 
 def test_pytests_own_configuration_is_what_the_stages_assume():
     assert pytest_configuration_problems(ROOT) == []
+
+
+# ruff's own configuration, pinned as pytest's is (P0.9; P0.7's second verifier, note 9; P0.9's first verifier, D1).
+# The lint stage runs ONE ruff line, `python -m ruff check qro controls tools tests`, from the root, and ruff takes,
+# for each file it lints, the configuration of the nearest directory above the file that holds a .ruff.toml, a
+# ruff.toml or a pyproject.toml with a [tool.ruff] table. Any of them can drop a rule, a file or the whole lint, or
+# `extend` one that does (MEASURED, ruff 0.11.9: a tests/ruff.toml that ignores F401 took an unused import out of
+# tests/'s report, a root ruff.toml overrode pyproject.toml's table whole, and an `extend` pulled in a file of its
+# own). So the gate reads where ruff reads, as ruff reads it (MEASURED, ruff 0.11.9, 2026-10-31: the first
+# verifier's probes, and the builder's own with a junction):
+#   - names are compared without case, as this host finds them: a root RUFF.TOML, Ruff.toml or .Ruff.toml, a
+#     tests/Pyproject.toml and a PYPROJECT.TOML each took the lint's F401 away;
+#   - no directory is exempt: a ruff.toml beside a pyvenv.cfg, beside conda-meta/history and under a .git masks the
+#     files of its directory, and one in a __pycache__ is read for its own. pytest passes over those (`unreached`);
+#     ruff does not. A directory ruff's own default exclude names (.venv, node_modules, dist, ...) is walked too, so
+#     a configuration there is reported though ruff lints no file in it: the walk is wider than it need be;
+#   - no link below the four is followed: ruff goes through none, so a configuration behind a junction masks nothing. A
+#     lint directory that is itself a link is entered, for ruff goes through the path it is given (a `tests` junction to
+#     a directory holding an unused import reported the fault, and with a masking ruff.toml there it reported none);
+#   - what is walked is what the line names: the root's own entries, and the directories the line names and every
+#     directory below them. A root .venv or docs/ beside them holds a ruff.toml that no file the lint reads sees.
+RUFF_OPTIONS = {"line-length": 120, "target-version": "py312", "extend-exclude": ["docs/studies/qro0"]}
+RUFF_FILES = ("ruff.toml", ".ruff.toml")        # lower case: a name is lowered before it is looked up here
+RUFF_PYPROJECT = "pyproject.toml"
+
+
+def lint_dirs(runner_text):
+    """The names the runner's one ruff line gives after `check`, in its order. shape_problems holds that line to
+    `python -m ruff check` and the name of each top-level directory holding Python, each once, and no option."""
+    lint = [line for line in stage_lines(runner_text) if "ruff check" in line]
+    assert len(lint) == 1, f"the runner holds {len(lint)} ruff lines, not one: {lint}"
+    return lint[0].split()[4:]
+
+
+def real_directory(entry):
+    """Whether a listed entry is a directory and no link. A link is told by its listing (is_symlink, is_junction) and
+    never by asking the host about its target, for this machine opens no dangling junction (CLAUDE.md item 10)."""
+    return not (entry.is_symlink() or entry.is_junction()) and entry.is_dir(follow_symlinks=False)
+
+
+def lint_directory(entry):
+    """Whether a listed entry is a directory the lint is given, which the host opens: a link to one included. Ruff goes
+    through the path it is given, a junction too, though through no link below it (MEASURED, ruff 0.11.9: with `tests` a
+    junction to a directory holding an unused import, the fault in tests/x.py was reported, and with a masking ruff.toml
+    there it was not). A junction whose directory is gone is listed as a directory, and listing it raises, as the lint
+    would fail on it."""
+    return entry.is_dir()
+
+
+def a_configuration_by_its_name(entry):
+    """Whether a listed entry is named as a file ruff takes a configuration from, and is a file ruff would read: not a
+    directory, nor a link to one (ruff asks whether it is a file, which follows a link), nor a link to nothing."""
+    if entry.name.lower() not in RUFF_FILES + (RUFF_PYPROJECT,):
+        return False
+    if entry.is_symlink() or entry.is_junction():
+        return os.path.isfile(entry.path)
+    return not entry.is_dir(follow_symlinks=False)
+
+
+def ruff_reads(root, dirs):
+    """Every file named as a ruff configuration file (a_configuration_by_its_name) that the lint of `dirs` from the
+    root could read, in path order: the root's own, and those in each directory `dirs` names (a link to one is entered,
+    lint_directory) and in every directory below one, none exempt and no link below entered (ruff walks through none).
+    A name in `dirs` matches without case, as the host finds a directory. Ruff reads the disk, not git's list, so a
+    file git ignores counts. A directory it cannot list is raised, never passed over: what it has not read it has not
+    checked."""
+    wanted = {d.lower() for d in dirs}
+    found, todo = [], []
+    with os.scandir(root) as entries:
+        for entry in entries:
+            if entry.name.lower() in wanted and lint_directory(entry):
+                todo.append(entry.path)
+            if a_configuration_by_its_name(entry):
+                found.append(pathlib.Path(entry.path))
+    while todo:
+        with os.scandir(todo.pop()) as entries:
+            for entry in entries:
+                if real_directory(entry):
+                    todo.append(entry.path)
+                elif a_configuration_by_its_name(entry):
+                    found.append(pathlib.Path(entry.path))
+    return sorted(found)
+
+
+def ruff_configuration_problems(root, runner_text=RUNNER):
+    """ruff's own configuration, held to what the lint stage assumes:
+      - pyproject.toml's [tool.ruff] table is RUFF_OPTIONS, exactly: another option, a sub-table such as
+        [tool.ruff.lint], and an `extend` each change what the lint holds;
+      - no ruff.toml or .ruff.toml, and no pyproject.toml but the root's with a [tool.ruff] table, sits where ruff
+        reads for the lint (ruff_reads): ruff takes the nearest to each file, so any of them can mask the lint.
+    A pyproject.toml read that is not TOML is raised, never passed: ruff fails on it too."""
+    import tomllib
+    out = []
+    options = tomllib.loads((root / "pyproject.toml").read_text(encoding="utf-8")).get("tool", {}).get("ruff")
+    if options != RUFF_OPTIONS:
+        out.append(f"ruff's options are not the ones the lint assumes: {options}")
+    for p in ruff_reads(root, lint_dirs(runner_text)):
+        rel = p.relative_to(root).as_posix()
+        if p.name.lower() in RUFF_FILES:
+            out.append(f"a ruff configuration file the lint must not read: {rel}")
+        elif p != root / "pyproject.toml" and "ruff" in tomllib.loads(p.read_text(encoding="utf-8")).get("tool", {}):
+            out.append(f"another pyproject.toml with a [tool.ruff] table, which the lint must not read: {rel}")
+    return out
+
+
+def test_ruffs_own_configuration_is_what_the_lint_assumes():
+    assert ruff_configuration_problems(ROOT) == []
+
+
+def lay(root, beside):
+    """The files a plant sits beside: a pyvenv.cfg or a conda-meta/history. On their own they configure nothing for
+    ruff, and they make pytest pass over their directory (`unreached`)."""
+    for rel in beside:
+        (root / rel).parent.mkdir(parents=True, exist_ok=True)
+        (root / rel).write_text("home = x" + chr(10), encoding="utf-8")
+
+
+def plant_ids(plants):
+    return [rel + (" beside " + beside[0] if beside else "") for rel, beside in plants]
+
+
+# (the plant, the files it sits beside): the root's own, each of the four, and a deep one, in each case that ruff reads
+# a name by (P0.9's first verifier, D1: a root RUFF.TOML, and a ruff.toml beside a pyvenv.cfg, each masked the lint
+# with the docs stage passing). Nothing is exempt: a pyvenv.cfg, a conda-meta/history, a __pycache__, a .git, a .venv.
+RUFF_FILE_PLANTS = [
+    ("ruff.toml", ()), (".ruff.toml", ()), ("RUFF.TOML", ()), ("Ruff.toml", ()), (".Ruff.toml", ()),
+    ("tests/ruff.toml", ()), ("tests/.ruff.toml", ()), ("tests/RUFF.TOML", ()), ("qro/Ruff.toml", ()),
+    ("controls/.Ruff.toml", ()), ("qro/deep/ruff.toml", ()), ("tools/ruff.toml", ()), ("Qro/ruff.toml", ()),
+    ("tests/p1/deep/.ruff.toml", ()), ("tools/.hidden/.ruff.toml", ()), ("tests/p1/deep/RUFF.TOML", ()),
+    ("tests/zz/ruff.toml", ("tests/zz/pyvenv.cfg",)), ("tests/zz/Ruff.toml", ("tests/zz/pyvenv.cfg",)),
+    ("qro/env/ruff.toml", ("qro/env/conda-meta/history",)),
+    ("qro/env/.RUFF.TOML", ("qro/env/conda-meta/history",)),
+    ("qro/__pycache__/ruff.toml", ()), ("tests/p1/__pycache__/.ruff.toml", ()), ("tools/.git/ruff.toml", ()),
+    ("tests/.venv/Lib/site-packages/pkg/ruff.toml", ("tests/.venv/pyvenv.cfg",))]
+
+
+@pytest.mark.parametrize("rel, beside", RUFF_FILE_PLANTS, ids=plant_ids(RUFF_FILE_PLANTS))
+def test_each_ruff_configuration_file_plant_is_caught(tmp_path, rel, beside):
+    """Each with its control: the tree with what the plant sits beside, and not the plant, reports nothing."""
+    root = configured_tree(tmp_path)
+    lay(root, beside)
+    assert ruff_configuration_problems(root) == [], "the control"
+    (root / rel).parent.mkdir(parents=True, exist_ok=True)
+    (root / rel).write_text("[lint]" + chr(10) + 'ignore = ["F401"]' + chr(10), encoding="utf-8")
+    got = ruff_configuration_problems(root)
+    assert len(got) == 1 and "ruff configuration file" in got[0] and got[0].endswith(rel), got
+
+
+RUFF_PYPROJECT_PLANTS = [
+    ("tests/pyproject.toml", ()), ("qro/deep/pyproject.toml", ()), ("controls/pyproject.toml", ()),
+    ("tests/Pyproject.toml", ()), ("tools/deep/PYPROJECT.TOML", ()),
+    ("tests/zz/pyproject.toml", ("tests/zz/pyvenv.cfg",)),
+    ("qro/env/Pyproject.toml", ("qro/env/conda-meta/history",)), ("qro/__pycache__/pyproject.toml", ())]
+
+
+@pytest.mark.parametrize("rel, beside", RUFF_PYPROJECT_PLANTS, ids=plant_ids(RUFF_PYPROJECT_PLANTS))
+def test_a_pyproject_with_a_ruff_table_is_caught_and_one_without_is_not(tmp_path, rel, beside):
+    """Ruff skips a pyproject.toml with no [tool.ruff] table and takes the nearest with one (MEASURED, ruff 0.11.9),
+    in any case on this host: the control is the same file with no table, which is not reported."""
+    root = configured_tree(tmp_path)
+    lay(root, beside)
+    (root / rel).parent.mkdir(parents=True, exist_ok=True)
+    (root / rel).write_text("[project]" + chr(10) + 'name = "x"' + chr(10), encoding="utf-8")
+    assert ruff_configuration_problems(root) == [], "the control"
+    (root / rel).write_text("[tool.ruff.lint]" + chr(10) + 'ignore = ["F401"]' + chr(10), encoding="utf-8")
+    got = ruff_configuration_problems(root)
+    assert len(got) == 1 and "[tool.ruff] table" in got[0] and got[0].endswith(rel), got
+
+
+def test_the_roots_own_pyproject_is_read_as_a_candidate_and_held_by_its_pin(tmp_path):
+    """The root's pyproject.toml is among what ruff_reads lists (it is read, whatever it holds) and is no problem
+    while its table is the pinned one; the pin is the only thing that holds it."""
+    root = configured_tree(tmp_path)
+    assert ruff_reads(root, lint_dirs(RUNNER)) == [root / "pyproject.toml"]
+    assert ruff_configuration_problems(root) == []
+
+
+BESIDE_THE_FOUR = [".venv/ruff.toml", ".venv/Lib/site-packages/pkg/.ruff.toml", ".venv/pyproject.toml",
+                   "conda/pkgs/ruff.toml", "docs/ruff.toml", ".github/ruff.toml", "verify/RUFF.TOML",
+                   "build/pyproject.toml"]
+
+
+@pytest.mark.parametrize("rel", BESIDE_THE_FOUR, ids=BESIDE_THE_FOUR)
+def test_a_configuration_in_a_directory_beside_the_four_is_not_walked(tmp_path, rel):
+    """P0.9's first verifier, D1: only where the lint reads is walked. ruff lints the directories the line names and
+    takes the nearest configuration above each file, so a ruff.toml in a root .venv, in docs/ or in verify/ is the
+    nearest to no file it lints (MEASURED, ruff 0.11.9, for a root .venv and for docs/). The old walk read them, and
+    left a virtual environment out by its pyvenv.cfg. The control is the same name in tests/, which is reported."""
+    root = configured_tree(tmp_path)
+    lay(root, [".venv/pyvenv.cfg", "conda/conda-meta/history"])
+    (root / rel).parent.mkdir(parents=True, exist_ok=True)
+    (root / rel).write_text("[tool.ruff]" + chr(10), encoding="utf-8")
+    assert ruff_configuration_problems(root) == []
+    (root / "tests" / pathlib.PurePosixPath(rel).name).write_text("[tool.ruff]" + chr(10), encoding="utf-8")
+    assert len(ruff_configuration_problems(root)) == 1, "the control"
+
+
+def test_the_walk_takes_the_directories_the_runners_one_ruff_line_names(tmp_path):
+    dirs = lint_dirs(RUNNER)
+    assert {"qro", "controls", "tools", "tests"} <= set(dirs), dirs
+    root = configured_tree(tmp_path)
+    (root / "docs").mkdir()
+    (root / "docs" / "ruff.toml").write_text("[lint]" + chr(10), encoding="utf-8")
+    assert ruff_configuration_problems(root) == [], "docs/ is not among the directories the line names"
+    more = RUNNER.replace("ruff check qro controls tools tests", "ruff check qro controls tools tests docs")
+    assert more != RUNNER and lint_dirs(more) == dirs + ["docs"]
+    got = ruff_configuration_problems(root, more)
+    assert len(got) == 1 and got[0].endswith("docs/ruff.toml"), got
+    none = RUNNER.replace("ruff check", "ruff chek")
+    twice = RUNNER.replace("stage docs ", 'stage lint2 "again" -- ' + chr(92) + chr(10) + "  python -m ruff check qro"
+                           + chr(10) + chr(10) + "stage docs ", 1)
+    for text in (none, twice):
+        assert text != RUNNER
+        with pytest.raises(AssertionError):
+            lint_dirs(text)
+
+
+def link_dir(path, target):
+    """A directory link: a junction on Windows, which needs no privilege; a symbolic link elsewhere. No skip: the
+    runner fails a stage that skips a test. Copied from tests/format/test_hostile.py, as runner_bash is copied: a
+    `tests` package in site-packages shadows a helper module under tests/ (P0.9; P0.8)."""
+    if os.name == "nt":
+        import _winapi
+        _winapi.CreateJunction(str(target), str(path))
+    else:
+        os.symlink(target, path, target_is_directory=True)
+
+
+@pytest.fixture
+def links():
+    """Directory links a test makes, each removed when the test ends, while its target is there. pytest renames an
+    old temporary folder before it removes it, which leaves a link in one pointing at nothing, and on a host that
+    opens no dangling link, as this machine, pytest's own cleanup cannot then remove it (CLAUDE.md item 10)."""
+    made = []
+
+    def make(path, target):
+        link_dir(path, target)
+        made.append((path, target))
+    yield make
+    for path, target in reversed(made):
+        remade = not os.path.lexists(target)
+        if remade:
+            os.mkdir(target)
+        if path.name in os.listdir(path.parent):
+            (os.rmdir if os.name == "nt" else os.unlink)(path)
+        if remade:
+            os.rmdir(target)
+
+
+def links_below(root):
+    """[Path]: every link below `root` that a directory lists, found by listing each directory and never by asking the
+    host what an entry is (CLAUDE.md item 10). A link is recorded and not followed."""
+    found, todo = [], [root]
+    while todo:
+        with os.scandir(todo.pop()) as entries:
+            for entry in entries:
+                if entry.is_symlink() or entry.is_junction():
+                    found.append(pathlib.Path(entry.path))
+                elif entry.is_dir(follow_symlinks=False):
+                    todo.append(entry.path)
+    return sorted(found)
+
+
+def assert_no_link_below(root):
+    """Fail if `root` still lists a link, dangling or not. A link that can be removed is removed all the same, while
+    its target is there, so that a failing test strands nothing in pytest's temporary folder; one whose target is gone
+    cannot be, on this machine, and is named (as tests/format/test_hostile.py's)."""
+    left, stuck = links_below(root), []
+    for path in left:
+        try:
+            (os.rmdir if os.name == "nt" else os.unlink)(path)
+        except OSError:
+            stuck.append(path)
+    names = ", ".join(p.relative_to(root).as_posix() for p in left)
+    assert not left, (f"the test left {len(left)} link(s) in its temporary folder, which pytest's cleanup cannot "
+                      f"remove once it renames the folder (CLAUDE.md item 10): {names}; "
+                      f"{len(stuck)} could not be removed here")
+
+
+@pytest.fixture(autouse=True)
+def no_link_left_behind(request):
+    """Every test of this module: if its tmp_path still lists a link when it and its fixtures are done, it fails. The
+    fixture is set up before the test's own, so it is torn down after theirs."""
+    root = request.getfixturevalue("tmp_path") if "tmp_path" in request.fixturenames else None
+    yield
+    if root is not None:
+        assert_no_link_below(root)
+
+
+# The guard above and the `links` fixture are held as tests/format/test_hostile.py's are (P0.8's second and third
+# verifiers, TA and TB; copied, with the planted session): what the guard sees, and the `links` fixture made to remove
+# nothing, run as a pytest session of its own that fails the test that used it.
+def clean_up(root, *made):
+    """Remove the links these controls made on purpose, then the targets they made again: a link whose target is gone
+    cannot be removed on this machine until its target is there (CLAUDE.md item 10)."""
+    for path, target in made:
+        if target is not None and not os.path.lexists(target):
+            os.mkdir(target)
+        if path.name in os.listdir(path.parent):
+            (os.rmdir if os.name == "nt" else os.unlink)(path)
+        if target is not None and os.path.isdir(target):
+            os.rmdir(target)
+    assert links_below(root) == []
+
+
+def test_the_guard_sees_a_live_link_below_a_directory_and_removes_it_leaving_its_target(tmp_path):
+    (tmp_path / "a").mkdir()
+    outside = tmp_path / "outside"
+    outside.mkdir()
+    (outside / "kept.txt").write_bytes(b"the target's own file\n")
+    link_dir(tmp_path / "a" / "jct", outside)
+    assert links_below(tmp_path) == [tmp_path / "a" / "jct"]
+    with pytest.raises(AssertionError) as e:
+        assert_no_link_below(tmp_path)
+    assert "left 1 link(s)" in str(e.value) and "a/jct" in str(e.value) and "0 could not be removed" in str(e.value)
+    assert links_below(tmp_path) == [] and (outside / "kept.txt").read_bytes() == b"the target's own file\n"
+
+
+def test_the_guard_sees_a_link_whose_target_is_gone(tmp_path):
+    """On this machine such a junction cannot be stat'd, so a guard that asked the host what an entry is would see
+    nothing; listing the directory finds it (CLAUDE.md item 10). It cannot be removed here until its target is made
+    again, which the test then does."""
+    gone = tmp_path / "gone"
+    gone.mkdir()
+    link_dir(tmp_path / "jct", gone)
+    gone.rmdir()
+    assert links_below(tmp_path) == [tmp_path / "jct"]
+    with pytest.raises(AssertionError) as e:
+        assert_no_link_below(tmp_path)
+    assert "left 1 link(s)" in str(e.value) and "jct" in str(e.value)
+    clean_up(tmp_path, (tmp_path / "jct", gone))
+
+
+def test_the_guard_does_not_follow_a_link(tmp_path):
+    """A link to a directory that holds a link is listed once, and the one inside is found where it stands, not again
+    through the first."""
+    (tmp_path / "outside" / "sub").mkdir(parents=True)
+    (tmp_path / "other").mkdir()
+    link_dir(tmp_path / "outside" / "sub" / "k", tmp_path / "other")
+    link_dir(tmp_path / "j", tmp_path / "outside")
+    assert links_below(tmp_path) == sorted([tmp_path / "j", tmp_path / "outside" / "sub" / "k"])
+    with pytest.raises(AssertionError) as e:
+        assert_no_link_below(tmp_path)
+    assert "left 2 link(s)" in str(e.value) and "0 could not be removed" in str(e.value)
+    assert links_below(tmp_path) == []
+
+
+def test_the_guard_sees_a_symbolic_link_by_what_a_directory_lists(tmp_path, monkeypatch):
+    """Where the host cannot make a symbolic link, as this one without privilege, the listing is told of one."""
+    class Listed:
+        path, name = str(tmp_path / "d" / "link"), "link"
+
+        def is_symlink(self):
+            return True
+
+        def is_junction(self):
+            return False
+
+        def is_dir(self, follow_symlinks=True):
+            return False
+
+    class Listing:
+        def __init__(self, path):
+            self.entries = [Listed()] if pathlib.Path(path) == tmp_path / "d" else []
+
+        def __enter__(self):
+            return iter(self.entries)
+
+        def __exit__(self, *_):
+            return False
+    (tmp_path / "d").mkdir()
+    real = os.scandir
+    with monkeypatch.context() as m:
+        m.setattr(os, "scandir", lambda path=".": Listing(path) if pathlib.Path(path) == tmp_path / "d" else real(path))
+        assert links_below(tmp_path) == [tmp_path / "d" / "link"]
+
+
+def test_a_directory_with_no_link_in_it_passes_the_guard(tmp_path):
+    (tmp_path / "plain" / "deeper").mkdir(parents=True)
+    (tmp_path / "plain" / "deeper" / "file.txt").write_bytes(b"x\n")
+    assert links_below(tmp_path) == []
+    assert_no_link_below(tmp_path)
+
+
+JUNCTION_NODE = "test_a_configuration_behind_a_link_is_not_reported_and_a_loop_of_links_ends"
+
+
+def planted_session(tmp_path, old, new, node):
+    """This module's own text with `old` replaced by `new`, once, run as a pytest session of its own on the one test
+    `node`: the result of that session, and the links it left. The session is rooted in a folder of its own, laid out
+    as the root is (the module at tests/docs/, which `ROOT` is found from, with the root's pyproject.toml and the
+    runner and the stage script this module reads), so that its collection lists nothing else; `controls` and `qro` are
+    found through PYTHONPATH. Copied, and adapted to that layout, from tests/format/test_hostile.py's."""
+    import subprocess
+    import sys
+    text = pathlib.Path(__file__).read_text(encoding="utf-8")
+    assert text.count(old) == 1, f"the plant's text is in this module {text.count(old)} times"
+    planted = tmp_path / "planted"
+    (planted / "tests" / "docs").mkdir(parents=True)
+    (planted / "verify").mkdir()
+    for rel in ("pyproject.toml", "verify/run.sh", "verify/pytest-stage.sh"):
+        (planted / rel).write_bytes((ROOT / rel).read_bytes())
+    (planted / "tests" / "docs" / "test_planted_registry.py").write_text(text.replace(old, new), encoding="utf-8")
+    env = {k: v for k, v in os.environ.items() if k not in ("PYTEST_ADDOPTS", "PYTEST_PLUGINS", "PYTHONSAFEPATH")}
+    env.update(PYTEST_DISABLE_PLUGIN_AUTOLOAD="1", PYTHONPATH=str(ROOT))
+    session = subprocess.run([sys.executable, "-m", "pytest", "-c", "pyproject.toml", "--noconftest", "--color=no",
+                              "-q", "--basetemp=bt", f"tests/docs/test_planted_registry.py::{JUNCTION_NODE}"],
+                             cwd=planted, capture_output=True, text=True, env=env)
+    return session, links_below(planted)
+
+
+def test_a_links_fixture_that_removes_nothing_fails_the_test_that_used_it(tmp_path):
+    """With the `links` fixture made to remove nothing, the junction test passes and strands its links in pytest's
+    temporary folder (CLAUDE.md item 10). Here the same plant fails the test that made them, as an error at its
+    teardown, which is how pytest reports a fixture that fails, and leaves none behind. The unplanted session is the
+    plant's twin."""
+    old, new = "    for path, target in " + "reversed(made):", "    for path, target in " + "reversed([]):"
+    session, left = planted_session(tmp_path, old, new, JUNCTION_NODE)
+    assert session.returncode == 1 and "1 passed, 1 error" in session.stdout, session.stdout[-1500:]
+    assert "the test left 3 link(s) in its temporary folder" in session.stdout, session.stdout[-1500:]
+    assert left == [], "the guard removed what it found"
+
+
+def test_the_same_session_with_the_fixture_unplanted_passes(tmp_path):
+    old = "    for path, target in " + "reversed(made):"
+    session, left = planted_session(tmp_path, old, old, JUNCTION_NODE)
+    assert session.returncode == 0 and "1 passed" in session.stdout, session.stdout[-1500:]
+    assert left == []
+
+
+def test_a_configuration_behind_a_link_is_not_reported_and_a_loop_of_links_ends(tmp_path, links):
+    """The walk goes through no link, as ruff goes through none (MEASURED, ruff 0.11.9: a tests/jct that is a junction
+    to a directory holding a masking ruff.toml left the lint's report as the tree's without it; a junction named
+    ruff.toml, to a directory, was read as no configuration). The control: the same directory, not behind a link, is
+    reported. A junction back to the root, which a walk through links would go round, ends."""
+    import shutil
+    (tmp_path / "tree").mkdir()
+    root = configured_tree(tmp_path / "tree")
+    (root / "qro").mkdir()
+    behind = tmp_path / "behind"
+    behind.mkdir()
+    (behind / "ruff.toml").write_text("[lint]" + chr(10), encoding="utf-8")
+    (behind / ".Ruff.toml").write_text("[lint]" + chr(10), encoding="utf-8")
+    (behind / "pyproject.toml").write_text("[tool.ruff]" + chr(10), encoding="utf-8")
+    links(root / "tests" / "jct", behind)
+    links(root / "qro" / "ruff.toml", behind)
+    links(root / "tests" / "loop", root)
+    assert ruff_configuration_problems(root) == []
+    shutil.copytree(behind, root / "tests" / "plain")
+    got = ruff_configuration_problems(root)
+    assert len(got) == 3 and all("tests/plain/" in g for g in got), got
+
+
+def test_a_lint_directory_that_is_a_link_is_entered_as_ruff_enters_it(tmp_path, links):
+    """Ruff goes through the path it is given, a junction too (MEASURED, ruff 0.11.9: with `tests` a junction to a
+    directory holding an unused import, tests/x.py was reported; with a masking ruff.toml there, it was not), though
+    through no link below it. So a configuration behind a lint directory that is a link is read, and reported; the
+    control is the link to a directory that holds none. A lint name that is a file is no directory to walk."""
+    root = tmp_path / "tree"
+    root.mkdir()
+    (root / "pyproject.toml").write_bytes((ROOT / "pyproject.toml").read_bytes())
+    elsewhere = tmp_path / "elsewhere"
+    elsewhere.mkdir()
+    links(root / "tests", elsewhere)
+    (root / "qro").write_text("a file with the name of a lint directory" + chr(10), encoding="utf-8")
+    assert ruff_configuration_problems(root) == [], "the control: nothing behind the link, and a file is no directory"
+    (elsewhere / "RUFF.TOML").write_text("[lint]" + chr(10), encoding="utf-8")
+    got = ruff_configuration_problems(root)
+    assert len(got) == 1 and got[0].endswith("tests/RUFF.TOML"), got
+
+
+def test_a_masking_ruff_file_behind_a_lint_directory_that_is_a_link_masks_the_lint_and_is_caught(tmp_path, links):
+    """The same, end to end: with `tests` a junction, ruff reports the fault in the directory it leads to; with a
+    ruff.toml there that ignores F401, it reports nothing, and the registry names tests/ruff.toml."""
+    import subprocess
+    import sys
+    dirs = lint_dirs(RUNNER)
+    assert "tests" in dirs, dirs
+    root = tmp_path / "tree"
+    (root / "verify").mkdir(parents=True)
+    for rel in ("verify/run.sh", "pyproject.toml"):
+        (root / rel).write_bytes((ROOT / rel).read_bytes())
+    elsewhere = tmp_path / "elsewhere"
+    elsewhere.mkdir()
+    (elsewhere / "x.py").write_text(RUFF_FAULT, encoding="utf-8")
+    for d in dirs:
+        if d == "tests":
+            links(root / d, elsewhere)
+        else:
+            write_all(root, {f"{d}/__init__.py": ""})
+    ruff = [sys.executable, "-m", "ruff", "check", "--no-cache"] + dirs
+    assert subprocess.run(ruff, cwd=root, capture_output=True, text=True).returncode == 1, "the unmasked lint fails"
+    assert ruff_configuration_problems(root) == [], "the pin is clean until the plant"
+    (elsewhere / "ruff.toml").write_text(RUFF_MASK, encoding="utf-8")
+    masked = subprocess.run(ruff, cwd=root, capture_output=True, text=True)
+    assert masked.returncode == 0, masked.stdout
+    got = ruff_configuration_problems(root)
+    assert len(got) == 1 and got[0].endswith("tests/ruff.toml"), got
+
+
+class Entry:
+    """A listed entry told what it is, for the questions a_configuration_by_its_name asks of one. A link to a file
+    needs a privilege on Windows, so the link is told, with a file (or not) at its path for whether it leads to one."""
+
+    def __init__(self, path, link, directory):
+        self.path, self.name, self.link, self.directory = str(path), path.name, link, directory
+
+    def is_symlink(self):
+        return self.link
+
+    def is_junction(self):
+        return False
+
+    def is_dir(self, follow_symlinks=True):
+        return self.directory and (follow_symlinks or not self.link)
+
+
+@pytest.mark.parametrize("link, on_disk, reads", [
+    (True, "file", True), (True, "directory", False), (True, "nothing", False),
+    (False, "file", True), (False, "directory", False)],
+    ids=["a link to a file", "a link to a directory", "a link to nothing", "a file", "a directory"])
+def test_an_entry_named_as_a_configuration_is_one_if_it_is_a_file_or_leads_to_one(tmp_path, link, on_disk, reads):
+    """ruff asks whether the path is a file, which follows a link (MEASURED, ruff 0.11.9, for a directory and a
+    junction by the name: both read as no configuration). A link is asked what it leads to, not what it is."""
+    path = tmp_path / "ruff.toml"
+    if on_disk == "file":
+        path.write_text("[lint]" + chr(10), encoding="utf-8")
+    elif on_disk == "directory":
+        path.mkdir()
+    assert a_configuration_by_its_name(Entry(path, link, on_disk == "directory")) is reads
+    other = tmp_path / "notes.toml"
+    other.write_text("x", encoding="utf-8")
+    assert a_configuration_by_its_name(Entry(other, link, False)) is False, "a name ruff takes none from"
+
+
+def test_the_problems_are_in_path_order(tmp_path):
+    root = configured_tree(tmp_path)
+    for rel in ("tools/ruff.toml", "tests/ruff.toml", "qro/.ruff.toml", "ruff.toml"):
+        (root / rel).parent.mkdir(parents=True, exist_ok=True)
+        (root / rel).write_text("[lint]" + chr(10), encoding="utf-8")
+    got = [problem.rsplit(": ", 1)[1] for problem in ruff_configuration_problems(root)]
+    assert got == ["qro/.ruff.toml", "ruff.toml", "tests/ruff.toml", "tools/ruff.toml"], got
+
+
+def test_a_directory_the_walk_cannot_list_is_raised_not_passed_over(tmp_path, monkeypatch):
+    """What the walk cannot list it has not checked, so the gate raises and never passes (the checker's own rule for the
+    crate it walks: FORMAT.md's stated limits, round 5, note 1). The control: the same tree, listed, passes."""
+    root = configured_tree(tmp_path)
+    (root / "tests" / "closed").mkdir()
+    assert ruff_configuration_problems(root) == []
+    real = os.scandir
+
+    def scandir(path="."):
+        if os.path.basename(os.fspath(path)) == "closed":
+            raise PermissionError(13, "Permission denied", os.fspath(path))
+        return real(path)
+    with monkeypatch.context() as m:
+        m.setattr(os, "scandir", scandir)
+        with pytest.raises(PermissionError):
+            ruff_configuration_problems(root)
+
+
+def test_a_ruff_file_git_ignores_is_still_reported(tmp_path, monkeypatch):
+    """Ruff reads the disk: an ignored tests/ruff.toml masks the lint of the checkout it sits in, though no commit
+    holds it. The walk is of the disk, not of git's list, which leaves an ignored file out. Its git reads none of the
+    user's configuration."""
+    import subprocess
+    empty = tmp_path / "gitconfig-empty"
+    empty.write_text("", encoding="utf-8")
+    for k, v in (("GIT_CONFIG_GLOBAL", str(empty)), ("GIT_CONFIG_NOSYSTEM", "1"),
+                 ("XDG_CONFIG_HOME", str(tmp_path / "xdg"))):
+        monkeypatch.setenv(k, v)
+    (tmp_path / "repo").mkdir()
+    root = configured_tree(tmp_path / "repo")
+    (root / ".gitignore").write_text("ruff.toml" + chr(10), encoding="utf-8")
+    (root / "tests" / "ruff.toml").write_text("[lint]" + chr(10), encoding="utf-8")
+    subprocess.run(["git", "-C", str(root), "init", "-q"], check=True, env=git_env())
+    listed = subprocess.run(["git", "-C", str(root), "ls-files", "-co", "--exclude-standard"], check=True,
+                            capture_output=True, text=True, env=git_env()).stdout.split()
+    assert "tests/ruff.toml" not in listed, "git leaves it out: the test's own control"
+    got = ruff_configuration_problems(root)
+    assert len(got) == 1 and got[0].endswith("tests/ruff.toml"), got
+
+
+RUFF_PINS = [
+    ("a line length", "line-length = 120", "line-length = 200"),
+    ("a target version", 'target-version = "py312"', 'target-version = "py313"'),
+    ("an exclusion more", 'extend-exclude = ["docs/studies/qro0"]', 'extend-exclude = ["docs/studies/qro0", "qro"]'),
+    ("an exclusion less", 'extend-exclude = ["docs/studies/qro0"]', ""),
+    ("an extend", "[tool.ruff]", "[tool.ruff]" + chr(10) + 'extend = "elsewhere.toml"'),
+    ("a selection", "line-length = 120", "line-length = 120" + chr(10) + 'select = ["E999"]'),
+    ("an ignore", "line-length = 120", "line-length = 120" + chr(10) + 'ignore = ["F401"]'),
+    ("a sub-table", "[tool.ruff]", "[tool.ruff.lint]" + chr(10) + 'ignore = ["F401"]' + chr(10) + chr(10)
+     + "[tool.ruff]"),
+    ("the table renamed", "[tool.ruff]", "[tool.ruffs]")]
+
+
+@pytest.mark.parametrize("plant, old, new", RUFF_PINS, ids=[p for p, *_ in RUFF_PINS])
+def test_a_change_to_ruffs_options_is_caught(tmp_path, plant, old, new):
+    root = configured_tree(tmp_path)
+    text = (root / "pyproject.toml").read_text(encoding="utf-8")
+    assert text.count(old) == 1
+    (root / "pyproject.toml").write_text(text.replace(old, new), encoding="utf-8")
+    got = ruff_configuration_problems(root)
+    assert len(got) == 1 and "ruff's options are not the ones the lint assumes" in got[0], got
+
+
+RUFF_MASK = "[lint]" + chr(10) + 'ignore = ["F401"]' + chr(10)
+RUFF_FAULT = "import os" + chr(10)
+RUFF_TABLE = "[tool.ruff.lint]" + chr(10) + 'ignore = ["F401"]' + chr(10)
+
+# (what masks, the files that hold a fault, the files that mask it, the one the registry must name, whether ruff reads
+# the name only on a host that finds a name whatever its case)
+MASKING_PLANTS = [
+    ("a ruff.toml in qro", {"qro/y.py": RUFF_FAULT}, {"qro/ruff.toml": RUFF_MASK}, "qro/ruff.toml", False),
+    ("a root RUFF.TOML", {"qro/y.py": RUFF_FAULT}, {"RUFF.TOML": RUFF_MASK}, "RUFF.TOML", True),
+    ("a ruff.toml beside a pyvenv.cfg", {"tests/zz/y.py": RUFF_FAULT, "tests/zz/pyvenv.cfg": "home = x" + chr(10)},
+     {"tests/zz/ruff.toml": RUFF_MASK}, "tests/zz/ruff.toml", False),
+    ("a ruff.toml beside conda-meta/history",
+     {"controls/env/y.py": RUFF_FAULT, "controls/env/conda-meta/history": ""},
+     {"controls/env/ruff.toml": RUFF_MASK}, "controls/env/ruff.toml", False),
+    ("a .Ruff.toml in tests", {"tests/y.py": RUFF_FAULT}, {"tests/.Ruff.toml": RUFF_MASK}, "tests/.Ruff.toml", True),
+    ("a Pyproject.toml with a table", {"tools/y.py": RUFF_FAULT}, {"tools/Pyproject.toml": RUFF_TABLE},
+     "tools/Pyproject.toml", True)]
+
+
+def write_all(root, files):
+    for rel, text in files.items():
+        (root / rel).parent.mkdir(parents=True, exist_ok=True)
+        (root / rel).write_text(text, encoding="utf-8")
+
+
+@pytest.mark.parametrize("what, faults, plants, named, by_case", MASKING_PLANTS, ids=[m[0] for m in MASKING_PLANTS])
+def test_a_ruff_file_that_masks_the_lint_does_so_and_is_caught(tmp_path, what, faults, plants, named, by_case):
+    """The fault watched end to end, in the lint stage's own tree: beside a fault the lint fails; with the plant, ruff
+    reports no fault in a file that holds one, and the registry names the plant (P0.9's first verifier, D1: a root
+    RUFF.TOML, and a ruff.toml beside a pyvenv.cfg, each took the fault away with the docs stage passing). A name that
+    differs from ruff's only in case masks where the host finds a name whatever its case, as this one may, and is
+    named wherever."""
+    import subprocess
+    import sys
+    root = lint_copy(tmp_path, "X = 1" + chr(10))
+    write_all(tmp_path / "case-probe", {"Probe.TOML": "x"})
+    finds_any_case = (tmp_path / "case-probe" / "probe.toml").exists()
+    ruff = [sys.executable, "-m", "ruff", "check", "--no-cache"] + lint_dirs(RUNNER)
+    write_all(root, faults)
+    assert subprocess.run(ruff, cwd=root, capture_output=True, text=True).returncode == 1, "the unmasked lint fails"
+    assert ruff_configuration_problems(root) == [], "the pin is clean until the plant"
+    write_all(root, plants)
+    masked = subprocess.run(ruff, cwd=root, capture_output=True, text=True)
+    assert masked.returncode == (0 if finds_any_case or not by_case else 1), masked.stdout
+    got = ruff_configuration_problems(root)
+    assert len(got) == 1 and got[0].endswith(named), got
 
 
 # The SHA-256 of verify/pytest-stage.sh's command lines, comments and blank lines left out: any line added to the

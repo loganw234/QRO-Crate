@@ -38,6 +38,19 @@ that reading cannot see.
   function `test*` and no class `Test*`. A class so named outside tests/
   that is no test, a `TestStatistic` in qro/ say, sets `__test__ = False`,
   or pytest tries to collect it in each test module that imports it.
+- **ruff reads pyproject.toml's `[tool.ruff]` and nothing else:** exactly
+  its three options, and no ruff.toml, .ruff.toml or other pyproject.toml
+  with a `[tool.ruff]` table where ruff reads for the lint: at the root, in
+  the directories the runner's one ruff line names (`qro controls tools
+  tests`) and in every directory below them. Any of them can drop a rule or
+  the whole lint, and ruff reads the nearest to each file. The docs stage
+  walks that as ruff does, and fails a tree that holds one: names compared
+  without case (`RUFF.TOML` masks), no directory exempt (a `pyvenv.cfg`, a
+  `conda-meta/history`, a `__pycache__` or a `.git` shields nothing), and
+  no link below the four followed (a link that is one of the four is
+  entered, as ruff goes through the path it is given). A directory beside
+  the four, a root `.venv` or `docs/`, is not walked: no file the lint
+  reads sees it (P0.9).
 - **The study has its own gate.** Before every freeze of
   docs/studies/QRO-0.md, run both
   `python -I docs/studies/qro0/check_study.py docs/studies/QRO-0.md` and
@@ -98,7 +111,12 @@ that reading cannot see.
    ids and accounts, named keys, bearer tokens, JWTs, Moth keys, presigned
    URLs, personal addresses and home paths. It reads every file git would
    commit, UTF-16 included, every blob of HEAD's history and every commit
-   message, and lists any binary file it could not read by name. A home
+   message, and lists any binary file it could not read by name. It fails
+   closed in two places where no commit would hold a key (P0.9; its
+   docstring and tests/tools/test_tools.py hold both): a tracked file a
+   directory has replaced is reported `unreadable`, and a key on disk in a
+   file git will not commit (skip-worktree, assume-unchanged, or outside a
+   sparse checkout's patterns) is reported. A home
    path, an address or a key committed and then deleted is still pushed, so
    the gate fails on it until that history is rewritten, before a push; once
    pushed and judged no secret, its blob is named in the gate's KNOWN (P0.6).
@@ -166,10 +184,29 @@ that reading cannot see.
    - at low integrity, where Windows lets a process, and every process it
      starts, write and delete only in low-labelled folders: the sandbox,
      and every other folder under `%USERPROFILE%\AppData\LocalLow`, which
-     Windows labels low for every application; nowhere else in the
-     profile, the repositories or the system. For a program Python starts,
-     which the hook does not see, that label is the only fence (P0.7's
-     third verifier);
+     Windows labels low for every application, and a few more of the
+     profile that Windows itself labels low (below); nowhere else in the
+     repositories or the system. For a program Python starts, which the
+     hook does not see, that label is the only fence (P0.7's third
+     verifier), and in those few folders it fences nothing: a program
+     Python starts may write and delete there, outside the sandbox. The
+     hook still holds Python's own writes there, as it does everywhere
+     outside the sandbox. They are, read with `icacls`, which changes
+     nothing (P0.9, 2026-10-31: 75,152 folders of the profile to a depth of
+     six below it, the repositories and the credential and tool folders not
+     entered): `AppData\Local\Temp\Low`; `Favorites`; Internet Explorer's
+     caches, `AppData\Local\Microsoft\Windows\INetCache\Low` and
+     `\Virtualized`, `INetCookies\Low`, `IECompatCache\Low`,
+     `IECompatUaCache\Low`, `AppData\Local\Microsoft\PlayReady\Internet
+     Explorer\Desktop` and `AppData\Roaming\Microsoft\Internet
+     Explorer\UserData\Low`; `AppData\Local\Publishers\8wekyb3d8bbwe\
+     MicrosoftStore`; and under `AppData\Local\Packages`, an `AC` folder in
+     each of 22 packages (a 23rd package's `AC` is a junction, a reparse
+     point the walk did not enter: `icacls`, which follows it, reads its
+     target, on another drive, as low), a `LocalCache\LocalLow` in one, and
+     16 more folders inside some. The profile, `AppData`, `AppData\Local`,
+     `AppData\Local\Temp`, `AppData\Roaming`, `source`, `source\repos`,
+     QRO-Crate and moth-quantum carry no low label;
    - with a Python audit hook, the guarded interpreter's sitecustomize, that
      refuses a write, delete, rename, link, copy or chmod made through
      Python's own file functions outside the sandbox, and a write to a file
@@ -208,3 +245,12 @@ that reading cannot see.
       target is there. pytest renames an old temporary folder before it
       removes it, so a junction left in one, live when it was made, then
       points at nothing and stays, in a folder pytest names `garbage-*`.
+      Each P0 test module that makes one fails a test whose `tmp_path` still
+      lists a link when it ends (an autouse `no_link_left_behind`, found by
+      listing the directory, as a dangling junction cannot be stat'd), and
+      removes what it can (P0.9).
+11. **`python -OO` strips docstrings, so `__doc__` is `None`.** A tool that
+    reads its own outside a guard dies with a traceback and exit 1, which is
+    the drift verdict's code: gen_vocabulary.py did (P0.9; gen_profile.py
+    guards it). Read it as `__doc__.splitlines()[0] if __doc__ else None`.
+    tests/tools/test_gen_vocabulary_oo.py runs it as a process under `-OO`.

@@ -111,19 +111,33 @@ can hold each one to the study.
     refusal names the same place on every host.
     So is any entry that is neither a regular file nor a directory, such as
     a named pipe a reader would block on, and any entry its directory lists
-    that the host, asked what it is, says is not there (FileNotFoundError,
-    NotADirectoryError and the like). Any other failure of that question, or
-    of reading the entry, is no refusal: a refused permission is misuse,
-    exit 2, as item 16 says, and any other error of the host's is the
-    checker failing, exit 3. On a host that opens no dangling link, as the
-    owner's machine was found to be on 2026-10-30 (CLAUDE.md item 10), a
-    link whose target is gone is an entry the host says is not there: the
-    walk refuses it before it descends, and the metadata file too (P0.8). A
-    corner differs by host: a dangling link at the metadata file's name in
-    another case, with no metadata file, is `file-missing` on a host that
-    cannot stat it; on one that can, it is `file-link` where the host folds
-    case and `file-missing` where it keeps case. The crate is refused on
-    every host.
+    that the host, asked what it is, says is not there.
+    - That is a list, not a paraphrase: the errors pathlib 3.12 and 3.13
+      read so, `NOT_THERE_ERRNOS` and `NOT_THERE_WINERRORS` in
+      qro/checker.py, which tests/format/test_hostile.py holds to pathlib's
+      own. They are ENOENT, ENOTDIR, EBADF and ELOOP, and Windows' errors 21
+      (a device not ready), 123 (a name the host refuses) and 1921 (a link
+      it cannot resolve).
+    - Windows' error 21 arrives as a `PermissionError` and is on the list,
+      so at a listed entry it is `file-link`, never misuse.
+    - Any other failure of that question, or of reading the entry, is no
+      refusal. A refused permission, a `PermissionError` that is not error
+      21, is misuse, exit 2, as item 16 says, and any other error of the
+      host's is the checker failing, exit 3.
+    - A crate path the host cannot be asked about at all, one that holds a
+      NUL or is longer than Windows takes (a `ValueError` of `os.lstat`, not
+      an `OSError`), is a crate with no metadata file, `file-missing`, as a
+      path that is not there is. The command line refuses such a path as
+      misuse first (P0.9; P0.8's fifth verifier, C1).
+
+    On a host that opens no dangling link, as the owner's machine was found
+    to be on 2026-10-30 (CLAUDE.md item 10), a link whose target is gone is
+    an entry the host says is not there: the walk refuses it before it
+    descends, and the metadata file too (P0.8). A corner differs by host: a
+    dangling link at the metadata file's name in another case, with no
+    metadata file, is `file-missing` on a host that cannot stat it; on one
+    that can, it is `file-link` where the host folds case and
+    `file-missing` where it keeps case. The crate is refused on every host.
 13. **Each term names the entities it may stand on** (its domain, in the
     table). A CHECKED term's step checks it on every entity its domain
     admits, and the reader refuses it anywhere else. So no CHECKED field sits
@@ -175,14 +189,48 @@ can hold each one to the study.
       Python's own failure to start it (no `qro` on the path, a module that
       will not import) exits 1, Python's code, with no line on stdout. So a
       refusal is exit 1 and its REFUSED line.
-    - Misuse, exit 2 (round 5, R5-3):
+    - Misuse, exit 2 (round 5, R5-3; P0.9):
       - an empty name;
       - a crate that is not a directory, or a log or record that is not a
-        regular file, a pipe among them;
+        regular file, a pipe or a device among them (`NUL`, `CON`);
       - a path the host raises on when asked what it is: a name too
-        long, a parent the user cannot search;
+        long, a parent the user cannot search, a character it refuses in a
+        name (`*`, `?`, `<`, `>`, `|`, `"`, a control character, a colon
+        inside a name), a NUL in it;
       - a path the user may not read or list, the crate's own files and
-        directories among them.
+        directories among them, and the crate directory itself: the command
+        line lists it first, for the host answered the metadata file's name
+        "not there" in a directory it could not list, and the crate was
+        refused `file-missing` (MEASURED on Windows 11, P0.9). Any error of
+        the host's on that listing is misuse, naming the argument;
+      - a name the host reads as another. On Windows that is any component
+        of the path, but `.` and `..`, that ends in a space or a dot (a lone
+        space, and `. `, included), unless the path is in the
+        extended-length form (`\\?\`), which the host reads as it is
+        written. Windows strips them, so `crate.` named `crate` and was
+        ACCEPTED as it, while `crate ` and `crate..` were REFUSED
+        `file-missing` (MEASURED, P0.9). A drive designator (`C:`) is no
+        part of the first component's name, and is taken off before that
+        component is looked at: `C:.`, `C:..`, `C:.\x` and `C:..\x` name the
+        drive's current directory, its parent, and a name in either, as `.`
+        and `..` do, and get the verdict of what they name (P0.9's first
+        verifier, D2), while `C:crate.` is `crate.` and is misuse. Another
+        host reads every name as written, and such a name is simply not
+        there.
+
+      Each answer is exit 2, never exit 3, and gives no verdict on an entry
+      the argument did not name. Its line begins with:
+      - the argument as the user wrote it (escaped as every line is), when
+        the answer is about the argument itself: an empty name, a path that
+        is not there or is of the wrong kind, a path the host raises on when
+        asked what it is, a name it reads as another, and a crate directory
+        the user may not list;
+      - the place the host refused, as the host names it and not as the user
+        wrote it, when the answer is a want of permission on a path the
+        command reached through the argument: a file or directory below the
+        crate directory, the metadata file among them, or a log or a record.
+        `./crate` gives `crate\inner: cannot be read here, ...`, and an error
+        of the host's that names no place gives `a path`.
 
       A link to a crate, a log or a record is followed.
 17. **P0's fixture** (qro/fixture.py) has its own raw form and generator. The
@@ -369,8 +417,18 @@ can hold each one to the study.
   (round 5, note 1). The command line answers a want of permission as
   misuse, exit 2, and any other reason, a path too long for the host
   say, as the checker failing, exit 3. These it does not see:
-  - an NTFS stream on a listed file is invisible to it, and the file's own
-    bytes are held to their digest;
+  - an NTFS alternate data stream on any entry of the crate is neither
+    read nor refused: on a listed file, on the metadata file, on a
+    directory, and on the crate directory itself. A file's digest and size
+    cover its default stream alone, so another stream carries bytes the
+    checker never sees, and the crate is accepted, with the same identity,
+    as it is without it. MEASURED on this machine, before and after P0.8
+    (P0.8's third verifier, note 7; P0.9's first verifier, note 1), and
+    pinned by tests/format/test_hostile.py, one entry of each kind (P0.9).
+    On a host where a colon is a character of a name, a stream so named is
+    an ordinary file beside its entry: refused `file-unlisted` where it is
+    in the crate and no entity lists it, and not seen beside the crate
+    directory, which is outside the crate;
   - a hard link to a file outside the crate is a file in the crate, held
     to its digest like any other;
   - an empty directory holds no file, and is accepted.

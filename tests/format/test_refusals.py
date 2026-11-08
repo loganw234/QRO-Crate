@@ -4,6 +4,9 @@ of the fixture crate, which is itself accepted."""
 import hashlib
 import json
 import os
+import pathlib
+import subprocess
+import sys
 
 import pytest
 
@@ -125,8 +128,52 @@ def link(path, target):
     LINKS.append(path)
 
 
+def links_below(root):
+    """[Path]: every link below `root` that a directory lists, found by listing each directory and never by asking the
+    host what an entry is, for this machine cannot stat a junction whose target is gone (CLAUDE.md item 10), as the
+    checker's question of what a listed entry is knows. A link is recorded and not followed. Copied from
+    test_hostile.py, not imported: a `tests` package in site-packages shadows a helper module under tests/."""
+    found, todo = [], [root]
+    while todo:
+        with os.scandir(todo.pop()) as entries:
+            for entry in entries:
+                if entry.is_symlink() or entry.is_junction():
+                    found.append(pathlib.Path(entry.path))
+                elif entry.is_dir(follow_symlinks=False):
+                    todo.append(entry.path)
+    return sorted(found)
+
+
+def assert_no_link_below(root):
+    """Fail if `root` still lists a link, dangling or not (P0.9; P0.8's second and third verifiers, TB: `unlink_made`
+    removing nothing passed every test, and CLAUDE.md item 10 held it by text). A link that can be removed is removed
+    all the same, while its target is there, so that a failing test strands nothing in pytest's temporary folder; one
+    whose target is gone cannot be, on this machine, and is named."""
+    left, stuck = links_below(root), []
+    for path in left:
+        try:
+            (os.rmdir if os.name == "nt" else os.unlink)(path)
+        except OSError:
+            stuck.append(path)
+    names = ", ".join(p.relative_to(root).as_posix() for p in left)
+    assert not left, (f"the test left {len(left)} link(s) in its temporary folder, which pytest's cleanup cannot "
+                      f"remove once it renames the folder (CLAUDE.md item 10): {names}; "
+                      f"{len(stuck)} could not be removed here")
+
+
 @pytest.fixture(autouse=True)
-def unlink_made():
+def no_link_left_behind(request):
+    """Every test of this module: if its tmp_path still lists a link when it and its fixtures are done, it fails. The
+    fixture is set up before the others, so it is torn down after theirs (unlink_made asks for it, to make it so);
+    and it asks for tmp_path only of a test that has one, which is all a link could be made in."""
+    root = request.getfixturevalue("tmp_path") if "tmp_path" in request.fixturenames else None
+    yield
+    if root is not None:
+        assert_no_link_below(root)
+
+
+@pytest.fixture(autouse=True)
+def unlink_made(no_link_left_behind):
     """Each link a plant made, removed when its test ends, while its target is there: pytest renames an old
     temporary folder before it removes it, which leaves a link in one pointing at nothing, and on a host that opens
     no dangling link, as this machine, pytest's own cleanup cannot then remove it (P0.8's first verifier, D3;
@@ -290,3 +337,102 @@ def test_the_profiles_are_held_after_the_roots_conformsto_and_before_its_referen
         with pytest.raises(Refused) as e:
             checker.check(edit(fixture.make(tmp_path / name), fault))
         assert (e.value.name, e.value.where) == ("graph-form", where), name
+
+
+# -- no test of this module leaves a link behind (P0.9; P0.8's second and third verifiers, TA and TB) -------------
+# The guard above (no_link_left_behind) fails a test whose tmp_path still lists a link. Its controls: what it sees,
+# and `unlink_made` made to remove nothing, run as a pytest session of its own, failing the test that made a link.
+def test_the_guard_sees_a_live_link_and_removes_it_leaving_its_target(tmp_path):
+    (tmp_path / "a").mkdir()
+    outside = tmp_path / "outside"
+    outside.mkdir()
+    (outside / "kept.txt").write_bytes(b"the target's own file\n")
+    link(tmp_path / "a" / "jct", outside)
+    assert links_below(tmp_path) == [tmp_path / "a" / "jct"]
+    with pytest.raises(AssertionError) as e:
+        assert_no_link_below(tmp_path)
+    assert "left 1 link(s)" in str(e.value) and "a/jct" in str(e.value) and "0 could not be removed" in str(e.value)
+    assert links_below(tmp_path) == [] and (outside / "kept.txt").read_bytes() == b"the target's own file\n"
+
+
+def test_the_guard_sees_a_link_whose_target_is_gone(tmp_path):
+    """On this machine such a junction cannot be stat'd, so a guard that asked the host what an entry is would see
+    nothing; listing the directory finds it (CLAUDE.md item 10). It cannot be removed here until its target is made
+    again, which the test then does."""
+    gone = tmp_path / "gone"
+    gone.mkdir()
+    link(tmp_path / "jct", gone)
+    gone.rmdir()
+    assert links_below(tmp_path) == [tmp_path / "jct"]
+    with pytest.raises(AssertionError) as e:
+        assert_no_link_below(tmp_path)
+    assert "left 1 link(s)" in str(e.value) and "jct" in str(e.value)
+    if links_below(tmp_path):                 # one the host could not remove while its target was gone
+        gone.mkdir()
+        (os.rmdir if os.name == "nt" else os.unlink)(tmp_path / "jct")
+        gone.rmdir()
+    assert links_below(tmp_path) == []
+
+
+def test_the_guard_does_not_follow_a_link(tmp_path):
+    """A link to a directory that holds a link is listed once, and the one inside is found where it stands, not again
+    through the first."""
+    (tmp_path / "outside" / "sub").mkdir(parents=True)
+    (tmp_path / "other").mkdir()
+    link(tmp_path / "outside" / "sub" / "k", tmp_path / "other")
+    link(tmp_path / "j", tmp_path / "outside")
+    assert links_below(tmp_path) == sorted([tmp_path / "j", tmp_path / "outside" / "sub" / "k"])
+    with pytest.raises(AssertionError) as e:
+        assert_no_link_below(tmp_path)
+    assert "left 2 link(s)" in str(e.value) and "0 could not be removed" in str(e.value)
+    assert links_below(tmp_path) == []
+
+
+def test_a_directory_with_no_link_in_it_passes_the_guard(tmp_path):
+    (tmp_path / "plain" / "deeper").mkdir(parents=True)
+    (tmp_path / "plain" / "deeper" / "file.txt").write_bytes(b"x\n")
+    assert links_below(tmp_path) == []
+    assert_no_link_below(tmp_path)
+
+
+def planted_session(tmp_path, old, new, node):
+    """This module's own text with `old` replaced by `new`, once, run as a pytest session of its own on the one test
+    `node`: the result of that session, and the links it left. The session is rooted in a folder of its own, holding
+    a copy of the root's pyproject.toml (the same options as a stage's, that file alone) and the module, so that its
+    collection lists nothing else: pytest compares every entry of each folder between its rootdir and a test file with
+    `lstat`, and a rootdir above the temporary folder made it list the shared one, where another process's folder
+    removed between the listing and the `lstat` was a FileNotFoundError and an error collecting the session
+    (MEASURED once in the runner, 2026-10-31). `qro` is found through PYTHONPATH, as the other process tests find it."""
+    root = pathlib.Path(__file__).resolve().parents[2]
+    text = pathlib.Path(__file__).read_text(encoding="utf-8")
+    assert text.count(old) == 1, f"the plant's text is in this module {text.count(old)} times"
+    planted = tmp_path / "planted"
+    planted.mkdir()
+    (planted / "pyproject.toml").write_bytes((root / "pyproject.toml").read_bytes())
+    (planted / "test_planted_refusals.py").write_text(text.replace(old, new), encoding="utf-8")
+    env = {k: v for k, v in os.environ.items() if k not in ("PYTEST_ADDOPTS", "PYTEST_PLUGINS", "PYTHONSAFEPATH")}
+    env.update(PYTEST_DISABLE_PLUGIN_AUTOLOAD="1", PYTHONPATH=str(root))
+    session = subprocess.run([sys.executable, "-m", "pytest", "-c", "pyproject.toml", "--noconftest", "--color=no",
+                              "-q", "--basetemp=bt", f"test_planted_refusals.py::{node}"],
+                             cwd=planted, capture_output=True, text=True, env=env)
+    return session, links_below(planted)
+
+
+NODE = "test_each_plant_is_refused_by_its_own_name[file-link]"
+
+
+def test_an_unlink_made_that_removes_nothing_fails_the_test_that_made_a_link(tmp_path):
+    """P0.8's second verifier, TB: with `unlink_made` made to remove nothing, 491 tests passed and a live junction was
+    left in pytest's temporary folder. Here the same plant fails the test that made a link, as an error at its
+    teardown, which is how pytest reports a fixture that fails, and leaves none behind."""
+    session, left = planted_session(tmp_path, "    while " + "LINKS:", "    while " + "[]:", NODE)
+    assert session.returncode == 1 and "1 passed, 1 error" in session.stdout, session.stdout[-1500:]
+    assert "the test left 1 link(s) in its temporary folder" in session.stdout, session.stdout[-1500:]
+    assert left == [], "the guard removed what it found"
+
+
+def test_the_same_session_with_unlink_made_unplanted_passes(tmp_path):
+    old = "    while " + "LINKS:"
+    session, left = planted_session(tmp_path, old, old, NODE)
+    assert session.returncode == 0 and "1 passed" in session.stdout, session.stdout[-1500:]
+    assert left == []

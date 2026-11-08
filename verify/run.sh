@@ -318,7 +318,7 @@ need_env ()  { [ -n "${!1:-}" ] || STAGE_SKIP_REASON="$2"; }
 stage lint "ruff over the package, the controls, the tools and the tests" -- \
   python -m ruff check qro controls tools tests
 
-stage docs "the registry, from the runner's text: each test file and tool check run by a stage; no two test files share a name, and a parcel's carry its prefix; pytest's configuration pinned to pyproject.toml" -- \
+stage docs "the registry, from the runner's text: each test file and tool check run by a stage; no two test files share a name, and a parcel's carry its prefix; pytest's and ruff's configuration pinned to pyproject.toml" -- \
   bash verify/pytest-stage.sh tests/docs
 
 stage check-docs "the documents' own gate, on what it reads: links resolve, the index lists the documents, named paths exist" -- \

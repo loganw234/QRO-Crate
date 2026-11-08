@@ -2,9 +2,12 @@
 
 P0 builds four of them:
   1. the bytes: qro/reader.py;
-  2. no link anywhere in the crate, the metadata file among them (`file-link`); every listed file, and the metadata
-     file, present under its exact name (`file-missing`); the walk in name order, raising on a directory it
-     cannot list;
+  2. no link anywhere in the crate, the metadata file among them (`file-link`), nor any entry its directory lists
+     that the host, asked what it is, says is not there (`file-link` too: `_listed_not_there`, which takes only the
+     errors pathlib 3.12 and 3.13 read as "not there", NOT_THERE_ERRNOS and NOT_THERE_WINERRORS; a dangling junction
+     on a host that opens none, a name ending in a dot or a space on Windows), each refused before the walk
+     descends; every listed file, and the metadata file, present under its exact name (`file-missing`); the walk in
+     name order, raising on a directory it cannot list;
      every file present listed and reached from the root through hasPart (`file-unlisted`); every file's bytes
      held to its digest and size (`file-digest`, and `raw-digest` for a raw result);
   3. every raw result read in its raw form (`raw-form`), and every count held to what the bytes hold
@@ -135,7 +138,12 @@ def load():
 
 
 def check(crate_dir):
-    """The crate's metadata, if every step accepts it; otherwise Refused, at the first failure."""
+    """The crate's metadata, if every step accepts it; otherwise Refused, at the first failure.
+
+    A crate path that is not there, or is a file, is a crate with no metadata file: `file-missing`. So is a path the
+    host cannot be asked about at all, one that holds a NUL or is longer than Windows takes: its ValueError is the
+    answer "not there", not a crash (P0.9; P0.8's fifth verifier, C1). Any other error of the host's on the path is
+    raised, as it is on any entry; the command line refuses a path it cannot use as misuse before it calls this."""
     crate = Path(crate_dir)
     meta = crate / canonical.DESCRIPTOR
     if _is_link(meta):
@@ -179,9 +187,17 @@ def _listed_not_there(p):
     checker's own (P0.8's third verifier, D1). On a host that opens no dangling link, as the owner's machine was
     found to be on 2026-10-30 (CLAUDE.md item 10), a link whose target is gone is one: its directory lists it,
     os.walk takes it for a directory, and `_is_link` cannot ask it, so the walk descended into it and failed, exit
-    3, where the crate is refused (P0.8's first verifier, D1)."""
+    3, where the crate is refused (P0.8's first verifier, D1).
+
+    The list is NOT_THERE_ERRNOS and NOT_THERE_WINERRORS, pathlib's own (tests/format/test_hostile.py holds them to
+    it). Windows' error 21, "not ready", arrives as a PermissionError and is on it, so at a listed entry it is
+    `file-link`, not misuse. A path the host cannot be asked about at all, one that holds a NUL or is longer than
+    Windows takes, raises ValueError from lstat: it is no entry its directory lists, so the answer is no (P0.9;
+    P0.8's fifth verifier, C1)."""
     try:
         os.lstat(p)
+        return False
+    except ValueError:
         return False
     except OSError as e:
         if e.errno not in NOT_THERE_ERRNOS and getattr(e, "winerror", None) not in NOT_THERE_WINERRORS:

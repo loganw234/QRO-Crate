@@ -16,7 +16,11 @@ definition contradicts itself, or its arguments are wrong. 3: the generator itse
 exits or fails as it loads among the causes (P0.1's verifier, round 4, N4), with one line on stderr, escaped as the
 command line escapes its own, which after --write names the files it had finished writing; --write renders
 every file before it writes any (P0.2's verifier, rounds 1 and 2). Each contradiction is one escaped line too.
-Where its stdout's reader is gone, Python itself ends it, with exit 120, after its line. Stdlib only.
+Where its stdout's reader is gone, Python itself ends it, with exit 120, after its line. Under python -OO, which
+strips the module's docstring, every mode runs as it does without it, and --help prints the usage with no
+description (P0.9: it read the docstring outside its try, died with a traceback, and exited 1, the drift verdict's
+code). A stated limit: before main runs, Python's own failure to start the tool (a module that will not import)
+exits 1, Python's code, with a traceback on stderr, as FORMAT.md item 16 says of the command line. Stdlib only.
 """
 import argparse
 import difflib
@@ -145,7 +149,8 @@ def drift(root):
 
 
 def main(argv=None, root=ROOT):
-    ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    # python -OO strips the docstring, which is then None: no description, never a crash (P0.9)
+    ap = argparse.ArgumentParser(description=__doc__.splitlines()[0] if __doc__ else None)
     g = ap.add_mutually_exclusive_group(required=True)
     g.add_argument("--write", action="store_true")
     g.add_argument("--check", action="store_true")

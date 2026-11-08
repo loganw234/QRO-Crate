@@ -59,7 +59,28 @@ What it cannot see (each limit stated by the behaviour it concedes):
   - a nested repository below the tree, which git commits as a gitlink and never as its files, is named in the
     summary and not read: one git lists untracked with a trailing slash, or one the index holds as a gitlink while
     a directory, or nothing, is at its path. A file or a symbolic link at a gitlink's path is read, as `git add -A`
-    commits it in the gitlink's place (P0.4's verifier, round 2, R2-1).
+    commits it in the gitlink's place (P0.4's verifier, round 2, R2-1);
+  - a path through WSL's mirror (the host wsl$ or wsl.localhost) in the extended-length UNC form, or in a mixed
+    spelling of its separators (two slashes and a backslash, or a slash and a backslash) that names no home directory
+    straight after the distro, a path through the mounted drive among them (MEASURED, P0.9). A host written with two
+    backslashes, or with two slashes and a slash after it, is found whatever the path names after it; the mixed
+    spellings are found only with a home directory, which the three alternatives P0.9 added name (wsl-unc-mirror,
+    wsl-unc-mixed-fb and wsl-unc-mixed-bf). Nor are they the only gap: the mirror's JSON-escaped spelling, two
+    slashes and the host, then the distro, `home` and the user's name each after two backslashes, as the text of a
+    JSON string holds a path written with single ones, is found by no alternative, with a home directory or without
+    (MEASURED, P0.9's first verifier, note 3, and again by the builder, who found the escaped forms of the host
+    written with backslashes, four of them or a slash and two, found by wsl-unc).
+
+Two reports where a commit would hold no key (P0.9; each held by a test in tests/tools/test_tools.py). The gate reads
+the disk as git lists it and cannot always tell what a commit would take, and it fails closed in both places, so a
+key a commit could hold is never passed over, and a false finding costs a look:
+  - a tracked file a directory has replaced is reported `unreadable`, a finding with exit 1, though the directory
+    holds nothing secret and the index's version of the file is read as a staged version. The gate cannot tell it
+    from a file git sees and Python cannot read, which must be a finding (P0.7's second verifier, note 6, and its
+    fourth, note 5);
+  - a key in a file git will not commit is reported: a file marked skip-worktree or assume-unchanged and edited on
+    disk, and an untracked file outside a sparse checkout's patterns, which `git add -A` refuses (MEASURED: git
+    takes none of them). A file .gitignore leaves out is not among the files git lists, so it is not read.
 
     python tools/check_privacy.py              # 0 = nothing found; 1 = each finding, masked
     python tools/check_privacy.py --control    # 0 = every planted fault caught by its own alternative
@@ -76,6 +97,8 @@ ROOT = Path(__file__).resolve().parent.parent
 ALLOWED_ADDRESSES = {"noreply@anthropic.com"}
 RESERVED = re.compile(r"(?i)(^|\.)(example\.(com|org|net)|invalid|test|localhost)$")
 _NAME = r"[^\W_][\w.-]*"                    # a home directory's name: Unicode letters and digits first
+_WSL_HOST = r"wsl(?:\$|\.localhost)"        # the host of WSL's mirror of its file systems (P0.9)
+_WSL_HOME = r"[^\\/\s]+[\\/](?:home|users)[\\/]" + _NAME      # a distro, then its home directory and the user's name
 _KEY = r"""\s{0,16}["']?\s{0,16}[=:]\s{0,16}["']?(?:Bearer\s{1,16}|apikey\s{1,16})?[A-Za-z0-9._~+/-]{24,}"""   # bounded: a long run of space backtracked quadratically (round 6)
 
 # (kind, name, pattern): one alternative a row, so that each has its own control below.
@@ -93,6 +116,15 @@ ALTERNATIVES = [
     # the same with forward slashes, as Path.as_posix writes it (P0.4's verifier, round 4, note 3); not after a
     # scheme's colon or a host's characters, so a URL whose host is named wsl is not one
     ("path", "wsl-unc-slash", r"(?i)(?<![A-Za-z0-9:./])//wsl(\$|\.localhost)/"),
+    # WSL's mirror with the separators mixed, which the two above leave out: the two above find a host written with
+    # two backslashes, or with two slashes and a slash after it (P0.7's third verifier, MEASURED by its wsl_forms.py:
+    # slashes and then a backslash, a slash and a backslash either way round, and the same with .localhost, passed).
+    # Each of these three names a home directory after the distro, as a home path does, and the two above do not: so
+    # a path to another place in the mirror is found only in the spellings the two above cover (P0.9). Not after a
+    # letter, a digit, a colon, a dot or a slash, as the one above is not.
+    ("path", "wsl-unc-mirror", r"(?i)(?<![A-Za-z0-9:./])//" + _WSL_HOST + r"\\" + _WSL_HOME),
+    ("path", "wsl-unc-mixed-fb", r"(?i)(?<![A-Za-z0-9:./])/\\" + _WSL_HOST + r"[\\/]" + _WSL_HOME),
+    ("path", "wsl-unc-mixed-bf", r"(?i)(?<![A-Za-z0-9:./])\\/" + _WSL_HOST + r"[\\/]" + _WSL_HOME),
     # a file URL to the WSL host's home, as a browser or Path.as_uri writes it (P0.6's verifier, round 1, note)
     ("path", "wsl-file-url", r"(?i)\bfile:/*wsl(\$|%24|\.localhost)/[^/\s]+/(home|users)/" + _NAME),
     ("path", "url-quoted-home", r"(?i)%2F(users|home)%2F|[a-z]%3A(%5C|%2F)users(%5C|%2F)"),
@@ -323,6 +355,9 @@ KNOWN = {
     ("5c26e1925ab6bef74262d5da8fe55ebefaef1781", "wsl-unc"):
         "P0.6's fourth verifier's example, in docs/reviews/P0.6/round4.md as pushed in cbdb6a3, of a spelling the gate "
         "then missed: the name in it is the placeholder `name`",
+    ("b0b507fb26a47330f5e661fecbddb217d2c8f4d5", "wsl-unc-mirror"):
+        "P0.7's third verifier's example, in docs/reviews/P0.7/round3.md as pushed in 83503b0, of a spelling the gate "
+        "then missed: the name in it is the placeholder `x`",
 }
 
 
@@ -478,6 +513,9 @@ PLANTS = {
     "backslash-home": "see " + "\\" + "home" + "\\" + "someone",
     "wsl-unc": "see " + "\\\\" + "wsl$" + "\\Ubuntu\\x",
     "wsl-unc-slash": "see " + "//" + "wsl$" + "/Ubuntu/home/someone",
+    "wsl-unc-mirror": "see " + "//" + "wsl$" + "\\Ubuntu\\" + "home" + "\\someone",
+    "wsl-unc-mixed-fb": "see " + "/" + "\\" + "wsl.localhost" + "\\Ubuntu\\" + "home" + "\\someone",
+    "wsl-unc-mixed-bf": "see " + "\\" + "/" + "wsl$" + "/Ubuntu/" + "home" + "/someone",
     "url-quoted-home": "path=" + "%2F" + "Users" + "%2Fsomeone",
     "url-quoted-drive": "see C:" + "%5C" + "Users" + "%5Csomeone",
     "wsl-file-url": "see file:" + "//" + "wsl.localhost" + "/Ubuntu/" + "home" + "/someone",

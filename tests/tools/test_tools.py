@@ -112,6 +112,90 @@ def test_each_spelling_p06_added_keeps_its_edges(name, text):
     assert privacy.findings(text, {name}) == [], text
 
 
+# -- WSL's mirror, a home path in every spelling of its separators (P0.9; P0.7's third verifier, MEASURED by its
+# wsl_forms.py: four of its nine spellings were found by no alternative). Each is built from its pieces at run time,
+# so that this file holds none whole.
+B, F = chr(92), "/"
+SEPS = {B: "bs", F: "slash"}
+WSL_HOSTS = ["wsl$", "wsl.localhost"]
+WSL_SPELLINGS = [    # (the two separators before the host, the one after it, the one alternative that finds it)
+    (B + B, B, "wsl-unc"), (B + B, F, "wsl-unc"), (F + F, F, "wsl-unc-slash"), (F + F, B, "wsl-unc-mirror"),
+    (F + B, B, "wsl-unc-mixed-fb"), (F + B, F, "wsl-unc-mixed-fb"), (B + F, B, "wsl-unc-mixed-bf"),
+    (B + F, F, "wsl-unc-mixed-bf")]
+WSL_IDS = [f"{SEPS[o[0]]}-{SEPS[o[1]]} then {SEPS[a]}" for o, a, _ in WSL_SPELLINGS]
+NEW_SPELLINGS, NEW_IDS = WSL_SPELLINGS[3:], WSL_IDS[3:]      # the five that none of the first three found before P0.9
+
+
+def wsl_path(opening, host, after, tail=None, distro="Ubuntu", home="home", user="someone", before="see "):
+    """A home path through WSL's mirror: the opening, the host, the separator after it, the distro, the home
+    directory and the user; the separators after the distro are `after` unless `tail` gives the two."""
+    first, second = tail or (after, after)
+    return before + opening + host + after + distro + first + home + second + user
+
+
+def found_by(text):
+    return {name for _, name, _ in privacy.findings(text)}
+
+
+@pytest.mark.parametrize("host", WSL_HOSTS)
+@pytest.mark.parametrize("opening, after, name", WSL_SPELLINGS, ids=WSL_IDS)
+def test_a_home_path_through_wsls_mirror_is_found_by_one_alternative_in_every_spelling(opening, after, name, host):
+    """The eight ways to write the two separators before the host and the one after it, for each of the two hosts:
+    each is found by the one alternative for its spelling and by no other, so that the three alternatives P0.9 added
+    leave what the three before them find as it was, and a spelling none finds is a hole."""
+    assert found_by(wsl_path(opening, host, after)) == {name}
+
+
+@pytest.mark.parametrize("tail", [(B, B), (B, F), (F, B), (F, F)], ids=["bb", "bf", "fb", "ff"])
+@pytest.mark.parametrize("opening, after, name", NEW_SPELLINGS, ids=NEW_IDS)
+def test_the_separators_after_the_distro_may_be_mixed_too(opening, after, name, tail):
+    assert found_by(wsl_path(opening, "wsl$", after, tail=tail)) == {name}
+
+
+@pytest.mark.parametrize("opening, after, name", NEW_SPELLINGS, ids=NEW_IDS)
+@pytest.mark.parametrize("what, kwargs", [
+    ("a distro with dots and a dash", {"distro": "Ubuntu-22.04"}), ("a distro with an underscore", {"distro": "my_d"}),
+    ("users for home", {"home": "Users"}), ("home in capitals", {"home": "HOME"}),
+    ("a user named from a digit", {"user": "9lives"}), ("a user with a dot and a dash", {"user": "a.b-c"})])
+def test_a_distro_a_home_directory_and_a_user_of_every_shape_are_found(opening, after, name, what, kwargs):
+    assert found_by(wsl_path(opening, "wsl$", after, **kwargs)) == {name}, what
+
+
+@pytest.mark.parametrize("opening, after, name", NEW_SPELLINGS, ids=NEW_IDS)
+def test_the_host_is_matched_in_any_case(opening, after, name):
+    assert found_by(wsl_path(opening, "WSL$", after)) == {name}
+    assert found_by(wsl_path(opening, "Wsl.LocalHost", after)) == {name}
+
+
+WSL_EDGES = [      # (why it is no home path through the mirror, how to write it from the opening and the separator)
+    ("no home directory in the path", lambda o, a: wsl_path(o, "wsl$", a, home="etc", user="hosts")),
+    ("home is a word of its own", lambda o, a: wsl_path(o, "wsl$", a, home="homes")),
+    ("home ends a longer word", lambda o, a: wsl_path(o, "wsl$", a, home="xhome")),
+    ("a placeholder for the user", lambda o, a: wsl_path(o, "wsl$", a, user="<name>")),
+    ("a placeholder in braces", lambda o, a: wsl_path(o, "wsl$", a, user="{user}")),
+    ("a placeholder in percents", lambda o, a: wsl_path(o, "wsl$", a, user="%USERNAME%")),
+    ("a placeholder with a dollar", lambda o, a: wsl_path(o, "wsl$", a, user="$USER")),
+    ("a name that begins with an underscore", lambda o, a: wsl_path(o, "wsl$", a, user="_x")),
+    ("no user after home", lambda o, a: wsl_path(o, "wsl$", a, user="")),
+    ("no distro before home", lambda o, a: "see " + o + "wsl$" + a + "home" + a + "someone"),
+    ("a longer host", lambda o, a: wsl_path(o, "wsl.localhost.example.org", a)),
+    ("no dollar and no .localhost", lambda o, a: wsl_path(o, "wsl", a)),
+    ("no separator after the host", lambda o, a: "see " + o + "wsl$" + "Ubuntu" + a + "home" + a + "someone"),
+    ("after a letter", lambda o, a: wsl_path(o, "wsl$", a, before="see x")),
+    ("after a digit", lambda o, a: wsl_path(o, "wsl$", a, before="see 9")),
+    ("after a dot", lambda o, a: wsl_path(o, "wsl$", a, before="see .")),
+    ("after a scheme's colon", lambda o, a: wsl_path(o, "wsl$", a, before="see https:")),
+    ("after a slash", lambda o, a: wsl_path(o, "wsl$", a, before="see /"))]
+
+
+@pytest.mark.parametrize("opening, after, name", NEW_SPELLINGS, ids=NEW_IDS)
+@pytest.mark.parametrize("why, write", WSL_EDGES, ids=[w for w, _ in WSL_EDGES])
+def test_a_spelling_that_is_no_home_path_through_the_mirror_is_not_found(opening, after, name, why, write):
+    """Each edge of the three alternatives P0.9 added: the home directory the first three need not name, the
+    placeholders a document uses for a name, and what before the opening would make a URL's host or a longer word."""
+    assert name not in found_by(write(opening, after)), why
+
+
 def test_the_privacy_gate_finds_nothing_in_text_without_a_plant():
     """And the two spellings P0.6 added keep their edges: a URL whose host is named wsl is no UNC path, and a scheme
     ending in a letter before an encoded path is no drive."""
@@ -488,6 +572,67 @@ def test_a_tracked_file_a_directory_replaced_is_unreadable_and_no_nested_reposit
     bad, summary = privacy.check(r)
     assert [b for b in bad if b.startswith("gone.md: unreadable")] and "nested repository" not in summary, (
         bad, summary)
+
+
+def taken_by_git(r, tmp_path, key):
+    """Whether `git add -A` and a commit put the key into the history, by git's own answer, `git log -S` after both.
+    `git add -A` may refuse (a path outside a sparse checkout's patterns), and the commit may be empty."""
+    env = hermetic_git(tmp_path)
+    git = ["git", "-C", str(r), "-c", "user.name=x", "-c", "user.email=x@example.org"]
+    subprocess.run(git + ["add", "-A"], capture_output=True, env=env)
+    subprocess.run(git + ["commit", "-q", "--allow-empty", "-m", "two"], check=True, capture_output=True, env=env)
+    found = subprocess.run(git + ["log", "-S" + key, "--oneline", "--all"], check=True, capture_output=True,
+                           text=True, env=env)
+    return bool(found.stdout.strip())
+
+
+def test_a_tracked_file_a_directory_replaced_is_reported_unreadable_though_nothing_is_left_unread(tmp_path):
+    """The gate's first fail-closed report (P0.9, stated in its docstring; P0.7's second verifier, note 6, and its
+    fourth, note 5, MEASURED: 14 of 300 random states): the gate cannot tell a tracked file a directory replaced from
+    a file git sees and Python cannot read, so it is a finding, exit 1, though the directory holds nothing secret, the
+    index's version of the file is read as a staged version, and `git add -A` takes no file from the path."""
+    r = git_tree(tmp_path, {"gone.md": "soon a directory" + chr(10), "notes.md": "nothing to see" + chr(10)})
+    (r / "gone.md").unlink()
+    (r / "gone.md").mkdir()
+    (r / "gone.md" / "inner.md").write_text("nothing to see" + chr(10), encoding="utf-8")
+    bad, summary = privacy.check(r)
+    assert len(bad) == 1 and re.fullmatch(r"gone\.md: unreadable: (PermissionError|IsADirectoryError)", bad[0]), bad
+    assert "1 staged versions that differ from their files read" in summary, summary
+    assert privacy.run(r) == 1
+
+
+@pytest.mark.parametrize("how", ["skip-worktree", "assume-unchanged", "outside a sparse checkout"])
+def test_a_key_in_a_file_git_will_not_commit_is_reported_all_the_same(tmp_path, how):
+    """The gate's second fail-closed report (P0.9, stated in its docstring; P0.7's fourth verifier, note 5, MEASURED:
+    3 of 300 random states): it reads every file git lists as it is on disk, and cannot tell an edit git will not take.
+    The three states where git does not: a file marked skip-worktree or assume-unchanged and edited on disk, and an
+    untracked file outside a sparse checkout's patterns, which `git add -A` refuses. A key in one is a finding, exit
+    1, though no commit holds it."""
+    key, clean, env = privacy.PLANTS["named:QISKIT_IBM_TOKEN"], "nothing to see" + chr(10), hermetic_git(tmp_path)
+    if how == "outside a sparse checkout":
+        r, name = git_tree(tmp_path, {"keep/a.md": clean, "other/b.md": clean, "notes.md": clean}), "other/extra.md"
+        for args in (["sparse-checkout", "init", "--cone"], ["sparse-checkout", "set", "keep"]):
+            subprocess.run(["git", "-C", str(r), *args], check=True, capture_output=True, env=env)
+        (r / "other").mkdir(exist_ok=True)
+    else:
+        r, name = git_tree(tmp_path, {"conf.md": clean, "notes.md": clean}), "conf.md"
+        flag = "--skip-worktree" if how == "skip-worktree" else "--assume-unchanged"
+        subprocess.run(["git", "-C", str(r), "update-index", flag, name], check=True, env=env)
+    (r / name).write_text(key + chr(10), encoding="utf-8")
+    bad = privacy.check(r)[0]
+    assert bad and [b for b in bad if b.startswith(f"{name}: a key (")] == bad, bad
+    assert privacy.run(r) == 1
+    assert not taken_by_git(r, tmp_path, key), "git takes it after all: the test's own control"
+
+
+def test_a_key_in_a_file_git_ignores_is_not_read(tmp_path):
+    """The edge of the second report (P0.9): a file .gitignore leaves out is not among the files git lists as it would
+    commit them, so it is not read, and no commit holds it either."""
+    key = privacy.PLANTS["named:QISKIT_IBM_TOKEN"]
+    r = git_tree(tmp_path, {".gitignore": "secret.md" + chr(10), "notes.md": "nothing to see" + chr(10)})
+    (r / "secret.md").write_text(key + chr(10), encoding="utf-8")
+    assert privacy.check(r)[0] == [] and privacy.run(r) == 0
+    assert not taken_by_git(r, tmp_path, key)
 
 
 def test_a_link_is_read_as_its_own_text_which_git_commits(tmp_path, monkeypatch):

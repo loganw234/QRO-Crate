@@ -8,9 +8,10 @@ check first loads every parcel's registered steps, raw forms, count rules and ge
 --fixtures registers P0's fixture raw form and generator (qro/fixture.py), for the controls; never for a real
 crate. Without it, a crate naming the fixture is refused `step-unbuilt`. Misuse, exit 2: an empty name; a crate that
 is not a directory; a log or record that is not a regular file (a pipe among them); a path the host raises on when
-asked what it is (a name too long, a parent the user cannot search); and a path the user may not read or list,
-the crate's own files and directories among them (P0's verifier, round 5, R5-3). A link to a crate, a log or a
-record is followed.
+asked what it is (a name too long, a character it refuses, a parent the user cannot search); a path the user may not
+read or list, the crate's own files and directories among them, the crate directory itself too (P0's verifier,
+round 5, R5-3; P0.9); and a name the host reads as another, which on Windows is a component ending in a space or a
+dot, but `.` and `..` (reads_as_another; P0.9). A link to a crate, a log or a record is followed.
 
 The verdict, or the misuse or failure, is one line, written to the descriptor itself (stdout's, or stderr's for 2
 and 3), unbuffered, before the exit code is returned (P0's verifier, rounds 2 to 4: R2-2, R3-1, R4-1):
@@ -76,6 +77,41 @@ def kind(path, test):
         return False
 
 
+EXTENDED = "\\\\?\\"       # Windows' extended-length form, which the host reads as it is written
+ANOTHER = "a name the host reads as another: it strips the spaces and dots a name ends in"
+
+
+def reads_as_another(name, windows=None):
+    """Whether the host reads `name` as another entry than the one it spells. Windows strips the spaces and dots a
+    component of a path ends in, but the components `.` and `..`: `crate.` and `crate ` name `crate`, `crate.\\x`
+    names `crate\\x`, and the host answered for the entry they strip to, ACCEPTED or REFUSED, or for neither (P0.9,
+    MEASURED on Windows 11: `crate.` was accepted as `crate`, `crate ` and `crate..` refused `file-missing`). A drive
+    designator (`C:`) is no part of the first component's name, so it is taken off before that is asked: `C:.` and
+    `C:..\\x` are the drive's current directory and its parent's `x`, as `.` and `..\\x` are, and the host answered
+    for what they name (P0.9's first verifier, D2), but `C:crate.` is `crate.` and is refused. Not in the
+    extended-length form, which the host reads as it is written, and not on a host that reads every name as written
+    (`windows` says which; the host's own is the default)."""
+    if windows is None:
+        windows = os.name == "nt"
+    if not windows or name.startswith(EXTENDED):
+        return False
+    path = name.replace("/", "\\")
+    if path[1:2] == ":" and path[0].isascii() and path[0].isalpha():
+        path = path[2:]
+    return any(part not in ("", ".", "..") and part[-1] in " ." for part in path.split("\\"))
+
+
+def unlistable(path):
+    """The host's reason, if it refuses to list the directory `path`, else None. A crate directory the user may not
+    list was REFUSED `file-missing` when it held no metadata file, for the host answered the metadata file's name
+    "not there" though it could not look (P0.9, MEASURED: the profile's `Application Data` junction)."""
+    try:
+        with os.scandir(path):
+            return None
+    except OSError as x:
+        return x.strerror or type(x).__name__
+
+
 def _verdict(argv):
     """The exit code and its line. A refusal or a want of permission whose line cannot be written, its own text
     raising, is not answered as one: what it raises reaches main() as the checker failing (P0.1's verifier, round
@@ -111,14 +147,22 @@ def _main(argv):
         args = argv[2:] if fixtures else argv[1:]
         if len(args) != 1:
             return 2, USAGE
+        if reads_as_another(args[0]):
+            return 2, f"{args[0]}: {ANOTHER}; {USAGE}"
         if not args[0] or not kind(args[0], Path.is_dir):
             return 2, f"{args[0]}: no such crate directory; {USAGE}"
+        reason = unlistable(args[0])
+        if reason is not None:
+            return 2, f"{args[0]}: cannot be read here, {reason}; {USAGE}"
         if fixtures:
             fixture.register()
         checker.load()                                      # every parcel's steps, before any crate is read
         md = checker.check(args[0])
         return 0, f"ACCEPTED {canonical.body_digest(md)}"
     if argv[:1] == ["custody"] and len(argv) >= 2:
+        other = [a for a in argv[1:] if reads_as_another(a)]
+        if other:
+            return 2, f"{other[0]}: {ANOTHER}; {USAGE}"
         missing = [a for a in argv[1:] if not a or not kind(a, Path.is_file)]
         if missing:
             return 2, f"{missing[0]}: no such file; {USAGE}"

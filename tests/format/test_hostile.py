@@ -22,7 +22,12 @@ DEEP = 100_000
 
 
 @pytest.fixture(autouse=True)
-def registered(monkeypatch):
+def registered(no_link_left_behind, monkeypatch):
+    """The fixture's raw form and generator, for every test. It asks for the junction guard (below) before monkeypatch,
+    by name: a fixture asked for first is set up first and torn down last, so the guard looks for links after the
+    tests that plant `os.scandir` through monkeypatch have had it put back. That order is asked for, and no longer
+    the accident of the guard's name sorting before this one's, which is how pytest orders autouse fixtures (P0.9's
+    first verifier, note 4; test_a_guard_named_to_sort_last_still_runs_after_the_fixtures_that_plant_os_scandir)."""
     monkeypatch.setattr(checker, "RAW_FORMS", {})
     monkeypatch.setattr(checker, "GENERATORS", {})
     fixture.register()
@@ -326,6 +331,49 @@ def links():
             os.rmdir(target)
 
 
+def links_below(root):
+    """[Path]: every link below `root` that a directory lists, found by listing each directory and never by asking the
+    host what an entry is, for this machine cannot stat a junction whose target is gone (CLAUDE.md item 10), as the
+    checker's question of what a listed entry is knows. A link is recorded and not followed."""
+    found, todo = [], [root]
+    while todo:
+        with os.scandir(todo.pop()) as entries:
+            for entry in entries:
+                if entry.is_symlink() or entry.is_junction():
+                    found.append(pathlib.Path(entry.path))
+                elif entry.is_dir(follow_symlinks=False):
+                    todo.append(entry.path)
+    return sorted(found)
+
+
+def assert_no_link_below(root):
+    """Fail if `root` still lists a link, dangling or not (P0.9; P0.8's second and third verifiers, TA and TB: the
+    `links` fixture and `unlink_made` removing nothing passed every test, and CLAUDE.md item 10 held it by text). A
+    link that can be removed is removed all the same, while its target is there, so that a failing test strands
+    nothing in pytest's temporary folder; one whose target is gone cannot be, on this machine, and is named."""
+    left, stuck = links_below(root), []
+    for path in left:
+        try:
+            (os.rmdir if os.name == "nt" else os.unlink)(path)
+        except OSError:
+            stuck.append(path)
+    names = ", ".join(p.relative_to(root).as_posix() for p in left)
+    assert not left, (f"the test left {len(left)} link(s) in its temporary folder, which pytest's cleanup cannot "
+                      f"remove once it renames the folder (CLAUDE.md item 10): {names}; "
+                      f"{len(stuck)} could not be removed here")
+
+
+@pytest.fixture(autouse=True)
+def no_link_left_behind(request):
+    """Every test of this module: if its tmp_path still lists a link when it and its fixtures are done, it fails. The
+    fixture is set up before the test's own, so it is torn down after theirs; and it asks for tmp_path only of a test
+    that has one, which is all a link could be made in."""
+    root = request.getfixturevalue("tmp_path") if "tmp_path" in request.fixturenames else None
+    yield
+    if root is not None:
+        assert_no_link_below(root)
+
+
 def test_a_directory_link_whose_files_are_listed_with_their_digests_is_still_refused(tmp_path, links):
     c = crate(tmp_path)
     outside = tmp_path / "outside"
@@ -415,35 +463,46 @@ def test_as_a_process_a_link_whose_target_is_gone_is_one_refused_line(tmp_path, 
 
 
 def plant_what_it_is(monkeypatch, path, error):
-    """The host's answer, asked what `path` is, planted for that path alone: both calls that ask it, os.lstat and
-    os.stat with follow_symlinks=False, which is what pathlib's lstat and is_symlink make, raise `error`. A real host
-    fails both; planting only one shows the checker an error its link test never sees (P0.8's third verifier, note
-    1)."""
+    """The host's answer, asked what `path` is, planted for that path alone: every call that asks it, os.lstat and
+    os.stat, with or without follow_symlinks (pathlib's lstat and is_symlink make the one, its stat and is_file the
+    other), raises `error`. A real host fails them all: planting only one shows the checker an error its link test
+    never sees (P0.8's third verifier, note 1), and leaves an entry's file test to answer as if it were there (P0.8's
+    second verifier, MD, held by P0.9)."""
     real_lstat, real_stat = os.lstat, os.stat
 
+    def planted(p):
+        try:
+            return pathlib.Path(p) == path
+        except TypeError:                   # a file descriptor, or bytes: no path of ours
+            return False
+
     def lstat(p, *args, **kwargs):
-        if pathlib.Path(p) == path:
+        if planted(p):
             raise error
         return real_lstat(p, *args, **kwargs)
 
-    def stat(p, *args, follow_symlinks=True, **kwargs):
-        if not follow_symlinks and pathlib.Path(p) == path:
+    def stat(p, *args, **kwargs):
+        if planted(p):
             raise error
-        return real_stat(p, *args, follow_symlinks=follow_symlinks, **kwargs)
+        return real_stat(p, *args, **kwargs)
     monkeypatch.setattr(os, "lstat", lstat)
     monkeypatch.setattr(os, "stat", stat)
 
 
 PATHLIB = ["3.12 and 3.13", "3.14"]
+# The detail of the refusal `_listed_not_there` makes, written out: the planted tests compare with this text, and not
+# with checker.LISTED_NOT_THERE, so that a replaced text fails them (P0.8's second verifier, MH, held by P0.9).
+NOT_THERE_TEXT = ("listed by its directory, but the host says it is not there: a link whose target is gone, or "
+                  "another entry no reader can hold to a digest")
 
 
 def pathlib_answers(monkeypatch, version):
     """pathlib as the version answers: 3.12's and 3.13's `is_symlink` raise every error but those that mean "not
-    there"; from 3.14 it and `is_junction` answer False for every error, as os.path does. The checker's question must
-    give the same answers under both (P0.8's fourth verifier, D1)."""
+    there"; from 3.14 it answers False for every error, as os.path does. The checker's question must give the same
+    answers under both (P0.8's fourth verifier, D1). `is_junction` already answers False for every error in 3.12 and
+    3.13, so it needs no plant (P0.8's fifth verifier, note 4)."""
     if version == "3.14":
         monkeypatch.setattr(pathlib.Path, "is_symlink", lambda self: os.path.islink(self))
-        monkeypatch.setattr(pathlib.Path, "is_junction", lambda self: os.path.isjunction(self))
 
 
 @pytest.mark.parametrize("version", PATHLIB)
@@ -473,7 +532,7 @@ def test_an_entry_the_host_lists_and_says_is_not_there_is_refused_before_the_wal
     if where == canonical.DESCRIPTOR:
         monkeypatch.setattr(reader, "read", unread)
     r = refused("file-link", lambda: checker.check(c))
-    assert (r.where, r.detail) == (where, checker.LISTED_NOT_THERE)
+    assert (r.where, r.detail) == (where, NOT_THERE_TEXT)
     assert c / "data" / "sub" not in listed, listed
 
 
@@ -509,6 +568,104 @@ def test_a_crate_path_that_is_a_file_is_file_missing_in_process(tmp_path):
     f = tmp_path / "a-file"
     f.write_bytes(b"not a crate\n")
     refused("file-missing", lambda: checker.check(f))
+
+
+@pytest.mark.parametrize("version", PATHLIB)
+@pytest.mark.parametrize("how", ["a NUL in the path", "a path longer than Windows takes"])
+def test_a_crate_path_the_host_cannot_be_asked_about_is_file_missing_in_process(tmp_path, monkeypatch, how, version):
+    """P0.8's fifth verifier, C1: check() of a path holding a NUL raised ValueError in process, where it was
+    `file-missing` before P0.8, for pathlib's file tests answer False on a ValueError and the question of what a
+    listed entry is called os.lstat itself. A path past Windows' limit raises the same from lstat, on Windows (32,767
+    characters; MEASURED, 3.12.15 and 3.13.5); another host answers a name past its own limit with an OSError, which
+    check() raises, as it raises any other error of the host's on the path. Neither is planted: both are the host's
+    own answers, so the test holds on a Python whose pathlib asks the host through a fast path of its own (3.14's).
+    The command line refuses such a path as misuse before it calls check()."""
+    pathlib_answers(monkeypatch, version)
+    where = tmp_path / ("crate" + chr(0) + "x" if how == "a NUL in the path" else "x" * 40_000)
+    if how == "a NUL in the path" or os.name == "nt":
+        r = refused("file-missing", lambda: checker.check(where))
+        assert r.where == canonical.DESCRIPTOR
+    else:
+        with pytest.raises(OSError):
+            checker.check(where)
+
+
+# pathlib 3.12's own lists of the errors it reads as "not there" (Lib/pathlib.py, _IGNORED_ERRNOS and
+# _IGNORED_WINERRORS), written out here, so that the held lists are compared with something on a Python whose pathlib
+# no longer has them (3.14): this test never skips (P0.8's fifth verifier, note 1).
+PATHLIB_3_12_ERRNOS = {errno.ENOENT, errno.ENOTDIR, errno.EBADF, errno.ELOOP}
+PATHLIB_3_12_WINERRORS = {21, 123, 1921}
+
+
+def pathlibs_own_lists():
+    """[(errnos, winerrors)] of the pathlib the running Python has: 3.12's module, 3.13's pathlib._abc; none from
+    3.14, which answers False for every error and keeps no list."""
+    return [(set(m._IGNORED_ERRNOS), set(m._IGNORED_WINERRORS)) for m in (pathlib, getattr(pathlib, "_abc", None))
+            if m is not None and hasattr(m, "_IGNORED_ERRNOS") and hasattr(m, "_IGNORED_WINERRORS")]
+
+
+def test_the_errors_taken_for_not_there_are_pathlib_3_12s_and_pathlibs_own_where_it_has_them():
+    """FORMAT.md item 12 names the list (P0.9; P0.8's fifth verifier, note 1): EBADF, ELOOP and Windows' 21, 123 and
+    1921 dropped, or EINVAL added, passed every test. The running Python's own lists are compared too where it has
+    them (3.12 and 3.13), so a patch release that changed them would show."""
+    assert set(checker.NOT_THERE_ERRNOS) == PATHLIB_3_12_ERRNOS
+    assert set(checker.NOT_THERE_WINERRORS) == PATHLIB_3_12_WINERRORS
+    for errnos, winerrors in pathlibs_own_lists():
+        assert (set(checker.NOT_THERE_ERRNOS), set(checker.NOT_THERE_WINERRORS)) == (errnos, winerrors)
+
+
+def test_windows_error_21_is_a_permission_error_and_is_taken_for_not_there(tmp_path, monkeypatch):
+    """FORMAT.md item 12: at a listed entry error 21 is `file-link`, never the misuse a refused permission is. The
+    error is built as Windows' own, so that it is a PermissionError on any host (P0.8's fifth verifier, note 5)."""
+    error = OSError(None, "The device is not ready", None, 21)
+    assert isinstance(error, PermissionError) or os.name != "nt", "a PermissionError where winerror exists"
+    error.winerror = 21
+    c = crate(tmp_path)
+    plant_what_it_is(monkeypatch, c / "data" / "notes.txt", error)
+    r = refused("file-link", lambda: checker.check(c))
+    assert (r.where, r.detail) == ("data/notes.txt", NOT_THERE_TEXT)
+
+
+def test_a_dangling_link_at_the_metadata_files_name_in_another_case_is_file_missing(tmp_path, monkeypatch):
+    """FORMAT.md item 12's corner, held on every host (P0.8's second verifier, MC, held by P0.9): the directory lists
+    the metadata file under another case, and the exact name is a link the host cannot stat. The listing is matched
+    by the exact name, so it is not the entry the walk would refuse: `file-missing`. A match with the case folded
+    refused it `file-link`, which no test noticed."""
+    c = crate(tmp_path)
+    (c / canonical.DESCRIPTOR).rename(c / "tmp.json")
+    (c / "tmp.json").rename(c / canonical.DESCRIPTOR.upper())
+    assert canonical.DESCRIPTOR.upper() in os.listdir(c) and canonical.DESCRIPTOR not in os.listdir(c)
+    plant_what_it_is(monkeypatch, c / canonical.DESCRIPTOR, FileNotFoundError(errno.ENOENT, "not there"))
+    r = refused("file-missing", lambda: checker.check(c))
+    assert r.where == canonical.DESCRIPTOR
+
+
+STREAMED = {"a listed file": "data/notes.txt", "the raw result": RAW, "the metadata file": canonical.DESCRIPTOR,
+            "a directory": "data", "the crate directory": ""}
+
+
+@pytest.mark.parametrize("name", STREAMED.values(), ids=list(STREAMED))
+def test_an_alternate_data_stream_on_any_entry_of_the_crate_is_neither_read_nor_refused(tmp_path, name):
+    """FORMAT.md's stated limit (P0.9; P0.8's third verifier, note 7, MEASURED before and after P0.8; P0.9's first
+    verifier, note 1, which found it wider than a listed file): a file's digest and size cover its default stream
+    alone, and NTFS lists no other stream, so a second stream, on a file, on the metadata file, on a directory or on
+    the crate directory itself, is accepted and never read, with the crate's identity as it was. Where a colon is a
+    character of a name, as on Linux, `notes.txt:hidden` is an ordinary file the metadata does not list, and the crate
+    is refused `file-unlisted`; beside the crate directory it is outside the crate, and unseen. Either way the host's
+    own answer is held."""
+    c = crate(tmp_path)
+    before = canonical.body_digest(checker.check(c))
+    entry = c.joinpath(*name.split("/")) if name else c
+    target = str(entry) + ":hidden"
+    with open(target, "wb") as f:
+        f.write(b"bytes that no digest of the entry covers\n")
+    if name and entry.name + ":hidden" in os.listdir(entry.parent):
+        r = refused("file-unlisted", lambda: checker.check(c))
+        assert r.where == name + ":hidden"
+        return
+    assert canonical.body_digest(checker.check(c)) == before
+    with open(target, "rb") as f:
+        assert f.read() == b"bytes that no digest of the entry covers\n", "the stream is there, and was left alone"
 
 
 # -- P0-7: a CHECKED term stands only where its step reads it -------------------------------------------------
@@ -1051,3 +1208,191 @@ def test_a_crate_the_user_cannot_list_is_misuse_though_its_metadata_is_not_json(
     monkeypatch.setattr(os, "listdir", listdir)
     assert main(["check", "--fixtures", str(c)]) == 2
     assert "cannot be read here" in capfd.readouterr().err
+
+
+# -- no test of this module leaves a link behind (P0.9; P0.8's second and third verifiers, TA and TB) -------------
+# The guard above (no_link_left_behind) fails a test whose tmp_path still lists a link. Its controls: what it sees,
+# and the `links` fixture made to remove nothing, run as a pytest session of its own, failing the test that used it.
+def clean_up(root, *made):
+    """Remove the links these tests made on purpose, then the targets they made again: for a link whose target is
+    gone cannot be removed on this machine until its target is there (CLAUDE.md item 10)."""
+    for path, target in made:
+        if target is not None and not os.path.lexists(target):
+            os.mkdir(target)
+        if path.name in os.listdir(path.parent):
+            (os.rmdir if os.name == "nt" else os.unlink)(path)
+        if target is not None and os.path.isdir(target):
+            os.rmdir(target)
+    assert links_below(root) == []
+
+
+def test_the_guard_sees_a_live_link_below_a_directory_and_removes_it_leaving_its_target(tmp_path):
+    (tmp_path / "a").mkdir()
+    outside = tmp_path / "outside"
+    outside.mkdir()
+    (outside / "kept.txt").write_bytes(b"the target's own file\n")
+    link_dir(tmp_path / "a" / "jct", outside)
+    assert links_below(tmp_path) == [tmp_path / "a" / "jct"]
+    with pytest.raises(AssertionError) as e:
+        assert_no_link_below(tmp_path)
+    assert "left 1 link(s)" in str(e.value) and "a/jct" in str(e.value) and "0 could not be removed" in str(e.value)
+    assert links_below(tmp_path) == [] and (outside / "kept.txt").read_bytes() == b"the target's own file\n"
+
+
+def test_the_guard_sees_a_link_whose_target_is_gone(tmp_path):
+    """On this machine such a junction cannot be stat'd, so a guard that asked the host what an entry is would see
+    nothing; listing the directory finds it (CLAUDE.md item 10). It cannot be removed here until its target is made
+    again, which the test then does."""
+    gone = tmp_path / "gone"
+    gone.mkdir()
+    link_dir(tmp_path / "jct", gone)
+    gone.rmdir()
+    assert links_below(tmp_path) == [tmp_path / "jct"]
+    with pytest.raises(AssertionError) as e:
+        assert_no_link_below(tmp_path)
+    assert "left 1 link(s)" in str(e.value) and "jct" in str(e.value)
+    clean_up(tmp_path, (tmp_path / "jct", gone))
+
+
+def test_the_guard_sees_a_link_whose_target_became_a_file(tmp_path):
+    target = tmp_path / "target"
+    target.mkdir()
+    link_dir(tmp_path / "jct", target)
+    target.rmdir()
+    target.write_bytes(b"a file where the link's directory was\n")
+    assert links_below(tmp_path) == [tmp_path / "jct"]
+    with pytest.raises(AssertionError):
+        assert_no_link_below(tmp_path)
+    target.unlink()
+    clean_up(tmp_path, (tmp_path / "jct", target))
+
+
+def test_the_guard_does_not_follow_a_link(tmp_path):
+    """A link to a directory that holds a link is listed once, and the one inside is found where it stands, not again
+    through the first."""
+    (tmp_path / "outside" / "sub").mkdir(parents=True)
+    (tmp_path / "other").mkdir()
+    link_dir(tmp_path / "outside" / "sub" / "k", tmp_path / "other")
+    link_dir(tmp_path / "j", tmp_path / "outside")
+    assert links_below(tmp_path) == sorted([tmp_path / "j", tmp_path / "outside" / "sub" / "k"])
+    with pytest.raises(AssertionError) as e:
+        assert_no_link_below(tmp_path)
+    assert "left 2 link(s)" in str(e.value) and "0 could not be removed" in str(e.value)
+    assert links_below(tmp_path) == []
+
+
+def test_the_guard_sees_a_symbolic_link_by_what_a_directory_lists(tmp_path, monkeypatch):
+    """Where the host cannot make a symbolic link, as this one without privilege, the listing is told of one."""
+    class Entry:
+        path, name = str(tmp_path / "d" / "link"), "link"
+
+        def is_symlink(self):
+            return True
+
+        def is_junction(self):
+            return False
+
+        def is_dir(self, follow_symlinks=True):
+            return False
+
+    class Listing:
+        def __init__(self, path):
+            self.entries = [Entry()] if pathlib.Path(path) == tmp_path / "d" else []
+
+        def __enter__(self):
+            return iter(self.entries)
+
+        def __exit__(self, *_):
+            return False
+    (tmp_path / "d").mkdir()
+    real = os.scandir
+    monkeypatch.setattr(os, "scandir", lambda path=".": Listing(path) if pathlib.Path(path) == tmp_path / "d"
+                        else real(path))
+    assert links_below(tmp_path) == [tmp_path / "d" / "link"]
+
+
+def test_a_directory_with_no_link_in_it_passes_the_guard(tmp_path):
+    (tmp_path / "plain" / "deeper").mkdir(parents=True)
+    (tmp_path / "plain" / "deeper" / "file.txt").write_bytes(b"x\n")
+    assert links_below(tmp_path) == []
+    assert_no_link_below(tmp_path)
+
+
+def planted_session(tmp_path, old, new, node, everywhere=False, also=()):
+    """This module's own text with `old` replaced by `new`, once (wherever it stands, with `everywhere`), and then
+    each (old, new) of `also`, once, run as a pytest session of its own on the one test `node`: the result of that
+    session, and the links it left. The session is rooted in a folder of its own, holding
+    a copy of the root's pyproject.toml (the same options as a stage's, that file alone) and the module, so that its
+    collection lists nothing else: pytest compares every entry of each folder between its rootdir and a test file with
+    `lstat`, and a rootdir above the temporary folder made it list the shared one, where another process's folder
+    removed between the listing and the `lstat` was a FileNotFoundError and an error collecting the session
+    (MEASURED once in the runner, 2026-10-31). `qro` is found through PYTHONPATH, as the other process tests find it."""
+    root = pathlib.Path(__file__).resolve().parents[2]
+    text = pathlib.Path(__file__).read_text(encoding="utf-8")
+    if everywhere:
+        assert old in text, "the plant's text is not in this module"
+    else:
+        assert text.count(old) == 1, f"the plant's text is in this module {text.count(old)} times"
+    planted_text = text.replace(old, new)
+    for o, n in also:
+        assert planted_text.count(o) == 1, f"the plant's text is in the planted module {planted_text.count(o)} times"
+        planted_text = planted_text.replace(o, n)
+    planted = tmp_path / "planted"
+    planted.mkdir()
+    (planted / "pyproject.toml").write_bytes((root / "pyproject.toml").read_bytes())
+    (planted / "test_planted_hostile.py").write_text(planted_text, encoding="utf-8")
+    env = {k: v for k, v in os.environ.items() if k not in ("PYTEST_ADDOPTS", "PYTEST_PLUGINS", "PYTHONSAFEPATH")}
+    env.update(PYTEST_DISABLE_PLUGIN_AUTOLOAD="1", PYTHONPATH=str(root))
+    session = subprocess.run([sys.executable, "-m", "pytest", "-c", "pyproject.toml", "--noconftest", "--color=no",
+                              "-q", "--basetemp=bt", f"test_planted_hostile.py::{node}"],
+                             cwd=planted, capture_output=True, text=True, env=env)
+    return session, links_below(planted)
+
+
+def test_a_links_fixture_that_removes_nothing_fails_the_test_that_used_it(tmp_path):
+    """P0.8's second verifier, TA: with the `links` fixture made to remove nothing, 491 tests passed and 4 live and 6
+    dangling junctions were left in pytest's temporary folder. Here the same plant fails the test that made a link,
+    as an error at its teardown, which is how pytest reports a fixture that fails, and leaves none behind. The
+    unplanted session is the plant's twin."""
+    node = "test_a_directory_link_whose_files_are_listed_with_their_digests_is_still_refused"
+    old, new = "    for path, target in " + "reversed(made):", "    for path, target in " + "reversed([]):"
+    session, left = planted_session(tmp_path, old, new, node)
+    assert session.returncode == 1 and "1 passed, 1 error" in session.stdout, session.stdout[-1500:]
+    assert "the test left 1 link(s) in its temporary folder" in session.stdout, session.stdout[-1500:]
+    assert left == [], "the guard removed what it found"
+
+
+def test_the_same_session_with_the_fixture_unplanted_passes(tmp_path):
+    node = "test_a_directory_link_whose_files_are_listed_with_their_digests_is_still_refused"
+    old = "    for path, target in " + "reversed(made):"
+    session, left = planted_session(tmp_path, old, old, node)
+    assert session.returncode == 0 and "1 passed" in session.stdout, session.stdout[-1500:]
+    assert left == []
+
+
+SCANDIR_NODE = "test_a_directory_the_walk_cannot_list_is_raised_not_passed_over"
+LATE = "zz_" + "no_link_left_behind"
+
+
+def test_a_guard_named_to_sort_last_still_runs_after_the_fixtures_that_plant_os_scandir(tmp_path):
+    """P0.9's first verifier, note 4: the guard worked only because its name sorted before `registered`'s, which is
+    how pytest orders autouse fixtures, so that it was set up first and torn down last. Here its name is changed,
+    wherever it stands, to sort after: the session of a test that plants `os.scandir` (to refuse the listing of one
+    directory, which is the guard's own at its teardown) must still pass, for `registered` asks for the guard before
+    monkeypatch, and what is asked for first is torn down last."""
+    session, left = planted_session(tmp_path, "no_link_left_behind", LATE, SCANDIR_NODE, everywhere=True)
+    assert session.returncode == 0 and "1 passed" in session.stdout and "error" not in session.stdout, \
+        session.stdout[-1500:]
+    assert left == []
+
+
+def test_the_same_rename_without_the_order_asked_for_errors_at_the_guards_teardown(tmp_path):
+    """The twin of the test above, so that it is no straw man: with `registered` no longer asking for the guard, the
+    renamed guard is set up after monkeypatch and torn down before it, lists the directory the plant refuses, and the
+    test errors at its teardown, as the verifier found."""
+    asks = "def registered(" + LATE + ", monkeypatch):"
+    session, left = planted_session(tmp_path, "no_link_left_behind", LATE, SCANDIR_NODE, everywhere=True,
+                                    also=[(asks, "def registered(monkeypatch):")])
+    assert session.returncode == 1 and "1 passed, 1 error" in session.stdout, session.stdout[-1500:]
+    assert "PermissionError" in session.stdout, session.stdout[-1500:]
+    assert left == []

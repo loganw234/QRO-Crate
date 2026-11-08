@@ -8,7 +8,10 @@
     with the count of what it left (P0.7);
   - a write the descriptor takes a few bytes at a time, whole; and a verdict that cannot be written, to a pipe nobody
     reads, a closed descriptor, or with both descriptors broken, exiting 3;
-  - a crash, an exit and an interrupt inside the checker, exiting 3."""
+  - a crash, an exit and an interrupt inside the checker, exiting 3;
+  - the names the host cannot use or reads as another (a space or a dot a component ends in, a drive designator before
+    `.` and `..`, a crate directory it will not list), and whose name begins the line of each misuse: the argument's, or
+    the place the host refused (P0.9)."""
 import codecs
 import hashlib
 import shutil
@@ -21,7 +24,7 @@ import sys
 import pytest
 
 from qro import canonical, checker, custody, fixture
-from qro.__main__ import LINE_MAX, USAGE, escape, main
+from qro.__main__ import ANOTHER, LINE_MAX, USAGE, escape, main, reads_as_another
 
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 RAW = "data/raw.counts.json"
@@ -499,3 +502,374 @@ def test_a_directory_the_user_may_not_list_is_misuse(tmp_path, monkeypatch):
     monkeypatch.setattr(os, "scandir", scandir)
     code, out, err = run(tmp_path, ["check", "--fixtures", str(c)])
     assert (code, out) == (2, b"") and b"hidden: cannot be read here" in err, err
+
+
+# -- names the host cannot use (P0.9; P0's note 6, a theme across parcels: P1.2's exit class) --------------------
+# MEASURED on Windows 11 before P0.9: an argument whose last component ends in a dot was ACCEPTED as the crate it
+# strips to; one ending in a space, or in two dots, was REFUSED `file-missing`; a crate directory the user may not
+# list, holding no metadata file, was REFUSED `file-missing` too. A character the host refuses was misuse already.
+# Each is misuse, exit 2, naming the argument; the same assertions hold on a host that reads every name as written,
+# where the entry is simply not there.
+def cli(argv, cwd=ROOT, script=None):
+    """`python -m qro`, or a script of ours that calls main(), as the process a user runs, from `cwd`."""
+    env = {k: v for k, v in os.environ.items() if k != "PYTHONSAFEPATH"}
+    env.update(PYTHONIOENCODING="utf-8", PYTHONPATH=str(ROOT))
+    cmd = [sys.executable, "-m", "qro"] if script is None else [sys.executable, str(script)]
+    return subprocess.run([*cmd, *argv], capture_output=True, env=env, cwd=cwd)
+
+
+def misuse_naming(p, argument):
+    """Exit 2, nothing on stdout, and a line that begins with the user's own argument, escaped as the line is."""
+    return (p.returncode, p.stdout) == (2, b"") and p.stderr.decode("ascii").startswith(escape(argument) + ": ")
+
+
+TAILS = [" ", ".", "  ", "..", ". ", " .", "...", " " + os.sep, "." + os.sep, " /", "./"]
+
+
+@pytest.mark.parametrize("tail", TAILS, ids=[repr(t) for t in TAILS])
+def test_a_crate_named_ending_in_a_space_or_a_dot_is_misuse_never_the_verdict_of_the_crate_it_strips_to(tmp_path, tail):
+    c = crate(tmp_path)
+    assert cli(["check", "--fixtures", str(c)]).returncode == 0, "the crate itself is accepted: the test's own control"
+    p = cli(["check", "--fixtures", str(c) + tail])
+    assert misuse_naming(p, str(c) + tail), (p.returncode, p.stdout, p.stderr)
+
+
+@pytest.mark.parametrize("tail", [" ", ".", "..", ". "], ids=repr)
+@pytest.mark.parametrize("which", ["the log", "a record"])
+def test_a_log_or_record_named_ending_in_a_space_or_a_dot_is_misuse(tmp_path, which, tail):
+    data = two_lines()
+    log, rec = custody_files(tmp_path, data, record(custody.check_log(data)))
+    assert cli(["custody", log, rec]).returncode == 0, "the log and its record are accepted: the test's own control"
+    named = log + tail if which == "the log" else rec + tail
+    p = cli(["custody", named, rec] if which == "the log" else ["custody", log, named])
+    assert misuse_naming(p, named), (p.returncode, p.stdout, p.stderr)
+
+
+def test_a_name_that_ends_in_a_space_or_a_dot_in_the_middle_of_the_path_is_misuse_too(tmp_path):
+    """Windows strips the dot of a component that is followed by a separator as well (MEASURED: `crate.` found
+    `crate` as the middle of a path), so a component ending in one anywhere is read as another."""
+    c = crate(tmp_path)
+    for middle in (".", " ", "x."):
+        named = str(tmp_path) + os.sep + "crate" + middle + os.sep + "." + os.sep + "data" + os.sep + ".."
+        p = cli(["check", "--fixtures", named])
+        assert misuse_naming(p, named), (middle, p.returncode, p.stdout, p.stderr)
+    assert cli(["check", "--fixtures", str(c) + os.sep + "data" + os.sep + ".." + os.sep + "."]).returncode == 0
+
+
+@pytest.mark.parametrize("form", ["the path", "a trailing separator", "a trailing slash", "a dot after the path",
+                                  "a dot-dot out of a directory in it", "a dot and a dot-dot in the middle"])
+def test_a_name_the_host_reads_as_written_is_accepted(tmp_path, form):
+    """The edges of the rule above: `.` and `..` name the directory and its parent on every host, and a separator
+    ends a path; none is a name that ends in a space or a dot."""
+    c = crate(tmp_path)
+    named = {"the path": str(c), "a trailing separator": str(c) + os.sep, "a trailing slash": str(c) + "/",
+             "a dot after the path": str(c) + os.sep + ".",
+             "a dot-dot out of a directory in it": str(c) + os.sep + "data" + os.sep + "..",
+             "a dot and a dot-dot in the middle": str(tmp_path) + os.sep + "." + os.sep + "crate" + os.sep + "data"
+                                                  + os.sep + ".." + os.sep + "."}[form]
+    p = cli(["check", "--fixtures", named])
+    assert (p.returncode, p.stderr) == (0, b""), (p.stdout, p.stderr)
+
+
+@pytest.mark.parametrize("cwd, argument", [("crate", "."), ("crate/data", ".."), ("crate", "." + os.sep),
+                                           ("crate", ".." + os.sep + "crate")],
+                         ids=["dot", "dot-dot", "dot and separator", "out and back in"])
+def test_a_relative_name_made_of_dots_and_names_is_accepted(tmp_path, cwd, argument):
+    crate(tmp_path)
+    p = cli(["check", "--fixtures", argument], cwd=tmp_path / cwd)
+    assert (p.returncode, p.stderr) == (0, b""), (p.stdout, p.stderr)
+
+
+READ_AS = [
+    ("C:\\w\\crate", True, False), ("C:\\w\\crate ", True, True), ("C:\\w\\crate.", True, True),
+    ("C:\\w\\crate  ", True, True), ("C:\\w\\crate..", True, True), ("C:\\w\\crate...", True, True),
+    ("C:\\w\\crate . ", True, True), ("C:\\w\\crate \\", True, True), ("C:\\w\\crate.\\", True, True),
+    ("C:/w/crate./", True, True), ("C:\\w\\cr.\\crate", True, True), ("C:\\w\\cr \\crate", True, True),
+    ("\\\\server\\share\\crate.", True, True), ("C:crate.", True, True), ("crate.", True, True),
+    ("C:\\w\\crate\\.", True, False), ("C:\\w\\crate\\..", True, False), ("C:\\w\\..\\crate", True, False),
+    ("C:/w/./crate/", True, False), (".", True, False), ("..", True, False), (".\\", True, False),
+    ("..\\..", True, False), ("", True, False), ("crate", True, False), (" crate", True, False),
+    ("a b", True, False), ("a.b", True, False), ("a. b", True, False), (".hidden", True, False),
+    ("\\\\?\\C:\\w\\crate ", True, False), ("\\\\?\\C:\\w\\crate.", True, False),
+    # a UNC server spelt with a trailing dot is a component that ends in one: misuse, and left refused (note 6)
+    ("\\\\localhost.\\C$\\x", True, True),
+    # a lone space is a component that ends in one, and so is a dot and a space (P0.9's first verifier, note 4)
+    (" ", True, True), ("C:\\w\\ ", True, True), (". ", True, True), ("C:\\w\\. \\crate", True, True),
+    ("C:\\w\\ \\crate", True, True), ("w\\ ", True, True), ("C:\\w\\ x", True, False),
+    # a drive designator is no part of the first component's name: `C:.` is `.`, and `C:crate.` is `crate.`
+    # (P0.9's first verifier, D2: the first four were refused, and main gave each the verdict of what it names)
+    ("C:.", True, False), ("C:..", True, False), ("C:.\\x", True, False), ("C:..\\x", True, False),
+    ("c:..\\x\\y", True, False), ("C:", True, False), ("C:crate", True, False), ("C:.crate", True, False),
+    ("C:.\\crate.", True, True), ("C:..\\crate ", True, True), ("C:.crate.", True, True),
+    ("C:crate\\.", True, False), ("c:crate.", True, True),
+    ("C:\\w\\crate ", False, False), ("C:\\w\\crate.", False, False), ("crate..", False, False),
+    ("/w/crate ", False, False), ("/w/crate./", False, False), (" ", False, False), ("C:.", False, False),
+    ("C:crate.", False, False)]
+
+
+@pytest.mark.parametrize("name, windows, another", READ_AS, ids=[f"{n!r} {'on' if w else 'off'} Windows"
+                                                                  for n, w, _ in READ_AS])
+def test_which_names_the_host_reads_as_another(name, windows, another):
+    """The rule, host by host: Windows' trailing spaces and dots (all but the components `.` and `..`, and not in
+    the extended-length form, which it reads as written); no other host's."""
+    assert reads_as_another(name, windows=windows) is another
+
+
+def test_the_host_reads_its_own_names_by_its_own_rule(monkeypatch):
+    """With no `windows` given, the rule is the host's: Windows', where os.name says so, and none elsewhere. os.name is
+    told for the one call, so that the rule is held on every host."""
+    assert reads_as_another("crate.") is (os.name == "nt") and reads_as_another("crate") is False
+    for name, windows in (("nt", True), ("posix", False)):
+        with monkeypatch.context() as m:
+            m.setattr(os, "name", name)
+            assert reads_as_another("C:\\w\\crate.") is windows, name
+
+
+CHARACTERS = {"an asterisk": "*", "a question mark": "?", "a less-than sign": "<", "a greater-than sign": ">",
+              "a bar": "|", "a double quote": '"', "a colon inside the name": ":", "a control character": "\x01",
+              "the last control character": "\x1f", "DEL": "\x7f", "a lone surrogate": "\udcff"}
+
+
+@pytest.mark.parametrize("command", ["check", "custody"])
+@pytest.mark.parametrize("ch", CHARACTERS.values(), ids=list(CHARACTERS))
+def test_a_name_holding_a_character_the_host_refuses_is_misuse_naming_it(tmp_path, command, ch):
+    """Windows refuses the first six outright, and a colon inside a name reads as a stream; elsewhere each is a name
+    like another that nothing is called. Either way the answer is the same line, `no such`, and exit 2."""
+    named = str(tmp_path / ("go" + ch + "od"))
+    p = cli([command, named])
+    assert misuse_naming(p, named) and b": no such " in p.stderr, (p.returncode, p.stdout, p.stderr)
+
+
+def test_a_device_name_is_no_crate_and_no_log():
+    for command in ("check", "custody"):
+        p = cli([command, "NUL"])
+        assert misuse_naming(p, "NUL") and b": no such " in p.stderr, (command, p.stderr)
+
+
+@pytest.mark.parametrize("command", ["check", "custody"])
+def test_a_name_holding_a_nul_is_misuse_in_process(tmp_path, command):
+    """No command line holds a NUL, but main() can be handed one: asking what the path is raises ValueError, which
+    pathlib's file tests answer False, so it is the same line and exit 2, and check() is never called with it
+    (FORMAT.md item 12 says what check() does if it is: `file-missing`)."""
+    named = str(tmp_path / ("go" + chr(0) + "od"))
+    code, out, err = run(tmp_path, [command, named])
+    assert (code, out) == (2, b"") and err.decode("ascii").startswith(escape(named) + ": no such "), err
+
+
+LISTING_PLANT = """import os, sys
+real = os.scandir
+
+
+def scandir(path="."):
+    if os.path.basename(os.fspath(path).rstrip("/" + chr(92))) == "closed":
+        raise {error}
+    return real(path)
+
+
+os.scandir = scandir
+from qro.__main__ import main
+sys.exit(main(sys.argv[1:]))
+"""
+
+
+FLAGS = [["--fixtures"], []]
+FLAG_IDS = ["with --fixtures", "without --fixtures"]
+
+
+@pytest.mark.parametrize("flags", FLAGS, ids=FLAG_IDS)
+@pytest.mark.parametrize("error", ["PermissionError(13, 'Permission denied', os.fspath(path))",
+                                   "OSError(5, 'Input/output error', os.fspath(path))"],
+                         ids=["a refused permission", "another error of the host's"])
+@pytest.mark.parametrize("holds_metadata", [False, True], ids=["an empty directory", "a crate"])
+def test_a_crate_directory_the_host_refuses_to_list_is_misuse_naming_it(tmp_path, error, holds_metadata, flags):
+    """The host's refusal to list the crate directory itself, planted in a process of ours that then runs the command
+    line as it is: REFUSED `file-missing` before P0.9 when the directory held no metadata file (MEASURED, with the
+    profile's `Application Data` junction), for the host answered the metadata file's name "not there" though it
+    could not look. Misuse, exit 2, never a verdict on the crate and never exit 3. With and without `--fixtures`: a
+    user runs the command with none (P0.9's first verifier, note 4: a listing asked for only under `--fixtures`
+    passed every test here)."""
+    closed = tmp_path / "closed"
+    if holds_metadata:
+        fixture.make(closed)
+    else:
+        closed.mkdir()
+    script = tmp_path / "plant.py"
+    script.write_text(LISTING_PLANT.format(error=error), encoding="ascii")
+    p = cli(["check", *flags, str(closed)], script=script)
+    assert misuse_naming(p, str(closed)) and b": cannot be read here, " in p.stderr, (p.returncode, p.stdout, p.stderr)
+    other = tmp_path / "open"
+    fixture.make(other)
+    control = cli(["check", *flags, str(other)], script=script)
+    if flags:
+        assert control.returncode == 0, "a directory it lists is checked"
+    else:
+        assert control.returncode == 1 and control.stdout.startswith(b"REFUSED step-unbuilt at "), control.stdout
+
+
+@pytest.mark.parametrize("flags", FLAGS, ids=FLAG_IDS)
+@pytest.mark.parametrize("error, reason", [
+    ("PermissionError(13, 'Permission denied', os.fspath(path))", "Permission denied"),
+    ("OSError(5, 'Input/output error', os.fspath(path))", "Input/output error"),
+    ("OSError()", "OSError")], ids=["the host's reason", "another reason", "no reason, the error's type"])
+def test_the_reason_the_host_gave_for_not_listing_a_crate_is_in_the_line(tmp_path, error, reason, flags):
+    closed = tmp_path / "closed"
+    closed.mkdir()
+    script = tmp_path / "plant.py"
+    script.write_text(LISTING_PLANT.format(error=error), encoding="ascii")
+    p = cli(["check", *flags, str(closed)], script=script)
+    assert p.stderr.decode("ascii").endswith(f": cannot be read here, {reason}; {USAGE}\n"), p.stderr
+
+
+def test_a_name_the_host_reads_as_another_has_its_own_line():
+    p = cli(["check", "crate" + ("." if os.name == "nt" else "")])
+    assert p.returncode == 2 and p.stdout == b""
+    if os.name == "nt":
+        assert p.stderr.decode("ascii") == f"crate.: {ANOTHER}; {USAGE}\n"
+
+
+# -- a drive designator (P0.9's first verifier, D2) ---------------------------------------------------------------
+# `C:.` and `C:..` are the current directory of drive C and its parent, as `.` and `..` are: on the drive the process
+# is in, its own directory. The tree refused `C:.`, `C:..`, `C:.\x` and `C:..\x` as names the host reads as another,
+# for the drive designator is part of the first component's text; main gave each the verdict of what it names
+# (MEASURED, as processes). `C:crate.` is `crate.`, and stays refused. Each is run as a process, from a directory of
+# the temporary folder's own drive, for both commands; where the host has no drive, the designator is empty and the
+# name is its plain form, which every host answers alike.
+def drive_of(path):
+    return os.path.splitdrive(str(path))[0]
+
+
+def verdict_apart_from_argument(p, argument):
+    """What a run answered, but for the argument its line begins with: the exit code, stdout, and the rest of stderr."""
+    line = p.stderr.decode("ascii")
+    assert line == "" or line.startswith(escape(argument) + ": "), line
+    return p.returncode, p.stdout, line[len(escape(argument)):]
+
+
+DRIVE_RELATIVE_CRATES = [("crate", "."), ("crate/data", ".."), ("", "." + os.sep + "crate"),
+                         ("crate", ".." + os.sep + "crate")]
+
+
+@pytest.mark.parametrize("cwd, plain", DRIVE_RELATIVE_CRATES,
+                         ids=["dot", "dot-dot", "dot and a name", "dot-dot and a name"])
+def test_a_drive_relative_dot_or_dot_dot_names_the_crate_it_names(tmp_path, cwd, plain):
+    crate(tmp_path)
+    here = tmp_path / cwd if cwd else tmp_path
+    named = drive_of(tmp_path) + plain
+    want = cli(["check", "--fixtures", plain], cwd=here)
+    assert want.returncode == 0, "the crate itself is accepted: the test's own control"
+    got = cli(["check", "--fixtures", named], cwd=here)
+    assert verdict_apart_from_argument(got, named) == verdict_apart_from_argument(want, plain), (got.stdout, got.stderr)
+    assert ANOTHER.encode() not in got.stderr
+
+
+DRIVE_RELATIVE_LOGS = [("", "." + os.sep + "custody.log", 0), ("sub", ".." + os.sep + "custody.log", 0), ("", ".", 2),
+                       ("sub", "..", 2)]
+
+
+@pytest.mark.parametrize("cwd, plain, code", DRIVE_RELATIVE_LOGS,
+                         ids=["dot and a name", "dot-dot and a name", "dot, a directory", "dot-dot, a directory"])
+def test_a_drive_relative_dot_or_dot_dot_names_the_log_it_names(tmp_path, cwd, plain, code):
+    custody_files(tmp_path, two_lines())
+    (tmp_path / "sub").mkdir()
+    here = tmp_path / cwd if cwd else tmp_path
+    named = drive_of(tmp_path) + plain
+    want = cli(["custody", plain], cwd=here)
+    assert want.returncode == code, (want.stdout, want.stderr)
+    got = cli(["custody", named], cwd=here)
+    assert verdict_apart_from_argument(got, named) == verdict_apart_from_argument(want, plain), (got.stdout, got.stderr)
+    assert ANOTHER.encode() not in got.stderr
+
+
+@pytest.mark.parametrize("command, name", [("check", "crate"), ("custody", "custody.log")])
+def test_a_drive_relative_name_that_ends_in_a_dot_is_still_misuse(tmp_path, command, name):
+    crate(tmp_path)
+    custody_files(tmp_path, two_lines())
+
+    def argv(argument):
+        return ["check", "--fixtures", argument] if command == "check" else ["custody", argument]
+    assert cli(argv(drive_of(tmp_path) + name), cwd=tmp_path).returncode == 0, "the name itself: the test's own control"
+    named = drive_of(tmp_path) + name + "."
+    p = cli(argv(named), cwd=tmp_path)
+    assert misuse_naming(p, named), (p.returncode, p.stdout, p.stderr)
+    assert (ANOTHER.encode() in p.stderr) is (os.name == "nt"), "Windows reads it as the name without the dot"
+
+
+# -- whose name begins a line of misuse (P0.9's first verifier, D3) -------------------------------------------------
+# FORMAT.md item 16 said every misuse line begins with the argument as the user wrote it. It does for an answer about
+# the argument itself. For a want of permission on a path the command reached through the argument it begins with the
+# place the host refused, as the host names it (MEASURED: `./crate` gave `crate\inner: cannot be read here, ...`).
+ABOUT_THE_ARGUMENT = ["an empty name", "a path that is not there", "a file as a crate", "a directory as a log",
+                      "a name the host raises on", "a name the host reads as another",
+                      "a crate directory the host will not list"]
+
+
+@pytest.mark.parametrize("what", ABOUT_THE_ARGUMENT)
+def test_the_line_of_an_answer_about_the_argument_begins_with_the_argument_as_written(tmp_path, monkeypatch, what):
+    """Each argument carries a `.` component where it can, which the host's own naming of a place leaves out, so that a
+    line beginning with the place does not pass for one beginning with the argument."""
+    monkeypatch.chdir(tmp_path)
+    crate(tmp_path)
+    (tmp_path / "custody.log").write_bytes(b"")
+    here = "." + os.sep
+    command, argument = {
+        "an empty name": ("check", ""), "a path that is not there": ("check", here + "nothing"),
+        "a file as a crate": ("check", here + "custody.log"), "a directory as a log": ("custody", here + "crate"),
+        "a name the host raises on": ("check", here + "crate"),
+        "a name the host reads as another": ("check", here + "crate."),
+        "a crate directory the host will not list": ("check", here + "crate")}[what]
+    if what == "a name the host raises on":
+        def refuse(self):
+            raise PermissionError(13, "permission denied", str(self))
+        monkeypatch.setattr(pathlib.Path, "is_dir", refuse)
+    if what == "a crate directory the host will not list":
+        real = os.scandir
+
+        def scandir(path="."):
+            if os.path.basename(os.fspath(path)) == "crate":
+                raise PermissionError(13, "Permission denied", os.fspath(path))
+            return real(path)
+        monkeypatch.setattr(os, "scandir", scandir)
+    code, out, err = run(tmp_path, [command, argument])
+    assert (code, out) == (2, b"") and err.decode("ascii").startswith(escape(argument) + ": "), err
+
+
+def test_the_line_of_a_directory_below_the_crate_the_user_may_not_list_begins_with_that_place(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    c = crate(tmp_path)
+    (c / "hidden").mkdir()
+    (c / "hidden" / "stray.txt").write_bytes(b"x")
+    real = os.scandir
+
+    def scandir(path="."):
+        if os.path.basename(os.fspath(path)) == "hidden":
+            raise PermissionError(13, "Permission denied", os.fspath(path))
+        return real(path)
+    monkeypatch.setattr(os, "scandir", scandir)
+    argument = "." + os.sep + "crate"
+    code, out, err = run(tmp_path, ["check", "--fixtures", argument])
+    line = err.decode("ascii")
+    place = escape(os.path.join("crate", "hidden"))
+    assert (code, out) == (2, b"") and line.startswith(place + ": cannot be read here, Permission denied; "), line
+    assert not line.startswith(escape(argument)), "the place the host refused, not the argument"
+
+
+@pytest.mark.parametrize("filename", ["named", "none"])
+def test_the_line_of_a_log_the_user_may_not_read_begins_with_the_place_the_host_refused(tmp_path, monkeypatch,
+                                                                                         filename):
+    """A log read through `./custody.log` is opened as `custody.log`, and the host's error names that; an error that
+    names no place has `a path` for one."""
+    monkeypatch.chdir(tmp_path)
+    custody_files(tmp_path, two_lines())
+    real = pathlib.Path.read_bytes
+
+    def read_bytes(self):
+        if self.name == "custody.log":
+            raise PermissionError(13, "Permission denied", str(self)) if filename == "named" else \
+                PermissionError(13, "Permission denied")
+        return real(self)
+    monkeypatch.setattr(pathlib.Path, "read_bytes", read_bytes)
+    argument = "." + os.sep + "custody.log"
+    code, out, err = run(tmp_path, ["custody", argument])
+    place = "custody.log" if filename == "named" else "a path"
+    assert (code, out) == (2, b"")
+    assert err.decode("ascii").startswith(place + ": cannot be read here, Permission denied; "), err

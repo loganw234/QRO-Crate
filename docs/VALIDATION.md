@@ -4504,3 +4504,100 @@ profile/README.md.
 - **round 1's notes left:** `--help`'s layout, held by no test (B01, B04), and a host that makes symbolic links.
 - **as before:** the description in HTML, each `termCode` as a key, rocrate-validator, and the permanent IRI, which
   is Logan's to register.
+
+## 2026-11-07 - P4.2 committed; P0.9 merged: the notes P0.8's verifiers and the parcels left for P0
+
+**P4.2 is committed and pushed** as 8a4cedc, with the entry above, on Logan's standing word. The runner on the
+committed tree, before the push: run `20261107-192222-45529-8a4cedc`, 22 stages passed and 2 skipped by name,
+4,772 tests.
+
+**What P0.9 is.** P0.9 is a piece of P0, the format itself. It takes the notes that P0.8's verifiers, and the
+parcels', left below their bars: the lead gathered them as eighteen items and ruled on each in P0.9's brief. A builder
+on Sonnet built it in its own worktree from 8fe0268, and the lead then made three edits (below). It changes fourteen
+files and adds one:
+- **tools/gen_vocabulary.py:** under `python -OO`, where `__doc__` is None, `--help`, `--check` and `--write` give the
+  exits and lines they give without it.
+- **tools/check_privacy.py:**
+  - three alternatives for WSL's mirror spellings, each with its plant built in pieces;
+  - a KNOWN entry;
+  - its docstring, on the gate's two fail-closed reports and on the WSL spellings it still does not find, the
+    JSON-escaped mirror spelling among them.
+- **qro/__main__.py:** `reads_as_another` and `unlistable`, used by `check` and `custody`.
+  - An argument with a component ending in a space or a dot, and a crate directory the host will not list, are
+    misuse, exit 2, naming the argument.
+  - `.`, `..`, an extended-length path and, after the drive designator is taken off, `C:.` and the like are not.
+- **qro/checker.py:** a crate path holding a NUL is refused `file-missing`, as no entry listed and not there.
+- **docs/FORMAT.md:**
+  - item 12, the not-there lists, Windows' error 21, and the NUL path;
+  - item 16, misuse at a name the host cannot use, and which answers' lines begin with the argument;
+  - the stated limit on alternate data streams.
+- **CLAUDE.md:**
+  - item 3, the gate's two fail-closed reports;
+  - item 9, the profile's other low-labelled folders, measured with `icacls`;
+  - item 10, the junction guard;
+  - a new item 11, on `-OO`;
+  - a bullet on ruff, saying what the docs stage holds of ruff's configuration.
+- **verify/run.sh:** the docs stage's description.
+- **The tests:** tests/tools/test_gen_vocabulary_oo.py, new, and the tests of the registry, the tools, the command line
+  and the hostile host.
+  - The registry pins ruff's configuration: it walks every directory below the four the runner lints, compares names
+    without case, exempts none, and enters no link below them.
+  - In each P0 module that makes a junction, a guard fails a test that leaves a link in its `tmp_path`.
+
+**The rounds** (docs/reviews/P0.9/):
+1. **NOT READY,** on the full bar, on three defects:
+   - **a gate:** the ruff pin compared names exactly, and skipped a directory holding a virtual environment's marker,
+     as ruff does not. So a root `RUFF.TOML`, or a `ruff.toml` beside a `pyvenv.cfg` under tests/, masked the lint
+     while the docs stage passed (MEASURED on ruff 0.11.9);
+   - **a wrong refusal:** `C:.`, `C:..`, `C:.\x` and `C:..\x` were refused as misuse, since the drive designator was
+     read as part of the first component;
+   - **a false sentence:** FORMAT.md said that every misuse line begins with the argument as the user wrote it.
+
+   Ruled:
+   - the walk takes what ruff reads, as ruff reads it;
+   - the drive designator is taken off first;
+   - the sentence says which lines begin with what.
+
+   Then, the builder's correction, taken: ruff enters a lint directory that is itself a junction, since it goes
+   through the path it is given, so the walk does too, and enters no link below the four.
+2. **READY,** on the full bar. Its verifier measured:
+   - a masking configuration caught in 13 places and in every case;
+   - a junction below the four not entered, and a lint directory that is a junction entered;
+   - `check` and `custody` as processes at 32 arguments each, with no exit 3 and no verdict of another entry;
+   - FORMAT.md item 16 against the code;
+   - both its runs: the `git init` copy, and main's history with the tree laid over it, each 22 stages passed and 2
+     skipped by name, the privacy stages over the whole history among them.
+
+**The lead's three edits after the build** (lead.md 2026-10-31T13:06:27Z):
+1. docs/reviews/P0.7/round3.md: P0.7's third verifier's own example of a WSL mirror spelling, which the new
+   alternative finds, is redacted as `<a home path>`. It was the one new finding in the tree and in main's history.
+2. docs/reviews/P0.7/README.md says so, and its table counts it. The file's blob as pushed in 83503b0 is named in the
+   gate's KNOWN.
+3. CLAUDE.md: the builder's clause on the command line at names the host reads as another is struck. FORMAT.md item
+   16 states the rule.
+
+**The lead's decisions:**
+- the KNOWN entry kept;
+- the name rule applying to any component, not only the last;
+- the guard removing what it can;
+- the ruff walk reading the disk, not git's list;
+- the walk wider than ruff in the directories ruff's own default exclude names, such as a `.venv` below tests/: no
+  exemption, and a lint directory that holds a configuration is refused, fail closed.
+
+**Measured at the merge:**
+- P0.9's hand mutants, in P0.9.md:
+  - 80 at the build, all killed, 79 by the tests and one by the privacy stage;
+  - 52 at round 1's fixes, all killed.
+- the runner on the merged tree, with `QRO_MOTH_ROOT` and `QRO_SHACL_PYTHON` set: run
+  `20261107-194002-47811-8a4cedc+dirty`, 20 stages passed, with 5,215 tests among them, and 2 skipped by name
+  (p1-crates and p2-crates). Its `privacy` and `privacy-controls` failed for a slip of the lead's: P0.9's files were
+  laid unstaged, and the gate read the staged copy of docs/reviews/P0.7/round3.md, the one that is not redacted
+  (CLAUDE.md item 3: the gate reads the staged version of a file whose index differs). With the files staged, run
+  `20261107-195857-50496-8a4cedc+dirty` (`--only privacy,privacy-controls`) passed both.
+
+**Left:**
+- **round 2's note:** a file-level `# ruff: noqa` comment drops a whole source file from the lint, and no gate reads
+  it. It is outside "ruff's configuration" as ruled, and is for a later piece.
+- **as ruled:** a UNC server spelt with a trailing dot stays refused; the JSON-escaped WSL mirror spelling is stated as
+  a gap, not closed.
+- **CLAUDE.md's timings,** which want runs with no agent beside them.
