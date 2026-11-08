@@ -4775,3 +4775,95 @@ is renamed for what it holds (lead.md 2026-10-26T19:31:39Z).
 - **For the lead, round 7's N4:** the study's instruments run `git status --porcelain` in moth-quantum without
   `--no-optional-locks`. Its verifier believes they are what touched moth-quantum's `.git` directory at the end of a
   full run; its index was not rewritten.
+
+## 2026-11-08 - P1.2 committed; P4.3 merged: P1's twin as the profile's second example, and P4.2's notes
+
+**P1.2 is committed and pushed** as eff2469, with the entry above, on Logan's standing word. The runner on the
+committed tree, before the push: run `20261107-221628-255-eff2469`, 23 stages passed and 1 skipped by name
+(p2-crates), 5,975 tests.
+
+**What P4.3 is.** P4 is the profile's parcel (the entry "P2.1 committed; P4 merged: the profile"), and P4.2 took what
+P4's merge left (the entry "P4 committed; P4.2 merged"). P4.3 takes two things:
+- **P4.1's twin,** the second positive example of P4's design (its example table's "P1's twin", and the lead's D8),
+  which waited on P1.2's merge;
+- **the notes P4.2's verifiers left for it:** the second's notes 1, 2 and 4, and the first's note 3.
+
+A builder on Sonnet built it in its own worktree from eff2469. It adds 3 files and changes 9, all P4's:
+- **tests/p4/p4_twin.py:** the twin's two builds by name, `p1-twin` with P2's module and `p1-twin-alone` without it.
+  P1.2's toolkit builds both at stage time, once a process. Both stages read it, and nothing of the twin is written
+  into profile/ or the tree.
+- **tests/p4/test_p4_twin.py and tests/p4shacl/test_p4shacl_twin.py:**
+  - the checker accepts each build;
+  - every must and should shape conforms to each, in the evaluator and in the engine, whose triples are the
+    expansion's;
+  - on the twin with P2's module, every shape has a node to read;
+  - a shape made stricter than the checker on a term the twin carries, or made to admit nothing, fails it.
+- **qro/p4_profile.py, and profile/EXAMPLES.md, README.md and ro-crate-metadata.json** as the tool renders them: the
+  two builds in the examples' matrix, and a sentence of the description.
+- **tools/gen_profile.py:** `--help`'s exit-3 sentence and the docstring name a directory the host cannot list.
+- **tests/p4/test_p4_tree.py, test_p4_crash.py and p4_helpers.py:**
+  - each of the spy's 34 names pinned by a test, with a control;
+  - the import guard refusing every process call of the tool, read from its AST, with a plant for each;
+  - `--help`'s layout held as a process at two widths, with and without `-OO`;
+  - a docstring.
+- **docs/P4.md:** the twin's place, what it reaches and what it costs, and the four notes.
+
+**The twin and the shapes** (MEASURED by the builder before any change, and again by its verifier). No must or should
+shape fails on either build, so no shape needed mending.
+- **With P2's module,** the twin is the first crate outside a plant to carry P2's terms into the shapes: 74 files, 135
+  entities and 933 triples. It carries all 63 terms of the table, and each of the 131 must and 8 should shapes has a
+  node to read on it.
+- **Without it:** 73 files, 107 entities and 746 triples. The 39 must and 2 should shapes of the 20 terms it lacks
+  have nothing to read. The 20 are P2's 19 and P0's `qro:implementation`, which only P2's entities carry.
+- **Its cost** (MEASURED by the builder, beside other work): built once a process in about a second. Its 19 tests take
+  about 7 s of the quick budget's `p4` stage, which went from 133 s to 143 s with all of P4.3's tests. Its 6 tests
+  take about 5 s of `p4-shacl`.
+
+**The round** (docs/reviews/P4.3/):
+1. **READY,** on the full bar, with no defect. Its runner passed 23 stages and skipped 1 by name. Its verifier
+   measured:
+   - the twin's figures above, and both builds conforming in the evaluator and the engine;
+   - 212 faults of its own planted in the twin: a bad value on each term it carries, one entity at a time and on all
+     at once. In none did a must shape fail where the checker refuses by a name its claims lack, and in none did the
+     checker accept while every shape stayed silent;
+   - the registry's 20 refused rows, held by hand: every must shape that fails on one claims the checker's refusal;
+   - each of the 34 names dropped from the spy in turn: a test died for each;
+   - 19 mutants of `--help`'s layout: 17 killed, and the 2 left shown equivalent;
+   - no junction left behind by P4's tests, passing or failing.
+
+   Its four notes, below the bar:
+   1. **The import guard misses a deliberate process call:** one reached through `__getattribute__`, a frame's
+      globals or the builtins' `__import__`, and `os.fork` and `os.forkpty`. The page could say the guard is a
+      tripwire against an accidental process call, not a wall against a deliberate one.
+   2. **No gate of P4's holds the registry's refused crate plants to the shapes' claims,** P2.2's two among them: gate
+      1 walks only the rows that say `accepted`. A standing sweep of the refused rows would close it.
+   3. **Two of P4.3's tests read every term P0, P1 and P2 own.** A term P2 adds that the twin does not carry would move
+      them, and the page's counts.
+   4. **`shared-control`,** a row that says `accepted`, has no plant, so no gate walks it. It is older than P4.3.
+
+**The lead's, at the round** (lead.md 2026-11-08T08:17:31Z). P4.3's builder believed that P2.2's two widened refusal
+meanings would make profile/ drift; the lead ruled those meanings at 07:36:59Z. MEASURED false, in a copy of P4.3's
+tree with `compile-uncontrolled`'s meaning widened:
+- `tools/gen_vocabulary.py --write` changed only docs/VOCABULARY.md and docs/REFUSALS.md;
+- `tools/gen_profile.py --check` found profile/ as its definitions render it.
+
+The Profile Crate renders the terms' and the types' meanings, never a refusal's.
+
+**Measured at the merge:**
+- P4.3's 141 hand mutants, on the builder's freeze f7, all killed after six baselines. The first sweep, on f6, left 3,
+  each a gap in a test, which the builder mended;
+- the runner on the merged tree, staged, with `QRO_MOTH_ROOT` and `QRO_SHACL_PYTHON` set: run
+  `20261108-015607-18420-eff2469+dirty`, 23 stages passed and 1 skipped by name (p2-crates), 6,117 tests, p4's 1,183
+  and p4-shacl's 242 among them.
+
+**The stated limits** are docs/P4.md's.
+
+**Left:**
+- **For P4's next piece,** the verifier's notes 1, 2 and 4:
+  - note 1: the page's word for what the import guard is;
+  - note 2: a sweep of the registry's refused crate plants against the shapes' claims, which P2.2's plants join when
+    they merge;
+  - note 4: `shared-control`'s row, with the lead, whose registry it is.
+- **Note 3:** P2.2, as ruled, adds no term, only two refusals' meanings. Its merge holds the counts again.
+- **From P4.2's list, where it left them:** the description in HTML, each `termCode` as a key, rocrate-validator, the
+  permanent IRI (Logan's to register), and a host that makes symbolic links.

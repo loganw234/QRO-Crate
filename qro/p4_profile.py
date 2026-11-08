@@ -516,7 +516,9 @@ def readme():
     out += ["## The examples", "",
             f"[{EXAMPLES}]({EXAMPLES}) lists every positive example and every plant and what each layer says of it. "
             f"P0's fixture, in [{FIXTURE_DIR}]({FIXTURE_DIR}), is accepted by `python -m qro check --fixtures`; without "
-            "`--fixtures` the checker refuses it `step-unbuilt`, since its raw form and generator are the fixture's.", "",
+            "`--fixtures` the checker refuses it `step-unbuilt`, since its raw form and generator are the fixture's. P1's twin, a "
+            "slice of real IBM records that P1's adapter builds at stage time and that is not kept here, is accepted by "
+            "`python -m qro check` and conforms to every shape, with P2's module present and without it.", "",
             "Copyright (c) 2026 Logan W., [CC BY 4.0](" + LICENSE + ").", ""]
     return ascii_md("\n".join(out)).encode("ascii")
 
@@ -540,7 +542,12 @@ def examples_md():
            f"| `{FIXTURE_DIR}`, P0's fixture | accepted with `--fixtures`; `step-unbuilt` without | conforms to every must "
            "shape |",
            "| every term, on an entity its domain admits | the strict reader accepts it; the later steps of the parcels' "
-           "terms need files it does not have | conforms to every must shape and every should shape |", "",
+           "terms need files it does not have | conforms to every must shape and every should shape |",
+           "| P1's twin (`p1-twin`): a slice of real IBM records built by P1's adapter at stage time, never kept here; with P2's "
+           "module present, so it carries P2's entities | accepted by `python -m qro check` | conforms to every must shape and "
+           "every should shape; every shape of the profile has a node to read on it |",
+           "| P1's twin built without P2's module (`p1-twin-alone`) | accepted by `python -m qro check` | conforms to every must "
+           "shape and every should shape; the shapes of P2's terms have no node to read on it |", "",
            f"## Plants ({n_hand} written, {n_gen} made from the table)", ""]
     for family in FAMILIES:
         rows = [r for r in matrix_rows() if r[0] == family]

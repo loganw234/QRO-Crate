@@ -158,11 +158,11 @@
     {
       "@id": "EXAMPLES.md",
       "@type": "File",
-      "contentSize": "11510",
+      "contentSize": "12017",
       "description": "The matrix of examples: what the checker and the shapes each say of every example and plant.",
       "encodingFormat": "text/markdown",
       "name": "EXAMPLES.md",
-      "sha256": "585624d7391aca55821d97c55f5e23439e1943cf122e32308fc17baa74ec14c6"
+      "sha256": "468ac2a7c4b5fcfac372cba8fe382739366a199580d3f65e56f9c8db7d25a06c"
     },
     {
       "@id": "README.md",
@@ -170,11 +170,11 @@
       "about": {
         "@id": "https://github.com/loganw234/QRO-Crate/blob/main/profile/README.md"
       },
-      "contentSize": "62477",
+      "contentSize": "62689",
       "description": "The profile description: what the profile is, how a crate declares it, what the shapes hold and cannot see.",
       "encodingFormat": "text/markdown",
       "name": "README.md",
-      "sha256": "33a72120162d67d7c56210210880e6664a9e89b3661172f4e7dae9a12e666f78"
+      "sha256": "5995f72baffeca356ea5ba6dfda8cc39b1956b8eb998e480f515b3346f33f29c"
     },
     {
       "@id": "context.jsonld",

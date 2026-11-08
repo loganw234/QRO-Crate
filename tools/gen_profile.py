@@ -76,7 +76,8 @@ tool refuses, since tools/gen_vocabulary.py makes that file), each with a diff o
 themselves (the vocabulary's sanity check, a spelling with no shape constraint, a shape the model calls incoherent), or the
 arguments are wrong. 3: the generator itself failed, with one line on stderr, escaped as the command line escapes its own, which
 after --write names the files it had finished writing; this is never a verdict. Any other file it cannot read (a rendered file, a
-stray, the fixture's) is this exit too: the tool failing, where an unreadable context is a tree refused. No crash of the tool is
+stray, the fixture's) is this exit too: the tool failing, where an unreadable context is a tree refused. So is a directory the
+host cannot list, which the tool names (above). No crash of the tool is
 exit 1, the drift verdict's code and Python's for an uncaught exception: one in the arguments, in a module the tool imports or in
 the tool is 3, and a failure to say a failure is no crash either. A name is written as its escape, in printable ASCII, on every line
 of every mode, whatever the output's code page, never a crash (the lines of a drifted file's diff are the file's own); where a
@@ -138,7 +139,8 @@ EXITS = "exit codes:\n" + "\n".join(
                        ("1", EXIT_ONE),
                        ("2", "the definitions contradict themselves, or the arguments are wrong"),
                        ("3", "the generator itself failed, in one escaped line on stderr (never a verdict): a removal or a write that "
-                             "fails, or a file it cannot read other than P0's context (a rendered file, a stray, the fixture's)"))) + "\n"
+                             "fails, a directory the host cannot list, or a file it cannot read other than P0's context (a "
+                             "rendered file, a stray, the fixture's)"))) + "\n"
 is_link = checker._is_link      # the checker's own test: a symbolic link or a directory junction, which Path.is_symlink misses
 
 

@@ -7,6 +7,7 @@ code still carries the verdict, and a failure to say a failure is no crash."""
 import argparse
 import ast
 import sys
+import textwrap
 
 import pytest
 from p4_helpers import ROOT, load_tool, run_patched, run_tool, tree
@@ -45,9 +46,104 @@ def test_the_help_says_what_the_tool_is_what_each_mode_does_and_every_exit_and_e
     assert "exit codes: 0 every file is exactly what the definitions render" in text
     assert " ".join(gen.EXIT_ONE.split()) in text and "1 drift, a file missing or unexpected" in text
     assert "2 the definitions contradict themselves, or the arguments are wrong" in text
-    assert "3 the generator itself failed, in one escaped line on stderr (never a verdict): a removal or a write that fails, or a " \
-           "file it cannot read other than P0's context (a rendered file, a stray, the fixture's)" in text
+    assert "3 the generator itself failed, in one escaped line on stderr (never a verdict): a removal or a write that fails, a " \
+           "directory the host cannot list, or a file it cannot read other than P0's context (a rendered file, a stray, the " \
+           "fixture's)" in text
     assert "so is any other file" not in text                  # the sentence that did not parse (P4.2's first verifier, note 6)
+
+
+def test_exit_3_names_a_directory_the_host_cannot_list_in_help_the_docstring_and_the_page(tmp_path):
+    """P4.2's second verifier, note 4: the exit-3 sentence of --help named the files the tool cannot read and not the directory
+    the host cannot list, which the docstring states (the tool raises it, exit 3, and names it). The three texts say it now."""
+    done = run_tool(["--help"], tmp_path, tree(tmp_path / "t"))
+    assert done.returncode == 0
+    exit3 = " ".join(done.stdout.split()).partition(" 3 the generator itself failed")[2]
+    assert exit3 and "a directory the host cannot list" in exit3
+    doc = " ".join(ast.get_docstring(ast.parse((ROOT / "tools" / "gen_profile.py").read_text(encoding="utf-8"))).split())
+    page = " ".join((ROOT / "docs" / "P4.md").read_text(encoding="utf-8").replace("`", "").split())
+    for text in (doc, page):
+        assert "So is a directory the host cannot list, which the tool names" in text, text[:80]
+
+
+def help_lines(tmp_path, opts, columns):
+    """The lines --help prints, run as a process in a terminal `columns` wide (argparse takes its width from COLUMNS)."""
+    done = run_tool(["--help"], tmp_path, tree(tmp_path / "t"), opts=opts, env={"COLUMNS": str(columns)})
+    assert done.returncode == 0 and done.stderr == ""
+    return done.stdout.split("\n")
+
+
+def layout_problems(lines, description, width=100):
+    """What is wrong with the layout of a --help text (P4.2's first verifier, note 3: mutants B01 and B04 survived). The usage
+    first; the description whole, on one line of its own, between blank lines, before the options; then the exits last, after a
+    blank line and a line `exit codes:`; each exit beginning on a line of its own, `  N  `, in order; the rest of an exit
+    indented five and filled to `width` as textwrap fills it (no line longer, and none that the next word would have fitted)."""
+    found = []
+    if not lines or not lines[0].startswith("usage:"):
+        return ["the text does not begin with the usage"]
+    if lines.count(description) != 1:
+        return [f"the description is not whole on one line of its own: {description!r}"]
+    d = lines.index(description)
+    if lines[d - 1] != "" or lines[d + 1] != "" or lines[d + 2] != "options:":
+        found.append("the description is not between blank lines, before the options")
+    if lines.count("exit codes:") != 1:
+        return found + ["there is not one line `exit codes:`"]
+    e = lines.index("exit codes:")
+    if e < d or lines[e - 1] != "" or lines[-1] != "":
+        found.append("the exits are not last, after a blank line")
+    if any(ln[:2] == "  " and ln[2:3].isdigit() and ln[3:5] == "  " for ln in lines[:e]):
+        found.append("an exit is printed before the heading of the exits")
+    exits = lines[e + 1:-1]
+    starts = [i for i, ln in enumerate(exits) if ln[:2] == "  " and ln[2:3].isdigit() and ln[3:5] == "  "]
+    if [exits[i][2] for i in starts] != ["0", "1", "2", "3"] or starts[0] != 0:
+        found.append(f"the exits do not each begin on a line of their own, in order: {[exits[i][:6] for i in starts]}")
+    for n, ln in enumerate(exits):
+        if len(ln) > width:
+            found.append(f"a line of {len(ln)} characters: {ln[:30]!r}")
+        if n not in starts and not (ln.startswith("     ") and ln[5:6] not in ("", " ")):
+            found.append(f"a continuation not indented five: {ln[:30]!r}")
+        after = exits[n + 1] if n + 1 < len(exits) else None
+        if after is not None and n + 1 not in starts and len(ln) + 1 + len(after.split()[0]) <= width:
+            found.append(f"a line the next word would have fitted: {ln[:30]!r}")
+    return found
+
+
+@pytest.mark.parametrize("opts", [(), ("-OO",)], ids=["python", "python -OO"])
+@pytest.mark.parametrize("columns", [40, 200])
+def test_the_help_prints_the_description_whole_and_the_exits_each_on_a_line_of_its_own_in_a_terminal_of_any_width(tmp_path, opts, columns):
+    """P4.2's first verifier, note 3 (its mutants B01 and B04, which this kills): the layout of --help is held. The formatter is
+    argparse's raw one, so a narrow terminal re-wraps neither the description nor the exits, which are filled to 100 characters by
+    the tool itself and not to the terminal."""
+    lines = help_lines(tmp_path, opts, columns)
+    assert layout_problems(lines, gen.DESCRIPTION) == []
+    assert "\n".join(lines[lines.index("exit codes:"):]) == gen.EXITS         # and the exits are the constant, byte for byte
+
+
+def test_the_layout_check_fails_the_layouts_it_is_for(tmp_path):
+    """The check watched failing, on the help of a tool whose parser has the mutants of P4.2's first verifier: B01 (the default
+    formatter, which folds the exits and the description into the terminal's width) and B04 (the exits filled at 20), and a
+    description cut, an exit that shares a line, and an exit list that is not last."""
+    good = help_lines(tmp_path, (), 40)
+    assert layout_problems(good, gen.DESCRIPTION) == []
+    default = argparse.ArgumentParser(description=gen.DESCRIPTION, epilog=gen.EXITS)
+    default.add_argument("--write", action="store_true", help=gen.HELP_WRITE)
+    b01 = default.format_help().split("\n")
+    assert layout_problems(b01, gen.DESCRIPTION) != []
+    narrow = "\n".join(good).replace("  1  drift, a file missing", "  1  drift,\n     a file missing").split("\n")
+    assert layout_problems(narrow, gen.DESCRIPTION) != []
+    b04 = good[:good.index("exit codes:") + 1]
+    for code, text in (("0", "every file is exactly what the definitions render, and the Profile Crate holds the rules its check lists"),
+                       ("1", gen.EXIT_ONE), ("2", "the definitions contradict themselves, or the arguments are wrong"),
+                       ("3", "the generator itself failed")):
+        b04 += textwrap.fill(f"{code}  {text}", width=20, initial_indent="  ", subsequent_indent="     ", break_on_hyphens=False,
+                             break_long_words=False).split("\n")
+    assert layout_problems(b04 + [""], gen.DESCRIPTION) != []
+    assert layout_problems([ln.replace("Generate the profile", "Generate the") for ln in good], gen.DESCRIPTION) != []
+    joined = good[:good.index("exit codes:")] + ["exit codes: " + " ".join(ln.strip() for ln in good[good.index("exit codes:") + 1:])]
+    assert layout_problems(joined + [""], gen.DESCRIPTION) != []
+    reordered = [ln for ln in good if ln != "exit codes:"]
+    assert layout_problems(reordered, gen.DESCRIPTION) != []
+    twice = [good[0], good[good.index("exit codes:") + 1]] + good[1:]                      # an exit printed before the heading
+    assert layout_problems(twice, gen.DESCRIPTION) != []
 
 
 def test_the_exit_1_sentence_is_the_same_in_help_the_docstring_and_the_page_and_names_p0s_context_missing_or_unreadable():

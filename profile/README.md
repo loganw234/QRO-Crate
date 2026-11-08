@@ -267,6 +267,6 @@ A crate that declares another version is refused `context`: this reader reads on
 
 ## The examples
 
-[EXAMPLES.md](EXAMPLES.md) lists every positive example and every plant and what each layer says of it. P0's fixture, in [examples/fixture/](examples/fixture/), is accepted by `python -m qro check --fixtures`; without `--fixtures` the checker refuses it `step-unbuilt`, since its raw form and generator are the fixture's.
+[EXAMPLES.md](EXAMPLES.md) lists every positive example and every plant and what each layer says of it. P0's fixture, in [examples/fixture/](examples/fixture/), is accepted by `python -m qro check --fixtures`; without `--fixtures` the checker refuses it `step-unbuilt`, since its raw form and generator are the fixture's. P1's twin, a slice of real IBM records that P1's adapter builds at stage time and that is not kept here, is accepted by `python -m qro check` and conforms to every shape, with P2's module present and without it.
 
 Copyright (c) 2026 Logan W., [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/).

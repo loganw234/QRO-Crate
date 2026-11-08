@@ -12,6 +12,8 @@ Where the checker says `accepted but for step 9`, steps 1 to 8 held and only ste
 |---|---|---|
 | `examples/fixture/`, P0's fixture | accepted with `--fixtures`; `step-unbuilt` without | conforms to every must shape |
 | every term, on an entity its domain admits | the strict reader accepts it; the later steps of the parcels' terms need files it does not have | conforms to every must shape and every should shape |
+| P1's twin (`p1-twin`): a slice of real IBM records built by P1's adapter at stage time, never kept here; with P2's module present, so it carries P2's entities | accepted by `python -m qro check` | conforms to every must shape and every should shape; every shape of the profile has a node to read on it |
+| P1's twin built without P2's module (`p1-twin-alone`) | accepted by `python -m qro check` | conforms to every must shape and every should shape; the shapes of P2's terms have no node to read on it |
 
 ## Plants (68 written, 174 made from the table)
 

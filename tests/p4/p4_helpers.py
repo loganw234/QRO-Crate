@@ -703,7 +703,8 @@ def watch_below(monkeypatch, link, load=False):
     It cannot see a DirEntry of a listing (os.walk asks one is_dir()), a handle already open, ctypes, a process, a function another
     module bound before it went in, a path spelt as an 8.3 short name or reached through another link to the same directory, or a
     module of the standard library that reaches the host some other way (nt, posix, _io, shutil, glob...): the tool imports none,
-    which test_the_tool_imports_only_the_modules_the_spy_covers holds."""
+    and uses none of the ways to a process (os.system, os.popen, os.startfile, os.spawn*, os.exec*, subprocess), which
+    test_the_tool_imports_only_the_modules_the_spy_covers holds."""
     watch = Watch(link)
 
     def spy(owner, name, what):

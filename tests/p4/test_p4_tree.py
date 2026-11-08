@@ -10,8 +10,8 @@ function of os, a module-level alias, a default argument) is the spy's; a contro
 keyword, and demands that it saw each. What it does not see: a DirEntry of a listing (os.walk asks one is_dir()), a handle already
 open, ctypes, a process, a function another module bound before it went in, a path spelt as an 8.3 short name or reached through
 another link to the same directory, and a module of the standard library that reaches the host some other way (nt, posix, _io,
-shutil, glob...), which is why the tool imports only the modules it does and a test holds that
-(test_the_tool_imports_only_the_modules_the_spy_covers). A link is a real junction, made without privilege, where the host makes
+shutil, glob...), which is why the tool imports only the modules it does, and uses no call that starts a process (os.system and the
+rest, subprocess), and a test holds that (test_the_tool_imports_only_the_modules_the_spy_covers). A link is a real junction, made without privilege, where the host makes
 junctions (link_dir in p4_sweeps.py), and its target is there when the test ends: the module's fixture removes the links a failing
 test strands (remove_links_under in p4_helpers.py).
 
@@ -363,6 +363,63 @@ def test_the_spy_wraps_every_call_the_ruling_names_and_the_ones_that_could_follo
     assert named <= watch.wrapped, sorted(named - watch.wrapped)
 
 
+# The two lists of the spy, written here again name by name (P4.2's second verifier, note 1: a spy that had lost
+# `os.path.isdevdrive` passed 21 tests while the tool called it below a link, because the control of spy_missed goes by the spy's
+# own lists, and a name taken out of a list is taken out of what it checks). Each name is pinned by a test that makes the call and
+# demands the spy saw it, and by a control: the same test with the name taken out of the list sees nothing, so the test fails.
+SPIED_OS = ("stat", "lstat", "scandir", "listdir", "walk", "access", "readlink", "utime", "chmod", "chdir", "mkdir", "rmdir", "unlink",
+            "remove", "rename", "replace", "link", "symlink", "truncate", "open")
+SPIED_OS_PATH = ("exists", "lexists", "isdir", "isfile", "islink", "isjunction", "ismount", "isdevdrive", "getsize", "getmtime",
+                 "getatime", "getctime", "realpath", "samefile")
+SPIED = tuple("os." + n for n in SPIED_OS) + tuple("os.path." + n for n in SPIED_OS_PATH)
+
+
+def seen_of(monkeypatch, tmp_path, what, lose=False):
+    """The calls a spy at tmp_path / 'link' notes when `what` ('os.stat', 'os.path.exists') is called with a path below it that is
+    not there (so that nothing can change: most calls fail, or are given too few arguments, and the spy is told before they do).
+    With `lose`, the name is taken out of the spy's list first: the spy that has lost it."""
+    owner_name, _, name = what.rpartition(".")
+    owner = os if owner_name == "os" else os.path
+    if lose:
+        lists = "OS_CALLS" if owner_name == "os" else "OS_PATH_CALLS"
+        monkeypatch.setattr(p4_helpers, lists, tuple(n for n in getattr(p4_helpers, lists) if n != name))
+    watch = watch_below(monkeypatch, tmp_path / "link")
+    try:
+        getattr(owner, name)(tmp_path / "link" / "no such folder" / "x")
+    except Exception:                                               # any: the question is whether the spy was told first
+        pass
+    return [seen for seen, _ in watch.calls]
+
+
+def test_the_names_pinned_one_by_one_are_the_names_of_the_spys_two_lists():
+    assert SPIED == tuple("os." + n for n in p4_helpers.OS_CALLS) + tuple("os.path." + n for n in p4_helpers.OS_PATH_CALLS)
+    assert len(SPIED) == len(set(SPIED)) == 34
+
+
+# Six of the names are calls that the standard library makes through os.stat or os.lstat (ntpath, Python 3.12): a tool that called one
+# below a link would be seen by the spy under that name even if the spy had lost it (the verifier's note: taking `getmtime` out of
+# the list changed nothing). The pin of such a name is that the call is seen *by its own name* too, which only a spy that wraps it
+# does; the test is `what in seen`, and the control shows the spy without the name sees the call only as the call beneath it.
+THROUGH = {"os.path.lexists": "os.lstat", "os.path.isjunction": "os.lstat", "os.path.getsize": "os.stat",
+           "os.path.getmtime": "os.stat", "os.path.getatime": "os.stat", "os.path.getctime": "os.stat"}
+
+
+@pytest.mark.parametrize("what", SPIED)
+def test_the_spy_sees_each_call_of_its_two_lists_made_below_a_link_by_its_own_name(tmp_path, monkeypatch, what):
+    seen = seen_of(monkeypatch, tmp_path, what)
+    assert what in seen, seen
+    assert seen.count(what) == 1 and set(seen) <= {what, THROUGH.get(what)}, seen      # and by no other call but the one beneath it
+
+
+@pytest.mark.parametrize("what", SPIED)
+def test_a_spy_that_has_lost_a_name_does_not_see_the_call_by_that_name_so_the_test_above_fails_it(tmp_path, monkeypatch, what):
+    """The control for the pin: the spy without the name does not see the call by it, so `what in seen_of(...)` fails for it. It
+    sees nothing at all of 28 names, and of the six that the standard library makes through os.stat or os.lstat only that call."""
+    seen = seen_of(monkeypatch, tmp_path, what, lose=True)
+    assert what not in seen
+    assert seen == ([THROUGH[what]] if what in THROUGH else []), seen
+
+
 def test_the_spy_reads_every_path_a_call_is_given_by_keyword_and_the_second_by_position_too(tmp_path, monkeypatch):
     """P4.2's first verifier, D1: the spy noted the first two positional arguments of a call and no keyword, so a call given its path
     by keyword was not seen: `os.listdir(path=...)`, `os.scandir(path=...)` and `open(file=...)` at profile/ itself, before the
@@ -497,12 +554,25 @@ def test_watch_below_loads_the_tool_after_the_spy_is_in_and_not_before(tmp_path,
 PLAIN_IMPORTS = {"argparse", "difflib", "os", "sys", "textwrap"}
 FROM_IMPORTS = {("pathlib", "Path"), ("qro", "canonical"), ("qro", "checker"), ("qro", "p4_profile"), ("qro", "vocabulary"),
                 ("qro.__main__", "escape")}
-BY_NO_NAME = {"__import__", "eval", "exec"}
+BY_NO_NAME = {"__import__", "eval", "exec", "compile", "vars", "globals", "locals", "subprocess", "__builtins__"}
+# The ways to the host that go through a process, which the spy and the imports do not see (P4.2's second verifier, note 2): a path
+# below a link handed to `os.system`, `os.popen`, `os.startfile`, `os.spawn*`, `os.exec*` or `subprocess` is reached by a program
+# the spy cannot wrap. The guard refuses the use of each name, on whatever object it stands (`os.system`, `o.system`, `x.os.system`),
+# read from the AST; `subprocess` is refused as a name as well as an import. The names are written out and not matched by prefix,
+# for `sys.executable` is no process; test_the_process_names_cover_what_this_host_has holds the list against `dir(os)`.
+PROCESS_ATTRS = frozenset(("system", "popen", "startfile", "spawnl", "spawnle", "spawnlp", "spawnlpe", "spawnv", "spawnve", "spawnvp",
+                           "spawnvpe", "execl", "execle", "execlp", "execlpe", "execv", "execve", "execvp", "execvpe", "posix_spawn",
+                           "posix_spawnp", "subprocess", "__dict__"))
+# The one getattr the tool makes is of `sys`, for a stream (sys.stdout, sys.stderr): a getattr of anything else could be of os,
+# with a name built at run time, which no AST shows; and a string that is a process name, as getattr(os, "system") has it.
+GETATTR_OF = "sys"
 
 
 def imports_outside(source):
-    """The imports of `source` that are not the tool's own, as `import x` or `from x import y`, and the ways to a module that is no
-    import by name (__import__, eval, exec, sys.modules), however deep in the source they stand."""
+    """The imports of `source` that are not the tool's own, as `import x` or `from x import y`, the ways to a module that is no
+    import by name (__import__, eval, exec, compile, vars, globals, locals, sys.modules), and each use of a way to the host through
+    a process (PROCESS_ATTRS, on any object, `subprocess` as a name too, a getattr of anything but `sys`, a string that is one of
+    the names), however deep in the source they stand."""
     found = []
     for node in ast.walk(ast.parse(source)):
         if isinstance(node, ast.Import):
@@ -514,6 +584,13 @@ def imports_outside(source):
             found.append(node.id)
         elif isinstance(node, ast.Attribute) and node.attr == "modules":                    # sys.modules, or os.sys.modules
             found.append(".modules")
+        elif isinstance(node, ast.Attribute) and node.attr in PROCESS_ATTRS:                # os.system, o.popen, x.os.startfile
+            found.append("." + node.attr)
+        elif isinstance(node, ast.Constant) and isinstance(node.value, str) and node.value in PROCESS_ATTRS:
+            found.append(f"the string {node.value!r}")                                      # getattr(os, "system"), os.__dict__["popen"]
+        elif isinstance(node, ast.Call) and isinstance(node.func, ast.Name) and node.func.id in ("getattr", "hasattr", "setattr"):
+            if not (node.args and isinstance(node.args[0], ast.Name) and node.args[0].id == GETATTR_OF):
+                found.append(f"{node.func.id} of something but {GETATTR_OF}")
     return sorted(found)
 
 
@@ -534,6 +611,48 @@ def test_the_import_guard_fails_a_planted_module_that_reaches_the_host_another_w
     is not the tool's own, and the ways to a module that is no import by name. A module that imports what the tool does passes."""
     assert imports_outside("import os\nimport sys\n" + line + "\n") != [], line
     assert imports_outside("import os\nimport sys\nfrom pathlib import Path\nfrom qro import checker\nfrom qro.__main__ import escape\n") == []
+
+
+# P4.2's second verifier, note 2: a path below a link handed to a process is seen by neither the spy nor the import guard. The names
+# are written out here, again, each with its plant.
+PROCESS_NAMES = ("system", "popen", "startfile", "spawnl", "spawnle", "spawnlp", "spawnlpe", "spawnv", "spawnve", "spawnvp", "spawnvpe",
+                 "execl", "execle", "execlp", "execlpe", "execv", "execve", "execvp", "execvpe", "posix_spawn", "posix_spawnp")
+HEAD = "import os\nimport sys\nfrom pathlib import Path\n"
+
+
+@pytest.mark.parametrize("name", PROCESS_NAMES)
+def test_the_import_guard_fails_a_planted_use_of_each_process_call_of_os_however_it_is_reached(name):
+    """Each of `os.system`, `os.popen`, `os.startfile`, `os.spawn*`, `os.exec*` and `os.posix_spawn*`, called on `os`, on an alias
+    of it, on another object, in a function, through getattr or as a string, is found."""
+    for plant in (f"os.{name}('x')", f"o = os\no.{name}('x')", f"def f(p):\n    return os.{name}(p)", f"x = Path().parent.{name}",
+                  f"getattr(os, {name!r})('x')", f"os.__dict__[{name!r}]('x')", f"table = {{{name!r}: 1}}", f"run = os.{name}",
+                  f"class C:\n    def m(self):\n        os.{name}(1)"):
+        assert imports_outside(HEAD + plant + "\n") != [], plant
+
+
+@pytest.mark.parametrize("plant", ["import subprocess", "import subprocess as sp", "from subprocess import run",
+                                   "from subprocess import Popen as P", "subprocess.run(['x'])", "x = subprocess", "import os\nos.subprocess",
+                                   "getattr(os, 'popen')", "getattr(os, name)", "hasattr(os, 'system')", "setattr(os, 'x', 1)",
+                                   "vars(os)['system']", "globals()['os'].system('x')", "locals()", "x = vars(os)", "x = globals()", "compile('1', 'x', 'eval')",
+                                   "__builtins__", "os.__dict__"])
+def test_the_import_guard_fails_a_planted_subprocess_and_the_other_ways_to_a_process(plant):
+    assert imports_outside(HEAD + plant + "\n") != [], plant
+
+
+def test_the_import_guard_passes_the_getattr_of_sys_the_tool_makes_and_a_name_that_only_looks_like_a_process():
+    """No false alarm: the tool's own getattr is of `sys` (a stream by name), `sys.executable` and a variable called `system` are
+    no process call, and `os.path` and `os.walk` are the calls the spy covers."""
+    ok = HEAD + "stream = getattr(sys, name)\nx = sys.executable\nsystem = 1\nrun = os.walk\ny = os.path.join('a', 'b')\n"
+    assert imports_outside(ok) == []
+
+
+def test_the_process_names_cover_what_this_host_has():
+    """The names are written out and not matched by prefix (sys.executable is no process), so a Python that has another is a
+    decision here: every spawn, exec and posix_spawn function, and system, popen and startfile, that `os` has on this host is
+    refused by the guard's list and by the names written in this file."""
+    host = {n for n in dir(os) if n.startswith(("spawn", "exec", "posix_spawn")) or n in ("system", "popen", "startfile")}
+    assert host <= set(PROCESS_NAMES), sorted(host - set(PROCESS_NAMES))
+    assert set(PROCESS_NAMES) <= PROCESS_ATTRS, sorted(set(PROCESS_NAMES) - PROCESS_ATTRS)
 
 
 # -- a link or a directory where P0's context goes: the message is true ----------------------------------------------------------------
