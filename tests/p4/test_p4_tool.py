@@ -18,7 +18,7 @@ import sys
 from pathlib import Path
 
 import pytest
-from p4_helpers import ROOT, load_tool, outside_dir, profile_copy, remove_links_under, run_tool, tree
+from p4_helpers import ROOT, load_tool, outside_dir, profile_copy, remove_links_under, run_patched, run_tool, tell_links, tree
 from p4_sweeps import link_dir
 from qro import checker
 from qro import p4_profile as P
@@ -234,6 +234,188 @@ def test_write_removes_what_no_definition_renders_and_the_directories_it_leaves_
     assert "removed stale/deep/old.txt" in said and "removed validator/qro-crate/may/1.ttl" in said
     assert not (root / "profile" / "stale").exists() and not (root / "profile" / "validator" / "qro-crate" / "may").exists()
     assert (root / "profile" / "context.jsonld").is_file() and gen.main(["--check"], root=root) == 0
+
+
+def test_a_file_the_tool_is_told_is_a_link_is_a_link_to_every_walk_listed_by_its_path_never_read_and_removed(tmp_path, capsys, monkeypatch):
+    """The fifth verifier's gap: the walk's branch for a link among the files (not among the directories) was held only by a
+    junction, which lists as a directory, since the owner's machine makes no symbolic link without a privilege (WinError 1314) and
+    the tool's test of a link is the checker's. A regular file is told to be a link, at the top of profile/ and below it: it is in
+    the links of the walk and not in its files, its bytes are never read (on_disk reports it with none, the file holding some), a
+    directory that holds only such a link holds something, --check lists it by its path, and --write removes it, as it removes a
+    stray file."""
+    root = profile_copy(tmp_path)
+    base = root / "profile"
+    top, deep, alone = base / "stray.lnk", base / "validator" / "deep.lnk", base / "only" / "alone.lnk"
+    alone.parent.mkdir()
+    for p in (top, deep, alone):
+        p.write_bytes(b"secret" + bytes([10]))
+    tell_links(monkeypatch, gen, top, deep, alone)
+    read = []
+    real = Path.read_bytes
+    monkeypatch.setattr(Path, "read_bytes", lambda self: (read.append(self.name), real(self))[1])
+    walked = {Path(d).relative_to(base).as_posix(): (files, links) for d, _, files, links in gen.walk(base)}
+    assert "stray.lnk" in walked["."][1] and "stray.lnk" not in walked["."][0]
+    assert walked["validator"][1] == ["deep.lnk"] and "deep.lnk" not in walked["validator"][0]
+    assert walked["only"] == ([], ["alone.lnk"])
+    found = gen.on_disk(root)
+    assert found["stray.lnk"] == found["validator/deep.lnk"] == found["only/alone.lnk"] == b""
+    assert "stray.lnk" not in read and "deep.lnk" not in read and "alone.lnk" not in read          # never read
+    assert gen.empty_dirs(root) == []                                # only/ holds a link, which is something
+    assert gen.main(["--check"], root=root) == 1
+    err = capsys.readouterr().err
+    for rel in ("stray.lnk", "validator/deep.lnk", "only/alone.lnk"):
+        assert f"profile/{rel} is a link, which no definition renders; run --write removes the link, and nothing behind it" in err, rel
+    assert "holds no file" not in err
+    assert gen.main(["--write"], root=root) == 0
+    said = capsys.readouterr().out.splitlines()
+    assert {"removed stray.lnk", "removed validator/deep.lnk", "removed only/alone.lnk"} <= set(said)
+    assert not top.exists() and not deep.exists() and not (base / "only").exists()               # and only/ went with its link
+    monkeypatch.undo()
+    assert gen.main(["--check"], root=root) == 0
+
+
+def test_a_removal_that_fails_fails_the_run_before_any_file_is_written_and_the_line_names_the_removals_it_had_finished(
+        tmp_path, capsys, monkeypatch):
+    """The fifth verifier's C3 and its gap (V21): --write removes before it writes, so a file it cannot remove fails it, exit 3,
+    before any file is written, and the line names what it had finished, the removals among it. A stray it can remove goes first
+    (its name is the user's, so it comes as its escape in the line); the next cannot be removed; a file that was to be written is
+    still not there."""
+    root = profile_copy(tmp_path)
+    profile = root / "profile"
+    first, second = "a" + chr(0xE9) + ".txt", "z.txt"
+    (profile / "README.md").unlink()                                 # a file --write has to write
+    (profile / first).write_bytes(b"x")
+    (profile / second).write_bytes(b"x")
+    before = {p.relative_to(profile).as_posix() for p in profile.rglob("*")}
+    real = Path.unlink
+
+    def refusing(self, *args, **kwargs):
+        if self.name == second:
+            raise PermissionError(13, "Access is denied", str(self))
+        return real(self, *args, **kwargs)
+    monkeypatch.setattr(Path, "unlink", refusing)
+    assert gen.main(["--write"], root=root) == 3
+    said = capsys.readouterr()
+    assert said.out.splitlines() == ["removed a" + chr(92) + "xe9.txt"]                           # and nothing was written
+    assert said.err.count("\n") == 1 and said.err.isascii() and "PermissionError" in said.err
+    assert said.err.startswith("FAILED: the generator itself failed, PermissionError: ")
+    assert said.err.endswith("; it had finished writing removed a" + chr(92) + "xe9.txt\n")        # the removal is among what it finished
+    monkeypatch.undo()
+    assert {p.relative_to(profile).as_posix() for p in profile.rglob("*")} == before - {first}      # the one removal, and nothing else
+    assert not (profile / "README.md").exists() and (profile / second).exists()                    # the file to write is still not there
+
+
+def test_as_a_process_a_removal_line_is_flushed_before_the_line_of_the_failure_that_comes_after_it(tmp_path):
+    """The fifth verifier's V20: each 'removed' line is written with flush, so that a failure after it does not leave it in the
+    buffer of a stdout that is a pipe, behind the failure's own line. Held with both streams in one pipe, a stray removed and the
+    next refused: the removal is the first line and the failure the second."""
+    root = tree(tmp_path / "t")
+    (root / "profile" / "a.txt").write_bytes(b"x")
+    (root / "profile" / "z.txt").write_bytes(b"x")
+    prelude = ("from pathlib import Path\n"
+               "real = Path.unlink\n"
+               "def unlink(self, *a, **k):\n"
+               "    if self.name == 'z.txt':\n"
+               "        raise PermissionError(13, 'Access is denied', str(self))\n"
+               "    return real(self, *a, **k)\n"
+               "Path.unlink = unlink")
+    done = run_patched(root, ["--write"], prelude, tmp_path, merge=True)
+    lines = done.stdout.splitlines()
+    assert done.returncode == 3 and len(lines) == 2, done.stdout[-400:]
+    assert lines[0] == "removed a.txt" and lines[1].startswith("FAILED: the generator itself failed, PermissionError: ")
+    assert lines[1].endswith("it had finished writing removed a.txt")
+
+
+def test_a_directory_that_cannot_be_removed_fails_the_run_before_any_file_is_written(tmp_path, capsys, monkeypatch):
+    """The same for a directory: the pass over the empty ones runs before the writes, so one that will not go (a directory some
+    process has open, as its working directory) fails --write, exit 3, with nothing written."""
+    root = profile_copy(tmp_path)
+    profile = root / "profile"
+    (profile / "README.md").unlink()
+    (profile / "stale").mkdir()
+    real = Path.rmdir
+
+    def refusing(self):
+        if self.name == "stale":
+            raise PermissionError(32, "The process cannot access the file because it is being used by another process", str(self))
+        return real(self)
+    monkeypatch.setattr(Path, "rmdir", refusing)
+    assert gen.main(["--write"], root=root) == 3
+    said = capsys.readouterr()
+    assert said.out == "" and said.err.endswith("; it had finished writing no file\n") and "PermissionError" in said.err
+    monkeypatch.undo()
+    assert (profile / "stale").is_dir() and not (profile / "README.md").exists()
+
+
+def test_a_directory_that_is_the_working_directory_is_not_removed_where_the_host_will_not_and_nothing_is_written(
+        tmp_path, capsys, monkeypatch):
+    """The fifth verifier's gap (C3, MEASURED: an empty stray that is a shell's working directory, WinError 32): the tool run
+    with its working directory inside a directory it must remove. On Windows the host will not remove it, and --write fails, exit
+    3, before it writes; where the host will (POSIX), the directory goes and the run succeeds. No skip: both are asserted."""
+    root = profile_copy(tmp_path)
+    profile = root / "profile"
+    (profile / "README.md").unlink()
+    stale = profile / "stale"
+    stale.mkdir()
+    monkeypatch.chdir(stale)
+    try:
+        code = gen.main(["--write"], root=root)
+        said = capsys.readouterr()
+    finally:
+        monkeypatch.chdir(tmp_path)                                  # out of it, before anything else is asked
+    if os.name == "nt":
+        assert code == 3 and "PermissionError" in said.err and said.err.endswith("; it had finished writing no file\n"), said.err
+        assert stale.is_dir() and not (profile / "README.md").exists() and said.out == ""
+    else:
+        assert code == 0 and not stale.exists() and (profile / "README.md").is_file()
+
+
+def test_a_strays_name_is_always_its_escape_in_both_modes_even_where_the_console_could_write_it(tmp_path, capsys):
+    """The fifth verifier's C6: the 'removed' line and the stray's line printed the name as it is, where every other path the tool
+    prints goes through escape. A name the console can write but escape changes (an e with an acute accent, here) is written as
+    its escape on every line of both modes: the stray file's, an empty directory's, and the line of what --write removed."""
+    name, escaped = "caf" + chr(0xE9) + ".txt", "caf" + chr(92) + "xe9.txt"
+    root = profile_copy(tmp_path)
+    (root / "profile" / name).write_bytes(b"x")
+    (root / "profile" / ("d" + chr(0xE9))).mkdir()
+    assert gen.main(["--check"], root=root) == 1
+    err = capsys.readouterr().err
+    assert err.isascii() and chr(0xE9) not in err
+    assert f"profile/{escaped} is rendered by no definition; run --write" in err
+    assert "profile" "/d" + chr(92) + "xe9/ is a directory that holds no file; run --write" in err       # split: check_docs reads paths
+    assert gen.main(["--write"], root=root) == 0
+    out = capsys.readouterr().out
+    assert out.isascii() and f"removed {escaped}" in out.splitlines() and not (root / "profile" / name).exists()
+    assert gen.main(["--check"], root=root) == 0
+
+
+def test_a_file_the_tool_cannot_read_is_the_tool_failing_exit_3_where_an_unreadable_context_is_a_tree_refused_exit_1(
+        tmp_path, capsys, monkeypatch):
+    """The fifth verifier's C2, kept as it is and stated (the exit-1 list names P0's context missing or unreadable): P0's context is
+    made by tools/gen_vocabulary.py, so a tree where it cannot be read is refused, exit 1, in a sentence that says what to run; a
+    rendered file, a stray or the fixture's that cannot be read is the tool failing, exit 3, with one escaped line and no verdict."""
+    root = profile_copy(tmp_path)
+    real = Path.read_bytes
+
+    def refusing(name):
+        def read(self):
+            if self.name == name:
+                raise PermissionError(13, "Access is denied", str(self))
+            return real(self)
+        return read
+    for name, code in (("context.jsonld", 1), ("README.md", 3), ("raw.counts.json", 3)):
+        monkeypatch.setattr(Path, "read_bytes", refusing(name))
+        (root / "profile" / "stray.txt").write_bytes(b"x")
+        assert gen.main(["--check"], root=root) == code, name
+        err = capsys.readouterr().err
+        if code == 1:
+            assert err == "profile/context.jsonld cannot be read (PermissionError): tools/gen_vocabulary.py --write writes it\n"
+        else:
+            assert err.startswith("FAILED: the generator itself failed, PermissionError: ") and err.endswith("this is not a verdict\n")
+        monkeypatch.undo()
+    (root / "profile" / "stray.txt").write_bytes(b"x")
+    monkeypatch.setattr(Path, "read_bytes", refusing("stray.txt"))
+    assert gen.main(["--check"], root=root) == 3 and "PermissionError" in capsys.readouterr().err
 
 
 def test_a_directory_that_holds_no_file_is_drift_however_deep_and_write_removes_it(tmp_path, capsys):

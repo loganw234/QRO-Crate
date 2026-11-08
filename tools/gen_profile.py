@@ -24,49 +24,70 @@ renders, a link, and a directory that holds no file, P0's context aside.
 
 Links. A link is a symbolic link or a directory junction, by the checker's own test (checker._is_link, FORMAT.md item 12): one
 test, asked of every entry of every walk of this tool, on a host where os.walk(followlinks=False) still descends a junction.
-A link is never descended, never read through, never written through and never removed through, and that holds for profile/
-itself: a link there is refused in both modes, by a named problem and exit 1, before anything under it is read, walked, written
-or removed. A link under profile/ is listed by --check, by its path, and --write removes the link itself and nothing behind it, as
-it removes a stray file: profile/ is a crate, a crate holds files and never a way out of itself, and a refusal to write would
-leave the tree stale until someone removed the link by hand, with nothing gained, since nothing behind a link is touched in
-either choice. P0's context.jsonld is read through no link and removed by no one: a link or a directory there is refused,
-by a named problem, as a missing file is.
+A link is never descended, never read through, never written through and never removed through: nothing below it is listed, opened or
+asked of the host, in either mode, and that holds for profile/ itself, where a link is refused in both modes, by a named problem and
+exit 1, before anything under it is read, walked, written or removed. A rendered path below a link is told missing by --check,
+whatever the link leads to, for the host is not asked what is there: it is asked whether a directory stands at a rendered path
+that is not on disk only when no link stands on the way to it, each directory above it asked from the top and the asking stopped
+at the first link (before, it asked is_dir() of each path, a stat through the link, P4's fifth verifier, C1). A directory spelt in
+another case at a rendered file's place is told the directory it is, as the host says on a host that ignores case, as before
+(P4.2's first verifier, note 1). A link under profile/ is listed by --check, by its path, and --write removes the link itself and
+nothing behind it, as it removes a stray file: profile/ is a crate, a crate holds files and never a way out of itself, and a refusal
+to write would leave the tree stale until someone removed the link by hand, with nothing gained, since nothing behind a link is
+touched in either choice. P0's context.jsonld is read through no link and removed by no one: a link or a directory there is
+refused, by a named problem, as a missing file is.
 
 What --write does with the rest of the tree, so that --check never advises what --write cannot do:
   - It writes each file beside its place and replaces it (os.replace), never through the place itself, so that another name of
     the old file, a hard link, keeps its bytes.
   - A name that differs only by case from a rendered name, or from P0's context.jsonld, is never removed or renamed: both modes
-    refuse it by a named problem (exit 1), and --write removes and writes nothing while one is there.
+    refuse it by a named problem (exit 1), and --write removes and writes nothing while one is there. So in such a tree --check
+    advises the hand fix first, wherever it would have said "run --write": it says "once the case clash is resolved by hand, run
+    --write" (P4's fifth verifier, C4).
   - It removes the strays first, then every directory that holds no file, and only then writes: a directory where a file goes is
-    cleared once what it held is gone.
+    cleared once what it held is gone. So a removal that fails (a file held open, a directory that is some process's working
+    directory) fails the run, exit 3, before any file is written, and the line names the removals it had finished (C3).
   - A directory the host cannot list is raised, never passed over (the checker's walk does the same): the tool fails, exit 3, and
     names the directory.
 Stated limits. A file with the read-only attribute is neither removed nor replaced on Windows: --write fails on it, exit 3, and
 names the files it had finished writing (where the directory, not the file, decides, it is replaced). An entry that is no
-regular file, directory or link (a pipe or a device, on a host that has them) is read as a file would be. A junction whose
-target is gone is a link only on a host that can open it, and the owner's machine cannot (found so on 2026-10-30, Windows 11,
-Python 3.12: os.lstat of it raises FileNotFoundError, or NotADirectoryError where its target has become a file, so the checker's
-test of a link finds none there, and removing the junction, tried by os.rmdir, os.unlink, shutil.rmtree, cmd's rmdir and a rename,
-fails until its target is made again). With profile/ itself one, or with one at P0's context.jsonld, both modes refuse the tree,
-exit 1, as one whose context is missing, for it is read and not listed; with any other below profile/, both fail, exit 3, naming a
-directory the host cannot list; neither writes or removes anything. The tests make no such junction: they tell the tool that a link
-stands at the path, as a host that opens one would answer. Where its stdout's reader is gone, Python itself ends the tool, exit
-120, as gen_vocabulary.py's.
-Exit 0: every file is exactly what its definitions render, and the Profile Crate holds the rules its check lists. 1: drift,
-a file missing or unexpected, a link, a name that differs only by case, a directory that holds no file or stands where a file
-goes, a Profile Crate that fails its check, or a profile/ that is a link, each with a diff or a reason. 2: the definitions
-contradict themselves (the vocabulary's sanity check, a spelling with no shape constraint, a shape the model calls incoherent),
-or the arguments are wrong. 3: the generator itself failed, with one line on stderr, escaped as the command line escapes its
-own, which after --write names the files it had finished writing; this is never a verdict. No crash of the tool is exit 1,
-the drift verdict's code and Python's for an uncaught exception: one in the arguments, in a module the tool imports or in the
-tool is 3, and a failure to say a failure is no crash either. A name the output's code page cannot write is written as its
-escape on the lines of every mode, never a crash; where a stream is closed the exit code still carries the verdict.
+regular file, directory or link (a pipe or a device, on a host that has them) is read as a file would be. Two spellings of a name
+are compared by Python's casefold, not by the host's own table, and that fails two ways: a name the host calls the same and
+casefold does not is no clash (it is a stray, and --write removes it); a name casefold equates and the host keeps apart (a long s,
+U+017F, where the rendered name has an s, beside it on NTFS) is refused as a clash, in both modes, until one of the two is removed
+by hand.
+A junction whose target is gone is a link only on a host that can open it, and the owner's machine cannot (found so on 2026-10-30,
+Windows 11, Python 3.12, and again on 2026-10-31: os.lstat of it raises FileNotFoundError, or NotADirectoryError where its target
+has become a file, so the checker's test of a link finds none there, and removing the junction, tried by os.rmdir, os.unlink,
+shutil.rmtree, cmd's rmdir and a rename, fails until its target is made again). With profile/ itself one, both modes refuse the
+tree, exit 1, as one whose context is missing, for the context is read and not listed; or with one at P0's context.jsonld, both
+modes refuse it, exit 1, as a context that is missing where the target is gone, and as one that cannot be read (OSError, errno 22,
+from open) where the target has become a file; with any other below profile/, both fail, exit 3, naming a directory the host cannot
+list (FileNotFoundError, or NotADirectoryError where the target has become a file); neither writes or removes anything. The tests
+make no such junction: one can be taken away again only by making its target again (CLAUDE.md item 10), and a test that failed
+first would strand it. They hold the tool's answer to what the host says, and not the host: what the owner's machine says is the
+lead's measurement of 2026-10-30 and the verifiers' and builders' of 2026-10-31, and they tell the tool so. For a junction that a
+host opens, the stand-in is an entry that is not there at all, shown only by its parent's listing, and the tool is told that a link
+stands at its path. Where its stdout's reader is gone, Python itself ends the tool, exit 120, as gen_vocabulary.py's.
+Exit 0: every file is exactly what its definitions render, and the Profile Crate holds the rules its check lists. 1: drift, a file
+missing or unexpected, a link, a name that differs only by case, a directory that holds no file or stands where a file goes, a
+Profile Crate that fails its check, a profile/ that is a link, or P0's profile/context.jsonld missing or unreadable (a tree the
+tool refuses, since tools/gen_vocabulary.py makes that file), each with a diff or a reason. 2: the definitions contradict
+themselves (the vocabulary's sanity check, a spelling with no shape constraint, a shape the model calls incoherent), or the
+arguments are wrong. 3: the generator itself failed, with one line on stderr, escaped as the command line escapes its own, which
+after --write names the files it had finished writing; this is never a verdict. Any other file it cannot read (a rendered file, a
+stray, the fixture's) is this exit too: the tool failing, where an unreadable context is a tree refused. No crash of the tool is
+exit 1, the drift verdict's code and Python's for an uncaught exception: one in the arguments, in a module the tool imports or in
+the tool is 3, and a failure to say a failure is no crash either. A name is written as its escape, in printable ASCII, on every line
+of every mode, whatever the output's code page, never a crash (the lines of a drifted file's diff are the file's own); where a
+stream is closed the exit code still carries the verdict.
 Stdlib only.
 """
 import argparse
 import difflib
 import os
 import sys
+import textwrap
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -93,8 +114,31 @@ except BaseException as _x:         # the tool could not start: exit 3, never Py
 DIFF_LINES = 40         # a diff longer than this is cut: the file is regenerated whole, so the first lines say enough
 TEMP = ".tmp"           # a file is written to its name and this, then replaces its place: no rendered path ends so
 FIX = "  Fix by changing the definition and running --write; editing the file is never the fix.\n"
+# --write refuses a tree with a name that differs only by case from a rendered one, and removes and writes nothing there, so in such
+# a tree --check names the hand fix first, wherever it would have said "run --write" (P4's fifth verifier, C4):
+ONCE = "once the case clash is resolved by hand, "
+CLASH_FIX = ("  Fix by changing the definition and running --write, once the case clash is resolved by hand; editing the file is "
+             "never the fix.\n")
 LINKED = ("profile/ is a link, and a link is never followed (FORMAT.md item 12): nothing under it is read, walked, written or "
           "removed, in either mode. Remove the link by hand and restore the directory.")
+# What --help says. Constants of the module and not the docstring, which python -OO strips (P4's fourth verifier): a test holds the
+# exit-1 sentence equal to the docstring's and the page's.
+DESCRIPTION = "Generate the profile directory's files from the vocabulary table, and refuse drift."
+HELP_WRITE = ("regenerate every file under profile/ that the definitions render, and remove what they do not: a stray file, a link "
+              "and a directory that holds no file (P0's context.jsonld aside)")
+HELP_CHECK = ("fail if a file under profile/ is not exactly what the definitions render, or if the Profile Crate does not hold the "
+              "rules its check lists; change nothing")
+EXIT_ONE = ("drift, a file missing or unexpected, a link, a name that differs only by case, a directory that holds no file or "
+            "stands where a file goes, a Profile Crate that fails its check, a profile/ that is a link, or P0's "
+            "profile/context.jsonld missing or unreadable (a tree the tool refuses, since tools/gen_vocabulary.py makes that file)")
+EXITS = "exit codes:\n" + "\n".join(
+    textwrap.fill(f"{code}  {text}", width=100, initial_indent="  ", subsequent_indent="     ", break_on_hyphens=False,
+                  break_long_words=False)
+    for code, text in (("0", "every file is exactly what the definitions render, and the Profile Crate holds the rules its check lists"),
+                       ("1", EXIT_ONE),
+                       ("2", "the definitions contradict themselves, or the arguments are wrong"),
+                       ("3", "the generator itself failed, in one escaped line on stderr (never a verdict): a removal or a write that "
+                             "fails, or a file it cannot read other than P0's context (a rendered file, a stray, the fixture's)"))) + "\n"
 is_link = checker._is_link      # the checker's own test: a symbolic link or a directory junction, which Path.is_symlink misses
 
 
@@ -155,6 +199,19 @@ def on_disk(root):
         for name in links:
             found[Path(dirpath, name).relative_to(base).as_posix()] = b""
     return found
+
+
+def behind_a_link(root, rel):
+    """Whether a link stands on the way to the rendered path `rel`, at one of the directories above it that the host passes through,
+    however the host spells them. They are asked from the top, each by the checker's own test (is_link), and the asking stops at the
+    first link, so that no path below a link is asked of the host (P4's fifth verifier, C1: `is_dir()` of each rendered path, which
+    is a stat through a link that stands above it). A link at `rel` itself is another case: it is an entry of on_disk()'s."""
+    here = root / "profile"
+    for part in rel.split("/")[:-1]:
+        here = here / part
+        if is_link(here):
+            return True
+    return False
 
 
 def empty_dirs(root):
@@ -240,20 +297,26 @@ def clash_problems(clashes):
 
 def drift(root, rendered, have=None, clashes=None):
     """[(path, what is wrong)] for each file under profile/ that is not exactly what the definitions render, and each
-    directory that holds no file. A name that differs only by case is a case_clashes() problem, and is not said again here."""
+    directory that holds no file. A name that differs only by case is a case_clashes() problem, and is not said again here.
+
+    A rendered path that is not on disk is a directory if the host says one stands there (as it does for a directory spelt in another
+    case, on a host that ignores case), else missing; but not when a link stands on the way to it (behind_a_link): so a rendered
+    path below a link is told missing, whatever the link leads to, and the host is asked nothing below one. Where there is a case
+    clash --write refuses the whole tree, so no advice to run it is given without the hand fix first (ONCE)."""
     out = []
     have = on_disk(root) if have is None else have
     clashes = case_clashes(rendered, have) if clashes is None else clashes
+    once = ONCE if clashes else ""
     for rel, want in sorted(rendered.items()):
         if rel in clashes.values():
             continue
         if rel not in have:
-            if (root / "profile" / rel).is_dir():
-                out.append((rel, "is a directory, not the file its definition renders; run --write removes it"))
+            if not behind_a_link(root, rel) and (root / "profile" / rel).is_dir():
+                out.append((rel, f"is a directory, not the file its definition renders; {once}run --write removes it"))
             else:
-                out.append((rel, "missing; run --write"))
+                out.append((rel, f"missing; {once}run --write"))
         elif is_link(root / "profile" / rel):
-            out.append((rel, "is a link, not the file its definition renders; run --write removes the link and writes the file"))
+            out.append((rel, f"is a link, not the file its definition renders; {once}run --write removes the link and writes the file"))
         elif have[rel] != want:
             lines = list(difflib.unified_diff(have[rel].decode("ascii", errors="replace").splitlines(True),
                                               want.decode("ascii", errors="replace").splitlines(True),
@@ -264,11 +327,11 @@ def drift(root, rendered, have=None, clashes=None):
             out.append((rel, "DRIFTED from its definition:\n" + "".join(cut)))
     for rel in sorted(set(have) - set(rendered) - {P.CONTEXT} - set(clashes)):
         if is_link(root / "profile" / rel):
-            out.append((rel, "is a link, which no definition renders; run --write removes the link, and nothing behind it"))
+            out.append((rel, f"is a link, which no definition renders; {once}run --write removes the link, and nothing behind it"))
         else:
-            out.append((rel, "is rendered by no definition; run --write"))
+            out.append((rel, f"is rendered by no definition; {once}run --write"))
     for rel in empty_dirs(root):
-        out.append((rel + "/", "is a directory that holds no file; run --write"))
+        out.append((rel + "/", f"is a directory that holds no file; {once}run --write"))
     return out
 
 
@@ -288,13 +351,19 @@ def failed(x, writing, written):
     return 3
 
 
+def build_parser():
+    """The command line: one of --write and --check, with what --help says of each and of the exits (constants above, not the
+    docstring, which python -OO strips)."""
+    ap = argparse.ArgumentParser(description=DESCRIPTION, epilog=EXITS, formatter_class=argparse.RawDescriptionHelpFormatter)
+    g = ap.add_mutually_exclusive_group(required=True)
+    g.add_argument("--write", action="store_true", help=HELP_WRITE)
+    g.add_argument("--check", action="store_true", help=HELP_CHECK)
+    return ap
+
+
 def main(argv=None, root=ROOT):
     try:
-        ap = argparse.ArgumentParser(description=__doc__.splitlines()[0] if __doc__ else None)   # python -OO strips the docstring
-        g = ap.add_mutually_exclusive_group(required=True)
-        g.add_argument("--write", action="store_true")
-        g.add_argument("--check", action="store_true")
-        args = ap.parse_args(argv)
+        args = build_parser().parse_args(argv)
     except SystemExit:
         raise                       # argparse's own, and nothing else's: 2 for the arguments, 0 for --help
     except BaseException as x:      # a crash before the work: exit 3, not the exit 1 of an uncaught exception
@@ -336,12 +405,12 @@ def _run(args, root, written):
         for rel in sorted(r for r in have if r != P.CONTEXT and (r not in rendered or is_link(base / r))):
             (remove_link if is_link(base / rel) else Path.unlink)(base / rel)       # a link at a path to write goes too: no write through it
             written.append(f"removed {rel}")
-            print(f"removed {rel}", flush=True)
+            print(f"removed {escape(rel)}", flush=True)     # a stray's name is the user's: always its escape (P4's fifth verifier, C6)
         remove_empty_dirs(base)                     # before the writes: a directory where a file goes holds only what was removed
         for rel, data in sorted(rendered.items()):
             replace_file(base / rel, data)
             written.append(rel)
-            print(f"wrote {rel}", flush=True)
+            print(f"wrote {escape(rel)}", flush=True)
         return 0
     have = on_disk(root)
     clashes = case_clashes(rendered, have)
@@ -350,8 +419,8 @@ def _run(args, root, written):
         sys.stderr.write(f"profile/{escape(path)} {what}\n")
     bad = drift(root, rendered, have, clashes)
     for rel, what in bad:
-        sys.stderr.write(f"profile/{rel} {what}")
-        sys.stderr.write(FIX)
+        sys.stderr.write(f"profile/{escape(rel)} {what}")
+        sys.stderr.write(CLASH_FIX if clashes else FIX)
     missing_crate = canonical.DESCRIPTOR not in have
     problems_found = [] if missing_crate else crate_problems(root, have)
     for p in problems_found:
@@ -359,7 +428,7 @@ def _run(args, root, written):
     named = {b for b, _ in bad} | set(clashes.values())
     for rel in rendered:
         if rel not in named:
-            print(f"profile/{rel} is exactly what its definition renders")
+            print(f"profile/{escape(rel)} is exactly what its definition renders")
     return 1 if stuck or bad or problems_found else 0
 
 

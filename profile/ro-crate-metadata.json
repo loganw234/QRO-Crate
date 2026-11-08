@@ -170,11 +170,11 @@
       "about": {
         "@id": "https://github.com/loganw234/QRO-Crate/blob/main/profile/README.md"
       },
-      "contentSize": "60705",
+      "contentSize": "62477",
       "description": "The profile description: what the profile is, how a crate declares it, what the shapes hold and cannot see.",
       "encodingFormat": "text/markdown",
       "name": "README.md",
-      "sha256": "3e615098a2cf8bd677cfcbcfd3a78f58eecc6efdcfadd11626a9f12e1ff0b583"
+      "sha256": "33a72120162d67d7c56210210880e6664a9e89b3661172f4e7dae9a12e666f78"
     },
     {
       "@id": "context.jsonld",
@@ -877,29 +877,29 @@
     {
       "@id": "validator/qro-crate/must/1_structure.ttl",
       "@type": "File",
-      "contentSize": "15563",
+      "contentSize": "15615",
       "description": "Must-level shapes: the graph's structure.",
       "encodingFormat": "text/turtle",
       "name": "validator/qro-crate/must/1_structure.ttl",
-      "sha256": "d2e2ce9c7fa2de18e1c0ee948b79fe7314056745be6cbfe4ac54f07997357c76"
+      "sha256": "3adfb598bbf50eb4e8e0daeae005ff15c9ef69f553bfd2034f5c4d958f4d4553"
     },
     {
       "@id": "validator/qro-crate/must/2_terms.ttl",
       "@type": "File",
-      "contentSize": "53549",
+      "contentSize": "53601",
       "description": "Must-level shapes: a shape for each term's one spelling.",
       "encodingFormat": "text/turtle",
       "name": "validator/qro-crate/must/2_terms.ttl",
-      "sha256": "b640590ef3b05ebc56feda159acaf8c84303dbebab774b405f605691b4dc8c9d"
+      "sha256": "56975f84c074e245de9ddf9e97aad35754133a23d8c6ddaa7076c5beaa4a1c6e"
     },
     {
       "@id": "validator/qro-crate/must/3_domains.ttl",
       "@type": "File",
-      "contentSize": "26551",
+      "contentSize": "26603",
       "description": "Must-level shapes: a shape for each term's domain.",
       "encodingFormat": "text/turtle",
       "name": "validator/qro-crate/must/3_domains.ttl",
-      "sha256": "aee0eac34a8d16eb5a941f62f6a85839728a75c6e7555099000492d6b89d661b"
+      "sha256": "1491aa9baae41507169dcb6a0bdd49767ad1f074c891e56cbba60588bfa3258d"
     },
     {
       "@id": "validator/qro-crate/profile.ttl",
@@ -913,11 +913,11 @@
     {
       "@id": "validator/qro-crate/should/1_absence.ttl",
       "@type": "File",
-      "contentSize": "5804",
+      "contentSize": "5856",
       "description": "Should-level shapes: rule 2, absence written as a word.",
       "encodingFormat": "text/turtle",
       "name": "validator/qro-crate/should/1_absence.ttl",
-      "sha256": "27622bd28e1ce8fd663077a14f449cbbec04d1751263fd1172f174bab9cab45e"
+      "sha256": "2fa1fb67263d759b07487c94541e7d88d04c4c61b9369cbab9f37a5f7714e9ab"
     }
   ]
 }

@@ -6,7 +6,8 @@
 # one fault from an accepted one is refused by a name a failing shape claims (README, limit 1).
 # A report's sh:conforms is false for a Warning too; filter by sh:resultSeverity.
 # Run an engine WITHOUT inference (pyshacl: inference=none, its default). With rdfs, owlrl or both it fails the
-# accepted fixture crate on descriptor, entity and profile-entities, with 94, 112 and 527 results (README, limit 2).
+# accepted fixture crate on descriptor, entity and profile-entities, three of the nine shapes of
+# must/1_structure.ttl, with 94, 112 and 527 results (README, limit 2).
 @prefix sh: <http://www.w3.org/ns/shacl#> .
 @prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
 @prefix xsd: <http://www.w3.org/2001/XMLSchema#> .

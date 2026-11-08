@@ -2,10 +2,16 @@
 micro case of p4_cases.py (one per constraint component and outcome) with the failing focus nodes written beside it;
 the graph's indexes; the report's shape; and the two bugs the evaluator's prototype had, as plants. The same cases are
 held to a real engine in the stage tests/p4shacl/, which is where a reading of mine that is wrong shows."""
+import json
+import sys
+
 import pytest
 from p4_cases import BLANK, CASES, EX, MAX, P, Q, T1, A, B, C, Z
+from p4_helpers import ROOT
 from qro import p4_eval as V
+from qro import reader
 from qro.p4_model import RDF_TYPE, XSD, XSD_DOUBLE, XSD_INTEGER, XSD_STRING, BNode, Lit, Shape, inv, one_or_more
+from qro.refusal import Refused
 
 
 @pytest.mark.parametrize("c", CASES, ids=[c.name for c in CASES])
@@ -153,3 +159,77 @@ def test_a_blank_node_value_violates_a_pattern_a_length_and_a_bound_alike():
 def test_a_class_is_met_by_the_rdf_type_triples_alone():
     s = Shape(id="urn:s", targets=(("subjectsOf", P),), props=(Shape(path=P, classes=(T1,)),))
     assert V.validate([s], [(A, P, B), (B, EX + "subClassTypeOf", T1)]) and not V.validate([s], [(A, P, B), (B, RDF_TYPE, T1)])
+
+
+# -- an integer literal of more than 4,300 digits: the evaluator's stated limit (P4's fifth verifier, C5; README limit 24) -------------
+@pytest.fixture
+def digit_limit():
+    """The interpreter's own limit on converting an integer and its text, 4,300 digits by default, put back as it was after the test:
+    a host that lifts it (PYTHONINTMAXSTRDIGITS=0) is not the host this limit is stated for."""
+    before = sys.get_int_max_str_digits()
+    sys.set_int_max_str_digits(4300)
+    yield 4300
+    sys.set_int_max_str_digits(before)
+
+
+def test_the_evaluator_raises_on_an_integer_literal_of_more_than_4300_digits_and_gives_no_verdict(digit_limit):
+    """The fifth verifier's C5, stated as the evaluator's limit: an integer literal of more than 4,300 digits is well formed by the
+    pattern, and the evaluator reads its value with int(), which refuses it, so a bound over it raises ValueError and the evaluator
+    gives no verdict (pyshacl calls such a literal ill-typed). One at the limit converts, and fails a bound as any large integer
+    does. No crate reaches either (the test below)."""
+    shape = Shape(id="urn:s", targets=(("subjectsOf", P),), props=(Shape(path=P, datatype=XSD_INTEGER, min_inclusive=0, max_inclusive=MAX),))
+    over, at = Lit("1" * (digit_limit + 1), XSD_INTEGER), Lit("1" * digit_limit, XSD_INTEGER)
+    assert V.well_formed(over) and V.well_formed(at)
+    with pytest.raises(ValueError, match="4300 digits"):
+        V.number(over)
+    with pytest.raises(ValueError, match="4300 digits"):
+        V.validate([shape], [(A, P, over)])
+    assert V.number(at) == int("1" * digit_limit) and V.validate([shape], [(A, P, at)])           # a violation of the bound, not a raise
+
+
+# A leaf of the fixture's metadata (its path in the parsed form) and the refusal a number of 20 to 4,300 digits there is given: P4.2's
+# first verifier put such a number at each of the 42 leaves of the fixture's @graph and found `spelling` at 34 and `graph-form` at 8.
+FIXTURE_LEAVES = {"qro:shots": (("@graph", 3, "qro:shots"), "spelling"),            # a term that takes an integer
+                  "name": (("@graph", 1, "name"), "spelling"),                      # a term that takes a string
+                  "about": (("@graph", 0, "about", "@id"), "graph-form"),           # the descriptor's reference to what it is about
+                  "version": (("@graph", 4, "version"), "graph-form")}              # the version of a Profile entity
+
+
+def replaced(node, path, value):
+    """`node` with the leaf at `path` replaced by `value`."""
+    if not path:
+        return value
+    if isinstance(node, dict):
+        return {k: (replaced(v, path[1:], value) if k == path[0] else v) for k, v in node.items()}
+    return [replaced(v, path[1:], value) if i == path[0] else v for i, v in enumerate(node)]
+
+
+def canonical_bytes(md):
+    return (json.dumps(md, ensure_ascii=True, sort_keys=True, indent=2, separators=(",", ": "), allow_nan=False) + "\n").encode("ascii")
+
+
+@pytest.mark.parametrize("term", sorted(FIXTURE_LEAVES))
+@pytest.mark.parametrize("digits", [20, 4300, 4301, 5000])
+def test_no_crate_reaches_it_the_reader_refuses_a_number_of_more_than_4300_digits_wherever_it_stands_and_a_shorter_one_by_the_term(
+        digit_limit, digits, term):
+    """The refusal that keeps every crate from the limit above, as P4.2's first verifier measured it (D2): the reader parses a
+    crate's metadata with json.loads, which refuses a number of more than 4,300 digits, `spelling` ('not readable') wherever the
+    number stands; and a number of 20 to 4,300 digits is past 2^63 - 1 and refused at step 1 too, before anything is expanded, by
+    the name the term it stands at decides: `spelling` at a term that takes an integer or a string, `graph-form` at the descriptor's
+    reference and a Profile entity's version. The metadata is the fixture's, with one value replaced."""
+    path, refusal = FIXTURE_LEAVES[term]
+    data = (ROOT / "profile" / "examples" / "fixture" / "ro-crate-metadata.json").read_bytes()
+    md = json.loads(data)
+    assert canonical_bytes(md) == data                               # the fixture's bytes are the canonical ones
+    reader.read(data)                                                # and its own metadata is read
+    sys.set_int_max_str_digits(0)                                    # to write the number; the limit is put back to read it
+    try:
+        crate = canonical_bytes(replaced(md, path, int("1" * digits)))
+    finally:
+        sys.set_int_max_str_digits(digit_limit)
+    with pytest.raises(Refused) as refused:
+        reader.read(crate)
+    if digits > digit_limit:
+        assert refused.value.name == "spelling" and "not readable" in refused.value.detail, refused.value
+    else:
+        assert refused.value.name == refusal and "not readable" not in refused.value.detail, refused.value

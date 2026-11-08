@@ -21,9 +21,11 @@ import os
 import random
 import re
 import shutil
+import stat
 import subprocess
 import sys
 import tempfile
+import types
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -558,12 +560,18 @@ def tree(dest, profile=True):
     return dest
 
 
-def load_tool():
-    """tools/gen_profile.py as a module of its own, loaded by its path."""
-    spec = importlib.util.spec_from_file_location("gen_profile_under_test", ROOT / "tools" / "gen_profile.py")
+def load_file(path, name):
+    """The Python file at `path` as a module of its own called `name`, executed afresh: what it binds as it is loaded is what the
+    standard library is at that moment (a spy that is in by then is bound, one that is not is not)."""
+    spec = importlib.util.spec_from_file_location(name, path)
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
     return module
+
+
+def load_tool():
+    """tools/gen_profile.py as a module of its own, loaded by its path."""
+    return load_file(ROOT / "tools" / "gen_profile.py", "gen_profile_under_test")
 
 
 def profile_copy(tmp_path):
@@ -606,47 +614,222 @@ def run_tool(args, cwd, tree_root, opts=(), env=None):
                           env=dict(os.environ, PYTHONDONTWRITEBYTECODE="1", **(env or {})))
 
 
-def run_patched(tree_root, args, prelude, cwd):
+def run_patched(tree_root, args, prelude, cwd, merge=False):
     """tools/gen_profile.py of `tree_root` as a process in whose interpreter `prelude` (Python source) has run first, as the tool's
     own `__main__`: what a test needs to make a host do what the host here will not (list no directory, give no stderr, a package
-    that raises as it is imported)."""
+    that raises as it is imported). With `merge`, stderr goes to the same pipe as stdout, so that the order of the lines shows."""
     code = ("import runpy, sys\n" + prelude + "\nsys.argv = [sys.argv[1], *" + repr(list(args)) + "]\n"
             "runpy.run_path(sys.argv[0], run_name='__main__')")
-    return subprocess.run([sys.executable, "-c", code, str(Path(tree_root) / "tools" / "gen_profile.py")], cwd=cwd,
-                          capture_output=True, text=True, env=dict(os.environ, PYTHONDONTWRITEBYTECODE="1"))
+    pipes = {"stdout": subprocess.PIPE, "stderr": subprocess.STDOUT} if merge else {"capture_output": True}
+    return subprocess.run([sys.executable, "-c", code, str(Path(tree_root) / "tools" / "gen_profile.py")], cwd=cwd, text=True,
+                          env=dict(os.environ, PYTHONDONTWRITEBYTECODE="1"), **pipes)
 
 
-def watch_reads(monkeypatch, base):
-    """A list that fills with (what, path) for each path under `base` (or `base` itself) that the code lists, walks or opens
-    from now on: the tree of a test whose profile/ is a link, where the tool may ask whether it is a link (an lstat, which
-    this does not see) and nothing else."""
-    seen, norm = [], os.path.normcase(str(base))
+# -- a spy on every call that could follow a link ------------------------------------------------------------------------------------
+OS_CALLS = ("stat", "lstat", "scandir", "listdir", "walk", "access", "readlink", "utime", "chmod", "chdir", "mkdir", "rmdir", "unlink",
+            "remove", "rename", "replace", "link", "symlink", "truncate", "open")
+OS_PATH_CALLS = ("exists", "lexists", "isdir", "isfile", "islink", "isjunction", "ismount", "isdevdrive", "getsize", "getmtime",
+                 "getatime", "getctime", "realpath", "samefile")
+# Every function Path defines itself, read from the class and not from a list: each asks the host something (the methods of the pure
+# class beneath it, which do not, are not here). Path.is_block_device and the rest of its kind are a stat, which is wrapped too.
+PATH_CALLS = tuple(sorted(n for n, v in vars(Path).items() if isinstance(v, types.FunctionType) and not n.startswith("_")))
+# What the tool may ask of a link itself: whether it is one (an lstat), and to remove it. Everything else it could ask of a link
+# follows it, and of a path below one reads through it.
+OF_THE_LINK = frozenset(("os.lstat", "os.unlink", "os.remove", "os.rmdir", "os.path.lexists", "os.path.islink", "os.path.isjunction",
+                         "Path.lstat", "Path.is_symlink", "Path.is_junction", "Path.unlink", "Path.rmdir"))
+# The keyword by which each wrapped call takes its path, or its two, so that spy_missed makes every call by keyword as well as by
+# position (the first verifier's D1: the spy read the positions alone, and a call given its path by keyword was not seen). A method of
+# Path has its path as self and a keyword only for a second path; the other methods of Path are not here.
+PATH_KEYWORDS = {
+    "os.stat": ("path",), "os.lstat": ("path",), "os.scandir": ("path",), "os.listdir": ("path",), "os.walk": ("top",),
+    "os.access": ("path",), "os.readlink": ("path",), "os.utime": ("path",), "os.chmod": ("path",), "os.chdir": ("path",),
+    "os.mkdir": ("path",), "os.rmdir": ("path",), "os.unlink": ("path",), "os.remove": ("path",), "os.rename": ("src", "dst"),
+    "os.replace": ("src", "dst"), "os.link": ("src", "dst"), "os.symlink": ("src", "dst"), "os.truncate": ("path",),
+    "os.open": ("path",), "os.path.exists": ("path",), "os.path.lexists": ("path",), "os.path.isdir": ("s",),
+    "os.path.isfile": ("path",), "os.path.islink": ("path",), "os.path.isjunction": ("path",), "os.path.ismount": ("path",),
+    "os.path.isdevdrive": ("path",), "os.path.getsize": ("filename",), "os.path.getmtime": ("filename",),
+    "os.path.getatime": ("filename",), "os.path.getctime": ("filename",), "os.path.realpath": ("path",),
+    "os.path.samefile": ("f1", "f2"), "open": ("file",), "io.open": ("file",),
+    "Path.rename": ("target",), "Path.replace": ("target",), "Path.samefile": ("other_path",), "Path.symlink_to": ("target",),
+    "Path.hardlink_to": ("target",),
+}
+OTHER_ARGS = {"os.access": {"mode": 0}, "os.chmod": {"mode": 0o600}, "os.truncate": {"length": 0}, "os.open": {"flags": 0}}
+# The calls that take a second path, which the spy must read as well as the first: spy_missed makes each with the first path apart from
+# the link and the second below it, by position and by keyword. (os.symlink, Path.symlink_to and Path.hardlink_to are not here: made
+# so, on a host that lets a test make a symbolic link, they would make one.)
+SECOND_PATH = ("os.rename", "os.replace", "os.link", "os.path.samefile", "Path.rename", "Path.replace", "Path.samefile")
 
-    def note(what, p):
-        if isinstance(p, (str, bytes, os.PathLike)):
-            s = os.path.normcase(os.fsdecode(p))
-            if s == norm or s.startswith(norm + os.sep):
-                seen.append((what, os.fsdecode(p)))
 
-    def spy(module, name):
-        real = getattr(module, name)
+def plain(p):
+    """A path as the spy compares it: absolute, normalised (case, separators, `.` and `..`), and with the extended-length prefix of
+    Windows taken off, which names the same path. Not an 8.3 short name, nor a way to the same directory through another link."""
+    s = os.fsdecode(p)
+    if s.startswith("\\\\?\\") and not s.startswith("\\\\?\\UNC\\"):
+        s = s[4:]
+    return os.path.normcase(os.path.abspath(s))
+
+
+class Watch:
+    """The calls a spy (watch_below) has seen: `calls` is a list of (the call, the path). It sees a call only while `active`. `wrapped`
+    is the set of calls it wraps and `where` says of each the (owner, name) it replaced; `tool` is the module watch_below loaded
+    after the spy, if it was asked to."""
+
+    def __init__(self, link):
+        self.link = plain(link)
+        self.calls, self.active, self.wrapped, self.where, self.tool = [], True, set(), {}, None
+
+    def note(self, what, p, follows=True):
+        if not self.active or not isinstance(p, (str, bytes, os.PathLike)):
+            return
+        s = plain(p)
+        if s.startswith(self.link + os.sep) or (s == self.link and follows):
+            self.calls.append((what, os.fsdecode(p)))
+
+
+def watch_below(monkeypatch, link, load=False):
+    """A spy on the link at `link`: a Watch whose `calls` fill, from now on, with the calls of os (OS_CALLS), os.path (OS_PATH_CALLS),
+    open and io.open, and every function pathlib.Path defines itself (PATH_CALLS), that could follow the link or read through it,
+    made with a path below it (or with it, where the call follows a link): the stats and the listings, the opens and the reads, the
+    tests of a path (os.path.exists, isdir, Path.is_dir and the rest), a resolve, a walk, a change of working directory, a write or
+    a removal. It notes every path a call is given, by position or by keyword (the first verifier's D1: it once read the positions
+    alone). A call on the link itself that does not follow it (an lstat, is_symlink, is_junction, lexists, a removal of it) is
+    allowed, for the tool must ask what it is and take it out.
+
+    With `load`, the tool is loaded after the spy goes in (watch.tool, a module of its own), so that a name the tool binds as it is
+    loaded (a from-import of a function of os, a module-level alias, a default argument) is the spy's; a name bound before the spy
+    goes in is the standard library's own, and is not seen. And the watch ends when watch.tool.remove_link has removed the link:
+    --write then writes where the link was, and those paths are the new directory's.
+
+    It cannot see a DirEntry of a listing (os.walk asks one is_dir()), a handle already open, ctypes, a process, a function another
+    module bound before it went in, a path spelt as an 8.3 short name or reached through another link to the same directory, or a
+    module of the standard library that reaches the host some other way (nt, posix, _io, shutil, glob...): the tool imports none,
+    which test_the_tool_imports_only_the_modules_the_spy_covers holds."""
+    watch = Watch(link)
+
+    def spy(owner, name, what):
+        if not hasattr(owner, name):
+            return
+        real = getattr(owner, name)
 
         def watched(*a, **k):
-            note(name, a[0] if a else next(iter(k.values()), None))
+            follows = what not in OF_THE_LINK and k.get("follow_symlinks", True) is not False
+            for p in (*a[:2], *k.values()):                 # every path the call is given, by position or by keyword
+                watch.note(what, p, follows)
             return real(*a, **k)
-        monkeypatch.setattr(module, name, watched)
+        monkeypatch.setattr(owner, name, watched)
+        watch.wrapped.add(what)
+        watch.where[what] = (owner, name)
 
-    for module, name in ((os, "walk"), (os, "scandir"), (os, "listdir"), (builtins, "open"), (io, "open")):
-        spy(module, name)
-    for name in ("read_bytes", "read_text", "open", "iterdir", "stat", "is_dir", "is_file", "exists"):
-        real = getattr(Path, name)
+    for name in OS_CALLS:
+        spy(os, name, "os." + name)
+    for name in OS_PATH_CALLS:
+        spy(os.path, name, "os.path." + name)
+    spy(builtins, "open", "open")
+    spy(io, "open", "io.open")
+    for name in PATH_CALLS:
+        spy(Path, name, "Path." + name)
+    if load:
+        tool = watch.tool = load_tool()                     # after the spy: what it binds as it is loaded is the spy's
+        real_remove = tool.remove_link
 
-        def watched_method(self, *a, _real=real, _name=name, **k):
-            if not (_name == "stat" and k.get("follow_symlinks", True) is False):      # Path.lstat is that: it follows nothing
-                note("Path." + _name, self)
-            return _real(self, *a, **k)
-        monkeypatch.setattr(Path, name, watched_method)
-    return seen
+        def remove_link(path):
+            try:
+                return real_remove(path)
+            finally:
+                if plain(path) == watch.link:
+                    watch.active = False
+        monkeypatch.setattr(tool, "remove_link", remove_link)
+    return watch
+
+
+def spy_missed(watch, link):
+    """The control that every wrapper of watch_below took, by position and by keyword: each call it wraps is made once with a path
+    below the link that holds nothing (so that none can change a thing; most fail, and are meant to), and again with its path given
+    by keyword (PATH_KEYWORDS: the first verifier's D1 was a spy that read the positions alone), and the names of those the spy did
+    not see come back, which is none. A keyword that is not the call's comes back too, for the host raises TypeError for it and for
+    nothing that a call below a link does otherwise. The calls that take a second path are made again with only the second below
+    the link (SECOND_PATH), by position and by keyword. Then the rule for the link itself, by position and by keyword: calls that
+    follow it are each seen, and the calls the tool may make of it are not. The spy's calls are cleared."""
+    link = Path(link)
+    below, other = link / "no such folder" / "x", link / "no such folder" / "y"
+    assert watch.calls == [], "the control needs a spy that has seen nothing"
+    assert not below.parent.exists(), "the control needs a folder below the link that is not there"
+    watch.calls.clear()
+    for owner, names in ((os, OS_CALLS), (os.path, OS_PATH_CALLS)):
+        for name in names:
+            if hasattr(owner, name):
+                try:
+                    getattr(owner, name)(below)
+                except Exception:       # any: the question is whether the spy was told, and it is told before the host answers
+                    pass
+    for name in PATH_CALLS:
+        if hasattr(Path, name):
+            try:
+                getattr(below, name)()
+            except Exception:
+                pass
+    for opener in (builtins.open, io.open):
+        try:
+            opener(below, "rb")
+        except Exception:
+            pass
+    missed = [f"{what} by position" for what in sorted(watch.wrapped - {what for what, _ in watch.calls})]
+    watch.calls.clear()
+    missed += [f"{what} has no keyword form in PATH_KEYWORDS" for what in sorted(watch.wrapped)
+               if what not in PATH_KEYWORDS and not what.startswith("Path.")]
+    for what in sorted(watch.wrapped & set(PATH_KEYWORDS)):
+        owner, name = watch.where[what]
+        names = PATH_KEYWORDS[what]
+        kwargs = {keyword: (below, other)[i] for i, keyword in enumerate(names)} | OTHER_ARGS.get(what, {})
+        args = (below,) if what.startswith("Path.") else ()
+        try:
+            getattr(owner, name)(*args, **kwargs)
+        except TypeError as x:
+            missed.append(f"{what}: the keywords {names} are not the call's ({x})")
+        except Exception:
+            pass
+        if what not in {seen for seen, _ in watch.calls}:
+            missed.append(f"{what} by keyword")
+        watch.calls.clear()
+    apart = link.parent / "no such folder apart from the link"
+    for what in SECOND_PATH:                                    # the second path of a call that takes two, read as well as the first
+        if what not in watch.wrapped:
+            continue
+        owner, name = watch.where[what]
+        names = PATH_KEYWORDS[what]
+        if what.startswith("Path."):
+            calls = {"by position": ((Path(apart), below), {}), "by keyword": ((Path(apart),), {names[0]: below})}
+        else:
+            calls = {"by position": ((apart, below), {}), "by keyword": ((), {names[0]: apart, names[1]: below})}
+        for how, (args, kwargs) in calls.items():
+            try:
+                getattr(owner, name)(*args, **kwargs)
+            except TypeError as x:
+                missed.append(f"{what}, its second path {how}: the call is not the call's ({x})")
+            except Exception:
+                pass
+            if what not in {seen for seen, _ in watch.calls}:
+                missed.append(f"{what}, its second path {how}")
+            watch.calls.clear()
+    for name, follows in (("os.stat", lambda p: os.stat(p)), ("os.listdir", lambda p: os.listdir(p)),
+                          ("os.path.exists", lambda p: os.path.exists(p)), ("Path.is_dir", lambda p: Path(p).is_dir()),
+                          ("Path.exists", lambda p: Path(p).exists()), ("Path.iterdir", lambda p: list(Path(p).iterdir())),
+                          ("os.stat(path=)", lambda p: os.stat(path=p)), ("os.listdir(path=)", lambda p: os.listdir(path=p)),
+                          ("os.scandir(path=)", lambda p: list(os.scandir(path=p))),
+                          ("os.path.exists(path=)", lambda p: os.path.exists(path=p)), ("open(file=)", lambda p: open(file=p))):
+        try:
+            follows(link)
+        except OSError:                 # opening a directory raises, once it has been told
+            pass
+        if not watch.calls:
+            missed.append(f"{name} of the link itself")
+        watch.calls.clear()
+    link.is_symlink(), link.is_junction(), os.lstat(link), os.path.lexists(link), link.lstat()
+    os.lstat(path=link), os.path.lexists(path=link), os.path.islink(path=link), os.stat(path=link, follow_symlinks=False)
+    if watch.calls:
+        missed.append(f"calls the tool may make of the link itself were seen: {watch.calls}")
+    watch.calls.clear()
+    return missed
 
 
 def tell_links(monkeypatch, tool, *paths):
@@ -655,10 +838,11 @@ def tell_links(monkeypatch, tool, *paths):
     The tool asks one question of an entry, `tool.is_link`, which is the checker's own test (checker._is_link: a symbolic link or
     a directory junction). A junction whose target is gone is a link on a host that can open it, and the owner's machine cannot
     (found so on 2026-10-30: os.lstat of it raises FileNotFoundError, so that test says nothing is there, and removing it fails
-    until its target is made again). A test of what the tool does with a link that leads nowhere therefore makes none, for it
-    could not take it away again, and tells the tool what a host that opens one answers, as tests/tools/test_tools.py's
-    simulate_links tells the privacy gate of a symbolic link that the owner's machine may not make. What stands at the path, if
-    anything, is no link: the control is that the told answer is true and the real one is false."""
+    until its target is made again). A test of what the tool does with a link that leads nowhere therefore makes none (one can be
+    taken away again only by making its target again, CLAUDE.md item 10, and a test that failed first would strand it), and tells
+    the tool what a host that opens one answers, as tests/tools/test_tools.py's simulate_links tells the privacy gate of a symbolic
+    link that the owner's machine may not make. What stands at the path, if anything, is no link: the control is that the told
+    answer is true and the real one is false."""
     real = tool.is_link
     told = [Path(p) for p in paths]
     monkeypatch.setattr(tool, "is_link", lambda p: Path(p) in told or real(p))
@@ -693,6 +877,234 @@ def remove_links_under(top):
             elif entry.is_dir(follow_symlinks=False):
                 stack.append(entry.path)
     return removed
+
+
+# -- a junction whose target is gone, as a host that opens one shows it: an entry in its parent's listing, and nothing at its path -------
+class Ghost:
+    """What a directory listing shows of a junction whose target is gone: an entry that says it is a directory and a junction, and
+    answers a stat from the listing's own data, as the DirEntry of the owner's machine does (MEASURED by P4.2's builder,
+    2026-10-31: is_dir() and is_junction() true, is_symlink() false, stat() answers). Nothing stands at its path."""
+
+    def __init__(self, parent, name):
+        self.name, self.path = name, os.path.join(os.fspath(parent), name)
+
+    def is_dir(self, *, follow_symlinks=True):
+        return True
+
+    def is_file(self, *, follow_symlinks=True):
+        return False
+
+    def is_symlink(self):
+        return False
+
+    def is_junction(self):
+        return True
+
+    def stat(self, *, follow_symlinks=True):
+        return os.stat_result((stat.S_IFDIR | 0o777, 0, 0, 1, 0, 0, 0, 0, 0, 0))
+
+    def inode(self):
+        return 0
+
+    def __fspath__(self):
+        return self.path
+
+    def __repr__(self):
+        return f"<Ghost {self.name!r}>"
+
+
+class Listing:
+    """What os.scandir returns, over `entries`: an iterator and a context manager, as os.walk and the checker use it."""
+
+    def __init__(self, entries):
+        self.entries = iter(entries)
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *exc):
+        return False
+
+    def __iter__(self):
+        return self
+
+    def __next__(self):
+        return next(self.entries)
+
+    def close(self):
+        pass
+
+
+class Dangling:
+    """The stand-in dangling_link makes. `listed`: whether its parent still lists it (the os.rmdir of it ends that). `real` holds the
+    functions it replaced, so that a test can ask the host what is really there."""
+
+    def __init__(self, link, error, real, access=True):
+        self.link, self.error, self.real, self.listed, self.access = Path(link), error, real, True, access
+        self.parent, self.name = self.link.parent, self.link.name
+
+    def real_names(self):
+        """The names its parent really holds, whatever the listing shows."""
+        return sorted(self.real["listdir"](self.parent))
+
+
+def dangling_link(monkeypatch, link, error=FileNotFoundError, access=True):
+    """A junction whose target is gone, as a host that opens one shows it, with NOTHING at its path: only the listing of its parent
+    shows it (os.scandir and os.listdir, which Path.iterdir and os.walk go by), as an entry of a junction. Everything else is the
+    host's own answer about a path where nothing stands: every stat, open, resolve and test of a path says it is not there, whatever
+    the spelling of the path (a trailing separator, a `.` component, another case), and no call is told so. What is told, for that
+    path alone, is what only a link has: os.unlink of it raises PermissionError, as of a directory link that wants rmdir, so that
+    the tool's removal goes by its rmdir; os.rmdir of it drops the entry from its parent's listing; and os.access answers `access`,
+    which is yes as the owner's machine says of a junction whose target is gone (MEASURED, 2026-10-31, F_OK) and no as a host that
+    answered otherwise would (P4.2's first verifier, note 2: a tool that decided by os.access would behave the same on the owner's
+    machine and on that host, and a test run both ways is what shows it). It stands in for a junction a host that opens one can
+    remove, which the owner's machine cannot (the stated limit, docs/P4.md), so no test makes one.
+    With `error` NotADirectoryError, the host's answer for a junction whose target has become a file, os.lstat, os.stat, os.scandir
+    and os.listdir of it raise that too (MEASURED: errno 20, winerror 267). Returns the Dangling stand-in; tell_links tells the
+    tool's own test of a link, which is a thing apart."""
+    real = {n: getattr(os, n) for n in ("scandir", "listdir", "unlink", "remove", "rmdir", "access", "lstat", "stat")}
+    stand = Dangling(link, error, real, access)
+    asked = (error is NotADirectoryError)
+
+    def key(p):
+        return os.path.normcase(os.path.abspath(os.fsdecode(p))) if isinstance(p, (str, bytes, os.PathLike)) else None
+
+    here, parent = key(stand.link), key(stand.parent)
+
+    def at_link(p):
+        return stand.listed and key(p) == here
+
+    def scandir(path="."):
+        if stand.listed and key(path) == parent:
+            with real["scandir"](path) as listing:
+                entries = list(listing)
+            return Listing(entries + [Ghost(stand.parent, stand.name)])
+        if asked and at_link(path):
+            raise NotADirectoryError(20, "The directory name is invalid", os.fsdecode(path))
+        return real["scandir"](path)
+
+    def listdir(path=None):
+        if path is None:
+            path = "."
+        if stand.listed and key(path) == parent:
+            return list(real["listdir"](path)) + [stand.name]
+        if asked and at_link(path):
+            raise NotADirectoryError(20, "The directory name is invalid", os.fsdecode(path))
+        return real["listdir"](path)
+
+    def unlink(path, *args, **kwargs):
+        if at_link(path):
+            raise PermissionError(13, "Access is denied", os.fsdecode(path))
+        return real["unlink"](path, *args, **kwargs)
+
+    def rmdir(path, *args, **kwargs):
+        if at_link(path):
+            stand.listed = False
+            return None
+        return real["rmdir"](path, *args, **kwargs)
+
+    def access(path, mode, *args, **kwargs):
+        return stand.access if at_link(path) else real["access"](path, mode, *args, **kwargs)
+
+    def raising(name):
+        def call(path, *args, **kwargs):
+            if asked and at_link(path):
+                raise NotADirectoryError(20, "The directory name is invalid", os.fsdecode(path))
+            return real[name](path, *args, **kwargs)
+        return call
+
+    for name, replacement in (("scandir", scandir), ("listdir", listdir), ("unlink", unlink), ("remove", unlink), ("rmdir", rmdir),
+                              ("access", access), ("lstat", raising("lstat")), ("stat", raising("stat"))):
+        monkeypatch.setattr(os, name, replacement)
+    return stand
+
+
+def there_missed(path):
+    """The calls dangling_link tells, asked of a path that really leads somewhere, answer as the host does: the problems found, none."""
+    path, problems = Path(path), []
+    try:
+        os.stat(path), os.lstat(path), os.listdir(path), path.stat(), path.lstat(), list(path.iterdir())
+        with os.scandir(path) as listing:
+            list(listing)
+        if not (os.path.realpath(path, strict=True) and path.resolve(strict=True)):
+            problems.append("a strict resolve is empty")
+    except Exception as x:
+        problems.append(f"a call about {path.name} raised {type(x).__name__}")
+    says = (os.path.exists(path), os.path.isdir(path), not os.path.isfile(path), os.path.lexists(path), os.access(path, os.F_OK),
+            path.exists(), path.is_dir(), not path.is_file())
+    if not all(says):
+        problems.append(f"{path.name} is a directory that is there, and some test of it says otherwise: {says}")
+    return problems
+
+
+def dangling_missed(stand, others=()):
+    """The control that each telling of dangling_link took, that nothing else is told, and that it took for that path alone: the
+    problems found, which are none. `others` are paths that lead somewhere (the same name at another path, the parent itself):
+    there_missed finds the host's own answers for each."""
+    link, parent, name, error, problems = stand.link, stand.parent, stand.name, stand.error, []
+    if not stand.listed:
+        problems.append("the stand-in is no longer listed")
+    for what, listed in (("os.listdir", os.listdir(parent)), ("os.scandir", [e.name for e in os.scandir(parent)]),
+                         ("Path.iterdir", [p.name for p in parent.iterdir()])):
+        if name not in listed:
+            problems.append(f"{what} of its parent does not list it")
+    if name in stand.real_names():
+        problems.append("something really stands at its path")
+    entry = next((e for e in os.scandir(parent) if e.name == name), None)
+    if entry is None or not (entry.is_dir() and entry.is_junction() and not entry.is_symlink() and not entry.is_file()
+                             and stat.S_ISDIR(entry.stat().st_mode)):
+        problems.append("its entry does not say directory and junction, and answer a stat")
+    calls = [("os.stat", lambda: os.stat(link)), ("os.lstat", lambda: os.lstat(link)), ("Path.stat", link.stat),
+             ("Path.lstat", link.lstat), ("os.scandir", lambda: os.scandir(link)), ("os.listdir", lambda: os.listdir(link)),
+             ("Path.iterdir", lambda: list(link.iterdir()))]
+    if error is FileNotFoundError:            # nothing stands there, so the host's own answers, with no call told
+        calls += [("os.path.realpath(strict)", lambda: os.path.realpath(link, strict=True)),
+                  ("Path.resolve(strict)", lambda: link.resolve(strict=True)), ("os.utime", lambda: os.utime(link)),
+                  ("open", lambda: open(link, "rb")), ("os.path.getsize", lambda: os.path.getsize(link)),
+                  ("os.stat, spelt with a trailing separator", lambda: os.stat(str(link) + os.sep)),
+                  ("os.stat, spelt with a dot", lambda: os.stat(os.path.join(str(link), ".")))]
+    for what, call in calls:
+        try:
+            call()
+            problems.append(f"{what} did not raise {error.__name__}")
+        except error:
+            pass
+        except Exception as x:
+            problems.append(f"{what} raised {type(x).__name__}, not {error.__name__}")
+    says = {"os.path.exists": os.path.exists(link), "os.path.isdir": os.path.isdir(link), "os.path.isfile": os.path.isfile(link),
+            "os.path.lexists": os.path.lexists(link), "Path.exists": link.exists(), "Path.is_dir": link.is_dir(),
+            "Path.is_file": link.is_file()}
+    problems += [f"{what} says yes" for what, yes in says.items() if yes]
+    spellings = [link, str(link) + os.sep, os.path.join(str(link), ".")] + ([str(link).upper()] if os.name == "nt" else [])
+    for spelling in spellings:                                    # told for the path, however it is spelt
+        if os.access(spelling, os.F_OK) is not stand.access:
+            problems.append(f"os.access of {str(spelling)!r} does not say {'yes' if stand.access else 'no'}")
+    for what, call in (("os.unlink", lambda: os.unlink(link)), ("Path.unlink", link.unlink), ("os.remove", lambda: os.remove(link))):
+        try:
+            call()
+            problems.append(f"{what} took it")
+        except PermissionError:
+            pass
+    if not stand.listed:
+        problems.append("a refused unlink dropped the entry")
+    probe_file, probe_dir = parent / ".dangling-probe-file", parent / ".dangling-probe-dir"
+    probe_file.write_bytes(b"")
+    probe_dir.mkdir()
+    try:                                       # another path in the same folder: the host's own removals, which take them
+        os.unlink(probe_file)
+        os.rmdir(probe_dir)
+    except PermissionError:
+        problems.append("a removal of another path in the stand-in's folder is told")
+    finally:
+        if probe_file.exists():
+            stand.real["unlink"](probe_file)
+        if probe_dir.exists():
+            stand.real["rmdir"](probe_dir)
+    if not stand.listed:
+        problems.append("a removal of another path in the stand-in's folder dropped the entry")
+    for other in others:
+        problems += there_missed(other)
+    return problems
 
 
 def metadata_json(path):

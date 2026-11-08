@@ -5,6 +5,7 @@ starts (a module it imports will not import), before the work, or in it (an exit
 3 and one escaped line; the arguments' own exits, 2 and --help's 0, are argparse's and stay; and where a stream is closed the exit
 code still carries the verdict, and a failure to say a failure is no crash."""
 import argparse
+import ast
 import sys
 
 import pytest
@@ -28,9 +29,39 @@ def test_python_dash_OO_runs_the_tool_in_both_modes_and_the_help(tmp_path):
     assert done.returncode == 0 and done.stdout.startswith("usage:")
 
 
-def test_the_help_says_what_the_tool_is_and_exits_0(tmp_path):
-    done = run_tool(["--help"], tmp_path, tree(tmp_path / "t"))
-    assert done.returncode == 0 and done.stdout.startswith("usage:") and "Generate the profile directory's files" in done.stdout
+@pytest.mark.parametrize("opts", [(), ("-OO",)], ids=["python", "python -OO"])
+def test_the_help_says_what_the_tool_is_what_each_mode_does_and_every_exit_and_exits_0(tmp_path, opts):
+    """The fifth verifier's note: --help printed a cut sentence as the description ('... (P4's design, items 1 and 8;') and no
+    help for --write and --check, and the ruling of P4.2 (C2) puts the exit-1 list in --help. The description, the two modes' help
+    and the exits are constants of the tool and not its docstring, which python -OO strips: --help says all of it under -OO too,
+    and the exit-1 sentence is the page's and the docstring's, word for word."""
+    done = run_tool(["--help"], tmp_path, tree(tmp_path / "t"), opts=opts)
+    assert done.returncode == 0 and done.stdout.startswith("usage:") and done.stderr == ""
+    text = " ".join(done.stdout.split())
+    assert "Generate the profile directory's files from the vocabulary table, and refuse drift." in text
+    assert "(P4's design" not in text and not text.rstrip().endswith(";")                        # the cut sentence
+    assert "--write regenerate every file under profile/ that the definitions render, and remove what they do not" in text
+    assert "--check fail if a file under profile/ is not exactly what the definitions render" in text
+    assert "exit codes: 0 every file is exactly what the definitions render" in text
+    assert " ".join(gen.EXIT_ONE.split()) in text and "1 drift, a file missing or unexpected" in text
+    assert "2 the definitions contradict themselves, or the arguments are wrong" in text
+    assert "3 the generator itself failed, in one escaped line on stderr (never a verdict): a removal or a write that fails, or a " \
+           "file it cannot read other than P0's context (a rendered file, a stray, the fixture's)" in text
+    assert "so is any other file" not in text                  # the sentence that did not parse (P4.2's first verifier, note 6)
+
+
+def test_the_exit_1_sentence_is_the_same_in_help_the_docstring_and_the_page_and_names_p0s_context_missing_or_unreadable():
+    """The fifth verifier's C2, ruled: the exit-1 list, on the page and in --help, names profile/context.jsonld missing or
+    unreadable, a tree the tool refuses since P0's generator makes that file; another file it cannot read stays exit 3, the tool
+    failing. The sentence is a constant of the tool, and the docstring and the page hold it word for word."""
+    assert gen.EXIT_ONE.endswith("or P0's profile/context.jsonld missing or unreadable (a tree the tool refuses, since "
+                                 "tools/gen_vocabulary.py makes that file)")
+    doc = " ".join(ast.get_docstring(ast.parse((ROOT / "tools" / "gen_profile.py").read_text(encoding="utf-8"))).split())
+    page = " ".join((ROOT / "docs" / "P4.md").read_text(encoding="utf-8").replace("`", "").split())
+    for text in (doc, page):
+        assert " ".join(gen.EXIT_ONE.split()) in text
+        assert "Any other file it cannot read (a rendered file, a stray, the fixture's) is this exit too: the tool failing, where an " \
+               "unreadable context is a tree refused." in text
 
 
 def test_a_crash_before_the_work_is_exit_3_one_escaped_line_and_never_the_exit_1_of_an_uncaught_exception(capsys, monkeypatch):

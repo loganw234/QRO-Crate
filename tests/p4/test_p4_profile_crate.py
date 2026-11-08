@@ -649,9 +649,9 @@ def test_the_limit_about_the_evaluator_and_pyshacl_names_the_three_things_and_wh
     """The lead's ruling of 2026-10-26T11:18:27Z, a note of P4's second verifier: a stated limit for the two constructs the
     evaluator and pyshacl read differently, which the generated shapes do not use; and the ruling of 18:56:48Z, a note of the
     fourth verifier: the integer lexical forms, a third, which no crate reaches."""
-    title, text = P.LIMITS[-1]
+    title, text = P.LIMITS[-2]
     assert title == "The evaluator and pyshacl read three things differently, and none changes a verdict on a crate."
-    assert len(P.LIMITS) == 23
+    assert len(P.LIMITS) == 24 and P.LIMITS[-1][0].startswith("The evaluator raises on an integer literal of more than 4,300 digits")
     assert "`sh:minLength 0` on a blank node" in text and "`sh:maxInclusive` with no `sh:minInclusive`" in text
     assert "The generated shapes use neither: no `sh:minLength` is below 1 (`sh:maxLength` is used, with several bounds" in text
     assert "a length bound is only 1" not in text                    # the third verifier, D2: sh:maxLength takes five bounds
@@ -668,6 +668,31 @@ def test_the_limit_about_the_evaluator_and_pyshacl_names_the_three_things_and_wh
     assert "which is right by XSD 1.1 and RDF 1.1 Concepts, since it pins no copy of either" in text
     assert "BELIEVED, from XSD 1.1's definition of the integer, recalled and not re-read" in text
     assert "on the three forms with white space it turns on whether XSD's collapse of white space applies" in text
+
+
+def test_the_limit_about_a_huge_integer_literal_names_the_refusal_that_keeps_every_crate_from_it_and_the_test_that_holds_it():
+    """P4's fifth verifier, C5, stated as the evaluator's limit (ruling 9 of P4.2): the evaluator raises ValueError on an integer
+    literal of more than 4,300 digits, which no crate reaches, because the reader refuses first. The limit names the evaluator's
+    error, the refusals as P4.2's first verifier measured them at each of the 42 leaves of the fixture's graph (D2: a number of more
+    than 4,300 digits is refused `spelling` wherever it stands, and a shorter one past 2^63 - 1 by `spelling` or by `graph-form`,
+    as the term decides; the first statement of it said `spelling` at a term that takes none, and 'so one of more than 19 digits',
+    which runs the wrong way), and the test that holds both (tests/p4/test_p4_eval.py)."""
+    title, text = P.LIMITS[-1]
+    assert title == "The evaluator raises on an integer literal of more than 4,300 digits, and no crate reaches one."
+    assert "`int()`, which refuses more than 4,300 digits (`int_max_str_digits`) with a `ValueError`" in text
+    assert "where pyshacl calls such a literal ill-typed (MEASURED by P4's fifth verifier)" in text
+    assert "The evaluator then gives no verdict, and raises." in text
+    assert "`json.loads`, which refuses a number of more than 4,300 digits" in text
+    assert "refuses the crate `spelling` at step 1, before anything is expanded, wherever the number stands" in text
+    assert "A shorter number that is past 2^63 - 1 (every one of 20 digits or more is, and some of 19) is refused at step 1 too, by " \
+           "`spelling` or by `graph-form`, as the term it stands at decides" in text
+    assert "`spelling` at a term that takes an integer or a string, `graph-form` at the `@id` of the descriptor's `about` and " \
+           "`conformsTo` and of the root's `conformsTo`, and at the `name` and `version` of the two Profile entities" in text
+    assert "(MEASURED by P4.2's first verifier, and again by its builder, at each of the 42 leaves of the fixture's `@graph`: " \
+           "at 20 and at 4,300 digits `spelling` at 34 and `graph-form` at 8, and at 4,301 and 5,000 digits `spelling` at all 42)" in text
+    assert "so one of more than 19 digits" not in text and "at a term that takes none" not in text        # the two that were not so
+    assert "Held by `tests/p4/test_p4_eval.py`" in text and "at four terms, by the name each decides" in text
+    assert (ROOT / "tests" / "p4" / "test_p4_eval.py").is_file() and "spelling" in V.REFUSAL            # the refusal is one the table names
 
 
 def test_the_shapes_say_they_are_for_an_engine_run_without_inference_in_limit_2_and_in_every_banner_with_the_engine_stages_counts(rendered):
@@ -687,9 +712,35 @@ def test_the_shapes_say_they_are_for_an_engine_run_without_inference_in_limit_2_
     for path in files:
         head = rendered[path].decode().split("\n@prefix", 1)[0].replace("\n# ", " ")
         assert ("Run an engine WITHOUT inference (pyshacl: inference=none, its default). With rdfs, owlrl or both it fails the "
-                f"accepted fixture crate on descriptor, entity and profile-entities, with {counts} results (README, limit 2).") in head, path
+                "accepted fixture crate on descriptor, entity and profile-entities, three of the nine shapes of "
+                f"must/1_structure.ttl, with {counts} results (README, limit 2).") in head, path     # in every file's banner
+        assert "all shapes of" not in head, path             # P4.2's first verifier, note 5: the file holds nine, and the banner said all
+    assert P.INFERENCE_FILE == "must/1_structure.ttl"
+    in_that_file = rendered[P.VALIDATOR + P.INFERENCE_FILE].decode()
+    for shape in P.INFERENCE_SHAPES:                         # and the three do live there, and in no other file
+        assert f"\nqs:{shape}\n" in in_that_file, shape
+        assert not any(f"\nqs:{shape}\n" in rendered[p].decode() for p in files if p != P.VALIDATOR + P.INFERENCE_FILE), shape
+    assert len(H.groups()[P.INFERENCE_FILE]) == 9 and len(P.INFERENCE_SHAPES) == 3      # "three of the nine" is the file's own count
     page = (ROOT / "docs" / "P4.md").read_text(encoding="utf-8")
     assert "without inference" in page and counts in page and "`descriptor`, `entity` and `profile-entities`" in page
+
+
+def test_limit_2_lists_the_types_and_the_triples_each_inference_adds_as_the_engine_gave_them():
+    """The fifth verifier's note (limit 2's OWL-RL list): OWL-RL alone adds owl:Class, owl:AnnotationProperty and rdfs:Datatype, and
+    owl:Thing and rdfs:Resource come with `both`, not with OWL-RL alone. MEASURED again by P4.2's builder over pyshacl 0.40.1's
+    results (the accepted fixture crate, the committed shapes): rdfs adds rdf:Property and rdfs:Resource; owlrl alone owl:Class,
+    owl:AnnotationProperty, rdfs:Datatype, xsd:decimal and xsd:integer; both those and owl:DataRange, owl:Thing, rdfs:Class and
+    rdfs:Literal; and the triples the closed shapes refuse, most of them a node related to itself: rdfs:subPropertyOf with rdfs,
+    owl:sameAs, owl:equivalentClass and rdfs:subClassOf with owlrl alone, and owl:equivalentProperty besides with both. No test
+    holds those lists (the runner reports no values); the text says so."""
+    text = next(body for title, body in P.LIMITS if title.startswith("The shapes are held to one engine"))
+    assert ("types that their lists of types do not allow (with `rdfs`, `rdfs:Resource` and `rdf:Property`; with `owlrl` alone, "
+            "`owl:Class`, `owl:AnnotationProperty`, `rdfs:Datatype` and others; with `both`, those and `owl:Thing`, `rdfs:Class` "
+            "and others)") in text
+    assert ("triples that their closed shapes do not allow, most of them a node related to itself (with `rdfs`, "
+            "`rdfs:subPropertyOf`; with `owlrl` alone, `owl:sameAs`, `owl:equivalentClass` and `rdfs:subClassOf`; with `both`, those "
+            "and `owl:equivalentProperty` and `rdfs:subPropertyOf`)") in text
+    assert "with OWL-RL `owl:Thing`" not in text and "which no test holds" in text
 
 
 def test_the_limit_about_extension_terms_names_the_codes_that_clash_and_the_context_maps_only_the_prefix(rendered):

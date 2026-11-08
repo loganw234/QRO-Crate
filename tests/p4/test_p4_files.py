@@ -9,6 +9,7 @@ import re
 import subprocess
 from pathlib import Path
 
+import pytest
 from p4_helpers import ROOT
 
 def parts(*names):
@@ -78,18 +79,91 @@ def test_a_helper_names_no_function_test_and_no_class_Test_for_pytest_would_coll
                 assert not re.search(r"^(def test|class Test)", p.read_text(encoding="utf-8"), re.M), p.name
 
 
-def test_every_test_module_that_makes_a_junction_removes_what_a_failing_test_strands_with_a_fixture():
-    """P4's sixth verifier, note 1 (ruled in on 2026-10-31T05:26:29Z): a failing test strands the junction it made, and on the
-    owner's machine a junction whose target is later removed cannot be removed (remove_links_under in tests/p4/p4_helpers.py says
-    why). So each module of tests that makes one with link_dir has an autouse fixture that ends every test, passed or failed, with
-    the links under its folder removed, while their targets are there. The families' staged crates are cleaned by their temporary
-    directory, which a failing test leaves by its context manager, and make theirs through link_at, not link_dir."""
-    call = "link_dir" + "("                                                      # not written whole: this file would be one of them
-    makers = [p.name for p in sorted((ROOT / "tests" / "p4").glob("test_p4_*.py")) if call in p.read_text(encoding="utf-8")]
-    assert makers == ["test_p4_tool.py", "test_p4_tree.py"], makers              # a module that gains a junction joins the guard
-    fixture = re.compile(r"@pytest\.fixture\(autouse=True\)\ndef \w+\(tmp_path\):\n(?:    .*\n)*?    yield\n    remove_links_under\(tmp_path\)\n")
-    for name in makers:
-        assert fixture.search((ROOT / "tests" / "p4" / name).read_text(encoding="utf-8")), name
+def pieces(*parts):
+    """A spelling joined at run time: written whole in this file, it would be one of the modules the guard below fails."""
+    return "".join(parts)
+
+
+# Every way a test of P4's could make a junction or a link: the two helpers of p4_sweeps.py, and the calls and the command they make
+# it with (the seventh verifier's note 3: the guard read the first alone).
+SPELLINGS = (pieces("link_dir", "("), pieces("link_at", "("), pieces("_winapi.", "CreateJunction", "("), pieces("os.", "symlink", "("),
+             pieces(".symlink_", "to", "("), pieces("mk", "link"), pieces("CreateSymbolic", "Link"))
+FIXTURE = re.compile(r"@pytest\.fixture\(autouse=True\)\ndef \w+\(tmp_path\):\n(?:    .*\n)*?    yield\n    remove_links_under\(tmp_path\)\n")
+
+
+def spellings_in(text):
+    """The ways of making a junction or a link that `text` holds."""
+    return [s for s in SPELLINGS if s in text]
+
+
+def unguarded(directory):
+    """[(module, its spellings)] for each test module of `directory` that makes a junction or a link, by any of SPELLINGS, and has no
+    autouse fixture that ends every test, passed or failed, with the links under its folder removed."""
+    out = []
+    for p in sorted(Path(directory).glob("test_*.py")):
+        text = p.read_text(encoding="utf-8")
+        if spellings_in(text) and not FIXTURE.search(text):
+            out.append((p.name, spellings_in(text)))
+    return out
+
+
+GUARDED = ("p4", "p4shacl")          # the directories of tests under tests/ that the guard reads
+
+
+def guard_failures(tests):
+    """{directory: unguarded(directory)} for each directory of GUARDED under `tests` that holds a module the guard fails."""
+    return {d: found for d in GUARDED if (found := unguarded(Path(tests) / d))}
+
+
+def test_every_test_module_that_makes_a_junction_or_a_link_removes_what_a_failing_test_strands_with_a_fixture():
+    """P4's sixth verifier, note 1 (ruled in on 2026-10-31T05:26:29Z), and the seventh's note 3 (ruled for P4.2): a failing test
+    strands the junction it made, and on the owner's machine a junction whose target is later removed cannot be removed
+    (remove_links_under in tests/p4/p4_helpers.py says why). So each module of tests that makes a junction or a link, by any way a
+    test could (SPELLINGS), has an autouse fixture that ends every test, passed or failed, with the links under its folder removed,
+    while their targets are there. The families' staged crates are cleaned by their temporary directory, which a failing test
+    leaves by its context manager, and make theirs through link_at in p4_sweeps.py: no module of theirs holds a spelling."""
+    assert guard_failures(ROOT / "tests") == {}
+    makers = [p.name for p in sorted((ROOT / "tests" / "p4").glob("test_p4_*.py")) if spellings_in(p.read_text(encoding="utf-8"))]
+    assert makers == ["test_p4_tool.py", "test_p4_tree.py"], makers              # the guard sees the modules it should
+
+
+# The ways the plants below make a link, written again and not read from SPELLINGS: a spelling taken out of SPELLINGS would take its
+# plant with it, and the guard would pass the module it no longer reads.
+PLANTED = (pieces("link_dir", "("), pieces("link_at", "("), pieces("_winapi.", "CreateJunction", "("), pieces("os.", "symlink", "("),
+           pieces(".symlink_", "to", "("), pieces("mk", "link"), pieces("CreateSymbolic", "Link"))
+
+
+def test_the_ways_the_guard_reads_are_the_ways_that_are_planted():
+    assert sorted(SPELLINGS) == sorted(PLANTED)
+    assert sorted(GUARDED) == ["p4", "p4shacl"]                  # and the directories it reads are the two the plants are put in
+
+
+@pytest.mark.parametrize("directory", ("p4", "p4shacl"))                  # written again, and not read from GUARDED (the first verifier's G11)
+@pytest.mark.parametrize("spelling", PLANTED)
+def test_the_guard_fails_a_planted_module_that_makes_a_link_by_each_spelling_and_passes_it_with_the_fixture(
+        tmp_path, spelling, directory):
+    """The guard watched failing on its plant, for each way of making a link and in each directory of tests it reads (tests/p4shacl
+    as well as tests/p4: the first verifier found that no planted module stood there, so that a guard which read tests/p4 alone
+    passed): a module with that spelling and no fixture, one with a fixture that is not autouse (with arguments, and bare), and one
+    with an autouse fixture that removes nothing are failed; with the fixture it is passed; and a module with no spelling is passed."""
+    body = f"def test_x(tmp_path):\n    made = {spelling}tmp_path)\n"
+    at = chr(64)                                        # not written in the text: a letter before an at sign and a dotted name is an address
+    fixture = f"import pytest\n\n\n{at}pytest.fixture(autouse=True)\ndef no_link_is_stranded(tmp_path):\n    yield\n    remove_links_under(tmp_path)\n\n\n"
+    plain = fixture.replace("autouse=True", "scope='function'")
+    bare = fixture.replace("(autouse=True)", "")
+    inert = fixture.replace("remove_links_under(tmp_path)", "pass")
+    (tmp_path / directory).mkdir()
+    plant = tmp_path / directory / "test_p4_plant.py"
+    plant.write_text(body, encoding="utf-8")
+    failed = {directory: [("test_p4_plant.py", [spelling])]}
+    assert guard_failures(tmp_path) == failed
+    for wrong in (plain, bare, inert):
+        plant.write_text(wrong + body, encoding="utf-8")
+        assert guard_failures(tmp_path) == failed, wrong
+    plant.write_text(fixture + body, encoding="utf-8")
+    assert guard_failures(tmp_path) == {}
+    plant.write_text("def test_x(tmp_path):\n    assert tmp_path\n", encoding="utf-8")
+    assert guard_failures(tmp_path) == {}
 
 
 def test_the_tree_holds_no_bytecode_p4_wrote_into_a_directory_git_would_commit():

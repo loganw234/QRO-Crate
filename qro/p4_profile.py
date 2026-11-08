@@ -53,6 +53,7 @@ FIXTURE_DIR = "examples/fixture/"
 INFERENCE = {"rdfs": 94, "owlrl": 112, "both": 527}
 INFERENCE_COUNTS = f"{INFERENCE['rdfs']}, {INFERENCE['owlrl']} and {INFERENCE['both']}"
 INFERENCE_SHAPES = ("descriptor", "entity", "profile-entities")         # the must shapes it fails, in each of the three modes
+INFERENCE_FILE = "must/1_structure.ttl"                                  # the file all three live in (a banner names it)
 INFERENCE_NAMES = ", ".join(INFERENCE_SHAPES[:-1]) + f" and {INFERENCE_SHAPES[-1]}"
 INFERENCE_CODE = ", ".join(f"`{s}`" for s in INFERENCE_SHAPES[:-1]) + f" and `{INFERENCE_SHAPES[-1]}`"       # as markdown
 
@@ -110,11 +111,14 @@ LIMITS = (
      "was run. The shapes are for an engine run without inference: pyshacl's `inference` is `none`, its default, in the "
      "engine stage and wherever these shapes are used. With `rdfs`, `owlrl` or `both` it fails the accepted fixture crate "
      f"on {INFERENCE_CODE}, with {INFERENCE_COUNTS} results, because the shapes judge the graph a crate says and an "
-     "inference adds triples to it: types that their lists of types do not allow (`rdfs:Resource` and `rdf:Property`; "
-     "with OWL-RL `owl:Thing`, `rdfs:Datatype` and others) and self-triples that their closed shapes do not allow "
-     "(`rdfs:subPropertyOf`; with OWL-RL `owl:sameAs`, `rdfs:subClassOf` and others). MEASURED: the counts by P4's fourth "
-     "verifier and again by the engine stage, which holds them; the types and self-triples by one run of P4's fifth-round "
-     "builder over the results' paths and values, which no test holds."),
+     "inference adds triples to it: types that their lists of types do not allow (with `rdfs`, `rdfs:Resource` and "
+     "`rdf:Property`; with `owlrl` alone, `owl:Class`, `owl:AnnotationProperty`, `rdfs:Datatype` and others; with `both`, "
+     "those and `owl:Thing`, `rdfs:Class` and others) and triples that their closed shapes do not allow, most of them a "
+     "node related to itself (with `rdfs`, `rdfs:subPropertyOf`; with `owlrl` alone, `owl:sameAs`, `owl:equivalentClass` and "
+     "`rdfs:subClassOf`; with `both`, those and `owl:equivalentProperty` and `rdfs:subPropertyOf`). MEASURED: the counts by "
+     "P4's fourth verifier and again by the engine stage, which holds them; the types and the triples by one run of P4.2's "
+     "builder over the results' paths and values (pyshacl 0.40.1, rdflib 7.6.0, the accepted fixture crate and the committed "
+     "shapes), which no test holds."),
     ("Some spellings are looser in a shape than in the checker.",
      "A size above 2^63 - 1 or with a trailing line feed; a rational not in lowest terms, with a term of more than "
      "1,000 digits, or with a trailing line feed; a binary64 whose decimal is not the bits' exact one, or with a "
@@ -254,12 +258,30 @@ LIMITS = (
      "definition of the integer, recalled and not re-read: its lexical space is an optional sign and ASCII digits, so "
      "the evaluator is right on `'1_0'` and on the two digits; on the three forms with white space it turns on whether "
      "XSD's collapse of white space applies to an RDF literal's lexical form, which is not settled here."),
+    ("The evaluator raises on an integer literal of more than 4,300 digits, and no crate reaches one.",
+     "The evaluator reads an integer literal's value with Python's `int()`, which refuses more than 4,300 digits "
+     "(`int_max_str_digits`) with a `ValueError`, where pyshacl calls such a literal ill-typed (MEASURED by P4's fifth "
+     "verifier). The evaluator then gives no verdict, and raises. No crate reaches it: the reader parses a crate's "
+     "metadata with `json.loads`, which refuses a number of more than 4,300 digits, and the checker refuses the crate "
+     "`spelling` at step 1, before anything is expanded, wherever the number stands. A shorter number that is past "
+     "2^63 - 1 (every one of 20 digits or more is, and some of 19) is refused at step 1 too, by `spelling` or by "
+     "`graph-form`, as the term it stands at decides: `spelling` at a term that takes an integer or a string, "
+     "`graph-form` at the `@id` of the descriptor's `about` and `conformsTo` and of the root's `conformsTo`, and at the "
+     "`name` and `version` of the two Profile entities (MEASURED by P4.2's first verifier, and again by its builder, "
+     "at each of the 42 leaves of the fixture's `@graph`: at 20 and at 4,300 digits `spelling` at 34 and `graph-form` "
+     "at 8, and at 4,301 and 5,000 digits `spelling` at all 42). Held by `tests/p4/test_p4_eval.py`: the evaluator "
+     "raises, and the reader refuses a crate with such a number at 20, 4,300, 4,301 and 5,000 digits at four terms, "
+     "by the name each decides."),
 )
 
 
 # -- the Turtle ------------------------------------------------------------------------------------------------------
+NUMBER_WORDS = ("no", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten", "eleven", "twelve")
+
+
 def banner(path, shapes):
     level = level_of(path)
+    held = len(groups()[INFERENCE_FILE])                    # the shapes of the file that holds the three the engine fails
     return ["GENERATED by tools/gen_profile.py from qro/vocabulary.py. Edit the definition and run --write; never this file.",
             f"QRO-Crate {V.PROFILE_VERSION}: {len(shapes)} {level}-level shapes in SHACL Core (no SPARQL).",
             "The checker (python -m qro check) is the authority. A shape is a consequence of it. qs:claims names the",
@@ -268,7 +290,8 @@ def banner(path, shapes):
             "one fault from an accepted one is refused by a name a failing shape claims (README, limit 1).",
             "A report's sh:conforms is false for a Warning too; filter by sh:resultSeverity.",
             "Run an engine WITHOUT inference (pyshacl: inference=none, its default). With rdfs, owlrl or both it fails the",
-            f"accepted fixture crate on {INFERENCE_NAMES}, with {INFERENCE_COUNTS} results (README, limit 2)."]
+            f"accepted fixture crate on {INFERENCE_NAMES}, {NUMBER_WORDS[len(INFERENCE_SHAPES)]} of the {NUMBER_WORDS[held]} shapes of",
+            f"{INFERENCE_FILE}, with {INFERENCE_COUNTS} results (README, limit 2)."]
 
 
 def shapes_files():
