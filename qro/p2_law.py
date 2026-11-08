@@ -48,6 +48,10 @@ from qro import vocabulary as V
 
 FORMAT = "qro-law/1"
 MEASURE_SET = "qro-measures/1"
+# The amplitude passes qro-measures/1 allows step 6's hold of a crate's law circuit, 268,435,456, priced as
+# qro.p2_hold.law_circuit_price prices it (P2.2; the lead's ruling of 2026-11-08T07:36:59Z): a larger budget is a new
+# version of the measure set, never an edit of this figure.
+BUDGET = 1 << 28
 STOCK = "pauli-4x4"
 # The source circuit of Quantum-Film's pauli-4x4 shelf, as run (Quantum-Film's compare.py, SOURCE_CIRCUIT, READ):
 # the one law circuit this version of P2 knows how to write a law for.

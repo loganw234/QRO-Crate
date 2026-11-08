@@ -8,7 +8,9 @@ STEP 6, `measure-class`, re-derives, in this order, refusing at the first failur
   3. the law: a File of the crate in `qro-law/1`, read and held to its form (qro.p2_law), and the measure set's needs
      of it;
   4. the law against the question's own circuit: `qro:lawCircuit` a File in the question's `object`, in the QASM
-     subset, simulated, laying every layout and its observables within 1e-10;
+     subset, priced first (qro.p2_hold.law_circuit_price) and refused, nothing of it simulated, where the price is past
+     the work qro-measures/1 allows (qro.p2_law.BUDGET); then simulated, laying every layout and its observables within
+     1e-10;
   5. the classes: the Contrasts exactly (measure, twin) over the set, each class and each value as computed from the
      law, whatever the crate says;
   6. the measurements: every `qro:Pub` of role `law` or `coherence` measured from its raw bytes through P1.1's
@@ -21,7 +23,12 @@ STEP 7, `compile-uncontrolled`: every Hold names one Compile and the rule `qro-e
 `step-unbuilt`); every Compile has exactly one Hold; each Compile's manifest is read; every logical circuit it names is
 carried; every gate list it names that the crate carries is held (qro.p2_hold), whatever any claim says; no gate list
 (a File whose name ends `.gates.json`) in the Compile's `object` or `result` goes unnamed by its manifest; and the
-Hold's word is the one the gate lists give.
+Hold's word is the one the gate lists give. Its work is counted against the rule's budget (qro.p2_hold): each Compile
+and each entry of its manifest, and each distinct pair, the first time it is met, at its full price before any of it
+is simulated; a pair is held once a check, its verdict kept by everything the verdict reads, its gate list's and its
+logical circuit's digests, its role and its basis (the check's law is one, read once); the carried digests are found
+once and each distinct manifest read once. Reading the metadata, which the checker has read whole before step 7, is not
+counted.
 Every entity is visited by its type, never by its id's pattern. What a hostile file or graph raises inside either step
 is refused by the step's own name, with its type and text (FORMAT.md, item 16), but for an OSError, which is the host's
 (a PermissionError, misuse: exit 2) and a MemoryError, neither caught: the checker failing, exit 3.
@@ -75,19 +82,37 @@ def _local_file(idx, ref, where, what, refuse):
     return e
 
 
+class Work:
+    """One step's count of its hold's work on one crate, in amplitude passes, from zero, against the budget the rule
+    `allows`: a spend that would take it past refuses the crate by the step's name, at the place given, before the work
+    it prices is done. `spent` is what the check has counted so far."""
+
+    def __init__(self, budget, refuse, allows, of):
+        self.budget, self.refuse, self.allows, self.of, self.spent = budget, refuse, allows, of, 0
+
+    def spend(self, units, where, doing):
+        if self.spent + units > self.budget:
+            raise self.refuse(where, f"{doing} would bring {self.of} to {self.spent + units} amplitude passes, past "
+                                     f"the {self.budget} that {self.allows} allows a crate; nothing past it is "
+                                     "simulated")
+        self.spent += units
+
+
 # -- step 6 ------------------------------------------------------------------------------------------------------------
 def step6(crate_dir, md):
     _net(_measure, "@graph", _step6, Path(crate_dir), md)          # the last net; the inner ones name the place
 
 
 def _step6(crate, md):
+    """The checks of step 6; the work its hold of the law circuit counted, in amplitude passes."""
     idx = _index(md, _measure)
     question = _question(idx)
     qid = question["@id"]
     law = _net(_measure, f"{qid} qro:law", _law, crate, idx, question)
-    _net(_measure, f"{qid} qro:lawCircuit", _law_circuit, crate, idx, question, law)
+    work = _net(_measure, f"{qid} qro:lawCircuit", _law_circuit, crate, idx, question, law)
     _contrasts(idx, question, law)
     _measurements(crate, idx, md, law)
+    return work.spent
 
 
 def _question(idx):
@@ -121,9 +146,13 @@ def _law_circuit(crate, idx, question, law):
     if ref.get("@id") not in idx.refs(question, "object"):
         raise _measure(where, "the law circuit is one of the question's own circuits, in its object")
     e = _local_file(idx, ref, where, "the law circuit", _measure)
-    problem = p2_hold.law_circuit_problem(p1_decode.crate_file(crate, e, "the law circuit"), law)
+    data = p1_decode.crate_file(crate, e, "the law circuit")
+    work = Work(p2_law.BUDGET, _measure, p2_law.MEASURE_SET, "this crate's hold of its law circuit")   # from zero
+    work.spend(p2_hold.law_circuit_price(data, law), where, "simulating the law circuit")
+    problem = p2_hold.law_circuit_problem(data, law)
     if problem:
         raise _measure(where, f"the law is not the question's circuit's: {problem}")
+    return work
 
 
 def _contrasts(idx, question, law):
@@ -228,13 +257,27 @@ def step7(crate_dir, md):
 
 
 def _step7(crate, md):
+    """The checks of step 7; the work it counted, in amplitude passes."""
     idx = _index(md, _uncontrolled)
     held = {}
     for h in sorted(idx.of_type("qro:Hold"), key=lambda e: e["@id"]):
         _net(_uncontrolled, h["@id"], _hold_entity, idx, h, held)
-    law = []                                       # read once, when a circuit first needs it
+    walk = Walk(idx, Work(p2_hold.BUDGET, _uncontrolled, p2_hold.RULE, "this crate's exact hold"))
     for c in sorted(idx.of_type("qro:Compile"), key=lambda e: e["@id"]):
-        _net(_uncontrolled, c["@id"], _compile, crate, idx, c, held, law)
+        _net(_uncontrolled, c["@id"], _compile, crate, idx, c, held, walk)
+    return walk.work.spent
+
+
+class Walk:
+    """What step 7 keeps for one check: its count of the work; the question's law, read once when a circuit first needs
+    it; the digests the crate's Files carry, found once; each distinct manifest's entries, read once, by the manifest's
+    digest; and each distinct pair's verdict, held once, by everything the verdict reads: the gate list's digest, the
+    logical circuit's digest, the role and the basis (the law is the check's one, by the role)."""
+
+    def __init__(self, idx, work):
+        self.work, self.law, self.manifests, self.pairs = work, [], {}, {}
+        self.carried = {e["sha256"] for e in idx.of_type("File")
+                        if isinstance(e.get("sha256"), str) and reader.local_file(e)}
 
 
 def _hold_entity(idx, h, held):
@@ -266,19 +309,30 @@ def _question_law(crate, idx, law):
     return law[0]
 
 
-def _compile(crate, idx, c, held, law):
+def _manifest(crate, manifest, walk):
+    """The entries a Compile's manifest names, read once a check by the digest its File states (which step 2 has held
+    to its bytes), or by its @id where it states none."""
+    key = manifest["sha256"] if isinstance(manifest.get("sha256"), str) else manifest["@id"]
+    if key not in walk.manifests:
+        walk.manifests[key] = p2_hold.read_manifest(p1_decode.crate_file(crate, manifest, "the manifest"))
+    return walk.manifests[key]
+
+
+def _compile(crate, idx, c, held, walk):
     cid = c["@id"]
+    walk.work.spend(p2_hold.PER_COMPILE, cid, "walking this Compile")
     hs = held.get(cid, [])
     if len(hs) != 1:
         raise _uncontrolled(cid, f"a Compile has exactly one Hold; this one has {len(hs)}")
     manifest = p2_measures.manifest_of(idx, c)
-    named = p2_hold.read_manifest(p1_decode.crate_file(crate, manifest, "the manifest"))
+    named = _manifest(crate, manifest, walk)
     gates = {n.gates_sha256 for n in named if n.gates_sha256 is not None}
     for term in ("object", "result"):
         for e in sorted(idx.refs_of_type(c, term, "File"), key=lambda e: e["@id"]):
             if e["@id"].endswith(".gates.json") and e.get("sha256") not in gates:
                 raise _uncontrolled(f"{cid} {term}", f"{e['@id']} is a gate list its manifest does not name")
     for n in named:
+        walk.work.spend(p2_hold.PER_ENTRY, cid, "walking its manifest")
         logicals = [e for e in idx.files_by_sha256(n.circuit_sha256) if reader.local_file(e)]
         if not logicals:
             raise _uncontrolled(manifest["@id"], f"the logical circuit of {n.name}, {n.circuit_sha256}, is not carried")
@@ -288,16 +342,20 @@ def _compile(crate, idx, c, held, law):
         if not carried:
             continue                                   # withheld: the claim must say so, below
         g = carried[0]
-        try:
-            problem = p2_hold.hold_circuit(n, p1_decode.crate_file(crate, g, "the gate list"),
-                                           p1_decode.crate_file(crate, logicals[0], "the logical circuit"),
-                                           None if n.role == "known-answer" else _question_law(crate, idx, law))
-        except (p2_sim.SimError, p2_hold.HoldError, p2_law.LawError) as x:
-            raise _uncontrolled(g["@id"], f"the gate list of {n.name} cannot be held: {x}") from None
+        pair = (n.gates_sha256, n.circuit_sha256, n.role, n.basis)
+        if pair not in walk.pairs:
+            try:
+                gate_bytes = p1_decode.crate_file(crate, g, "the gate list")
+                logical_bytes = p1_decode.crate_file(crate, logicals[0], "the logical circuit")
+                law = None if n.role == "known-answer" else _question_law(crate, idx, walk.law)
+                walk.work.spend(p2_hold.pair_price(n, gate_bytes, logical_bytes, law), g["@id"], "holding it")
+                walk.pairs[pair] = p2_hold.hold_circuit(n, gate_bytes, logical_bytes, law)
+            except (p2_sim.SimError, p2_hold.HoldError, p2_law.LawError) as x:
+                raise _uncontrolled(g["@id"], f"the gate list of {n.name} cannot be held: {x}") from None
+        problem = walk.pairs[pair]
         if problem:
             raise _uncontrolled(g["@id"], f"the gate list of {n.name} does not pass the exact hold: {problem}")
-    files = {e["sha256"] for e in idx.of_type("File") if isinstance(e.get("sha256"), str) and reader.local_file(e)}
-    word, h = p2_hold.claim(named, files), hs[0]
+    word, h = p2_hold.claim(named, walk.carried), hs[0]
     if h["qro:exactHold"] != word:
         raise _uncontrolled(f"{h['@id']} qro:exactHold", f"the Hold says {h['qro:exactHold']}; the gate lists give "
                                                           f"{word}")

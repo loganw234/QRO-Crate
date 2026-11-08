@@ -21,6 +21,14 @@ carried, `withheld` where a File of the crate has none of one's digest, `unexpos
 
 WHAT IT CANNOT SEE (P2's stated limit 1; isa.py's own, READ): a change that leaves every Z-basis probability alone, an
 rz on a qubit still in a basis state or after its last two-qubit gate, before its measurement. Only digests refuse it.
+
+THE WORK IT ALLOWS A CRATE (P2.2; the lead's ruling of 2026-11-08T07:36:59Z), part of qro-exact-hold/1: BUDGET
+amplitude passes (qro.p2_sim: a block applied to a dense state of k qubits costs 2^k). Step 7 counts, in its walk's
+order, PER_COMPILE for each Compile, PER_ENTRY for each manifest entry, and for each distinct pair it holds, the first
+time it meets it and before any of it is simulated, `pair_price`, whatever the memo holds: each file READ for each gate
+or line read and fused, its simulation's passes and its distribution, then the comparison and the judgement. The step
+refuses a crate whose count would pass BUDGET. `law_circuit_price` prices step 6's hold of the question's law circuit
+the same way, which qro-measures/1 allows qro.p2_law.BUDGET. A larger budget is a new version of the rule.
 """
 import hashlib
 from dataclasses import dataclass
@@ -33,6 +41,12 @@ RULE = "qro-exact-hold/1"
 BUNDLE_FORMAT = "quantum-film/hardware-bundle/v1"
 TOLERANCE = 1e-10
 HOLDS, WITHHELD, UNEXPOSED = "holds", "withheld", "unexposed"
+BUDGET = 1 << 28              # the amplitude passes qro-exact-hold/1 allows a crate's holds, 268,435,456
+READ = 256                    # a gate, or a line of a logical circuit, read and fused: the power of two above twice
+#                               the 75 to 110 passes' worth measured, as a pair's price reads its files and a cold hold
+#                               reads them again
+PER_ENTRY = 16                # each manifest entry of each Compile the walk enters: its lookups
+PER_COMPILE = 16              # each Compile the walk enters
 
 
 class HoldError(ValueError):
@@ -167,6 +181,32 @@ def hold_circuit(named, gate_bytes, logical_bytes, law):
     if problem is None:
         problem = JUDGED.put(jkey, role_problem(named, dist_l, circuit.n, law) or "")
     return f"(b) its logical circuit, a {named.role} circuit: {problem}" if problem else None
+
+
+# -- the work the hold may do ------------------------------------------------------------------------------------------
+def file_price(c):
+    """What holding one file costs, from its p2_sim.Cost: READ for each gate or line read and fused, its simulation's
+    amplitude passes, and its distribution, the dense state read and the outcomes written."""
+    return READ * c.size + c.passes + (1 << c.state) + (1 << c.width)
+
+
+def pair_price(named, gate_bytes, logical_bytes, law):
+    """What `hold_circuit` costs at most, whatever the memo holds: both files' prices, the comparison over the gate
+    list's outcomes, and the judgement over the logical circuit's (with the law's layouts for a law circuit). Read off
+    the files alone, nothing simulated; SimError for a file the simulator does not read, as the hold would give."""
+    g, c = p2_sim.gate_list_cost(gate_bytes), p2_sim.logical_cost(logical_bytes)
+    judgement = (1 << c.width) + (law.D if named.role == "law" and law is not None else 0)
+    return file_price(g) + file_price(c) + (1 << g.width) + judgement
+
+
+def law_circuit_price(qasm_bytes, law):
+    """What `law_circuit_problem` costs at most, whatever its memo holds: the circuit's reading, and where its width is
+    the law's, its simulation and distribution, the law's layouts and outcomes, and each observable over its state.
+    SimError for a circuit the simulator does not read."""
+    c = p2_sim.logical_cost(qasm_bytes)
+    if c.width != law.M:
+        return READ * c.size                       # refused for its width before anything is simulated
+    return file_price(c) + law.D + (1 << c.width) + len(law.observables) * (1 << c.state)
 
 
 def law_circuit_problem(qasm_bytes, law):

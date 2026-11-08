@@ -9,14 +9,13 @@ import json
 import math
 import random
 import re
-from pathlib import Path
 
 import pytest
+from p2_builder import data as twin_file
 
 from qro import p2_hold, p2_sim
 from qro.p2_sim import SimError
 
-DATA = Path(__file__).parent / "data"
 R2 = 1 / math.sqrt(2)
 CLOSE = 1e-12
 
@@ -374,7 +373,7 @@ def test_the_gate_lists_caps(monkeypatch):
 
 
 HOSTILE_QASM = {
-    "not ascii": ('OPENQASM 2.0;\ninclude "qelib1.inc";\nqreg q[2];\nx q[0];\n'.replace("x", "é"), "not ASCII"),
+    "not ascii": ('OPENQASM 2.0;\ninclude "qelib1.inc";\nqreg q[2];\nx q[0];\n'.replace("x", chr(0xE9)), "not ASCII"),
     "crlf": ('OPENQASM 2.0;\r\ninclude "qelib1.inc";\r\nqreg q[2];\r\n', "end in LF"),
     "no final lf": ('OPENQASM 2.0;\ninclude "qelib1.inc";\nqreg q[2];', "end in LF"),
     "openqasm 3": ('OPENQASM 3.0;\ninclude "qelib1.inc";\nqreg q[2];\n', "does not open"),
@@ -456,7 +455,7 @@ def test_the_logical_readers_cap_at_its_own_size():
 
 
 def test_v0s_circuits_read_and_share_one_core():
-    read = {n: p2_sim.read_qasm((DATA / f"{n}.qasm").read_bytes())
+    read = {n: p2_sim.read_qasm(twin_file(f"{n}.qasm"))
             for n in ("law", "coherence-xx", "coherence-yy", "known-answer", "circuit-ed767c01bd4b851d")}
     source = read["circuit-ed767c01bd4b851d"]
     assert not source.measured and all(read[n].measured for n in ("law", "coherence-xx", "coherence-yy"))
@@ -483,7 +482,7 @@ def test_a_memo_is_an_lru_of_its_size():
 
 
 def test_the_memo_answers_by_the_bytes_and_clear_empties_all_six():
-    data = (DATA / "known-answer.gates.json").read_bytes()
+    data = twin_file("known-answer.gates.json")
     p2_sim.clear()
     first = p2_sim.gate_list_distribution(data)
     assert p2_sim.gate_list_distribution(bytes(data)) is first
@@ -516,8 +515,8 @@ def test_split_takes_the_trailing_h_and_sdg():
 
 @pytest.mark.parametrize("name", ["coherence-xx", "coherence-yy"])
 def test_a_circuit_is_the_same_bytes_whether_or_not_its_core_was_memoised(name):
-    law = p2_sim.read_qasm((DATA / "law.qasm").read_bytes())
-    c = p2_sim.read_qasm((DATA / f"{name}.qasm").read_bytes())
+    law = p2_sim.read_qasm(twin_file("law.qasm"))
+    c = p2_sim.read_qasm(twin_file(f"{name}.qasm"))
     p2_sim.clear()
     _, scratch = p2_sim.logical(c)
     p2_sim.clear()
@@ -536,7 +535,7 @@ def test_the_coherence_circuits_resume_from_the_law_circuits_memoised_core(monke
     runs its core from |0...0> and its tail from the core's State; each of v0's coherence circuits then runs its tail
     alone, from that same State, which the core memo holds; and each circuit asked for again runs nothing, the logical
     memo's answer."""
-    law, xx, yy = (p2_sim.read_qasm((DATA / f"{n}.qasm").read_bytes()) for n in ("law", "coherence-xx", "coherence-yy"))
+    law, xx, yy = (p2_sim.read_qasm(twin_file(f"{n}.qasm")) for n in ("law", "coherence-xx", "coherence-yy"))
     starts, simulate = [], p2_sim.simulate
 
     def counted(blocks, start=None):

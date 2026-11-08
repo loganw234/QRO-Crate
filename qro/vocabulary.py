@@ -362,9 +362,11 @@ REFUSALS = (
     Refusal("known-answer", "step 5; kit intake", "refused", "P1",
             "the decode does not read the known answer: bit order is not held"),
     Refusal("measure-class", "step 6", "refused", "P2",
-            "a measure's value, interval or class, or the law they rest on, does not re-derive"),
+            "a measure's value, interval or class, or the law they rest on, does not re-derive, or simulating the law "
+            "circuit would exceed the work the measure set allows"),
     Refusal("compile-uncontrolled", "step 7", "refused", "P2",
-            "a gate list does not pass the exact hold, or a compile's hold is not what its gate lists give"),
+            "a gate list does not pass the exact hold, or holding it would exceed the work the rule allows a crate, or "
+            "a compile's hold is not what its gate lists give"),
     Refusal("calibration-link", "step 8", "refused", "P1", "a calibration link or values-digest does not hold"),
     Refusal("metadata-generated", "step 9", "refused", "P0",
             "the metadata is not what its generator makes from the records, the header normalised"),

@@ -20,7 +20,7 @@ def v0():
 
 def test_the_stream_encoding():
     assert p2_report.stream("compare-floor", "pauli-4x4", 24576, 0) == b"s13:compare-floor|s9:pauli-4x4|i24576|i0"
-    assert p2_report.stream("é", -3) == b"s2:\xc3\xa9|i-3"
+    assert p2_report.stream(chr(0xE9), -3) == b"s2:\xc3\xa9|i-3"
     for bad in (1.0, True, None, b"x"):
         with pytest.raises(TypeError):
             p2_report.stream(bad)

@@ -4867,3 +4867,121 @@ The Profile Crate renders the terms' and the types' meanings, never a refusal's.
 - **Note 3:** P2.2, as ruled, adds no term, only two refusals' meanings. Its merge holds the counts again.
 - **From P4.2's list, where it left them:** the description in HTML, each `termCode` as a key, rocrate-validator, the
   permanent IRI (Logan's to register), and a host that makes symbolic links.
+
+## 2026-11-08 - P4.3 committed; P2.2 merged: P2's controls, its tests on v0's crates, and the exact hold's work budget
+
+**P4.3 is committed and pushed** as 35be18e, with the entry above, on Logan's standing word. The runner on the
+committed tree, before the push: run `20261108-022727-19796-35be18e`, 23 stages passed and 1 skipped by name
+(p2-crates), 6,117 tests.
+
+**What P2.2 is.** P2 is the golden measures' parcel (the entry "P0.8 committed; P2.1 merged: the golden measures'
+core"). P2.2 is the rest of it, and the rest of study QRO-0's milestone M1, stage 2. A builder on Opus, as decision 9
+on P2's design names, built it in its own worktree from eff2469. It was laid on main at 35be18e, touching none of P4.3's
+files. It adds 10 files, changes 14 and removes 11:
+- **controls/plants_p2.py:** P2's two controls of section 11, planted in P1's twin with P1.2's toolkit:
+  - `class-declared`, refused `measure-class` at `#contrast-n-crystal-share-uniform qro:class`;
+  - `compile-broken`, refused `compile-uncontrolled` at kingston's morning law gate list, (a), 2.313e-03 against 1e-10.
+
+  Each plant asserts what it changes first, and on a crate not its own raises and writes nothing.
+- **tests/p2/:** the tests on P1's twin: the twin accepted with P2 registered, the contract held with P1's real
+  generator (T0 to T4), step 7 passing over a Compile's QPY and ISA files, both controls; N1 to N4 of P2.1's third
+  verifier, a test each; N7, its three non-ASCII characters written as `chr` codes; and the budget's tests.
+- **tests/p2crates/ and the `p2-crates` stage,** on v0's two crates built by P1's adapter outside the tree:
+  - both crates accepted, with P2's measures;
+  - the 12 distinct gate lists below 1e-14 each way;
+  - the 21 morning cells and the 31 sheet runs against moth-quantum's printed figures, read at run time;
+  - section 6.1's 70 intervals, every line of the study's instrument made again word for word;
+  - `compile-broken` on each device's law gate list.
+- **tests/p2/data/:** its ten copies of Quantum-Film's files and their README removed (decision 9): P1's twin carries
+  all ten byte for byte, and P2's tests read them there.
+- **qro/p2_sim.py, p2_hold.py, p2_law.py and p2_steps.py:** the work budget (below).
+- **qro/vocabulary.py, docs/REFUSALS.md and docs/VOCABULARY.md:** two refusals' meanings widened in the lead's words,
+  by the lead's grant, the two pages as `tools/gen_vocabulary.py --write` makes them:
+  - `measure-class`: "... or simulating the law circuit would exceed the work the measure set allows";
+  - `compile-uncontrolled`: "... or holding it would exceed the work the rule allows a crate ...".
+- **docs/P2.md:** the page restated for both builds, with a new section, "The work the hold may do".
+
+**The work budget** (lead.md 2026-11-08T07:36:59Z, on P2.2's escalation and its measure of v0's 12 real gate lists).
+Before it, one hostile gate list within the caps could hold the checker for hours (limit 13, a stated limit since P2.1).
+- **The unit is the amplitude pass.** Each step counts its own, from zero, against 2^28 a crate:
+  - step 7: 16 for each Compile and for each manifest entry, and each distinct pair (gate list, logical circuit, role,
+    basis) at its whole price the first time the walk meets it;
+  - step 6: the question's law circuit at the same price.
+- **Each refuses by its own name before anything it prices is simulated:** `compile-uncontrolled` at the pair's gate
+  list, `measure-class` at `#question qro:lawCircuit`.
+- **The count is a pure function of the crate's bytes,** the same cold, warm and after another crate. The price and
+  the simulator ask one function whether a block enters the dense state.
+- **Each pair is held once a check,** the carried set built once, each distinct manifest read once.
+- **Both budgets sit inside the rules' first versions,** `qro-exact-hold/1` and `qro-measures/1`. No crate, Hold,
+  identity or figure of P1's moved; a larger budget later is a new version.
+- **What it costs an honest crate:**
+  - v0's IBM crate counts 25,296,318 at step 7, about a tenth of the budget;
+  - both crates count 1,294,892 at step 6;
+  - one device's compile counts 7.1 to 10.7 million, so a crate holds 25 to 37 of v0's;
+  - repeated references cost 16 each.
+- **What it bounds in time** (docs/P2.md, as the first verifier's D1 made it): a pass costs 0.04 to 0.24
+  microseconds an amplitude at typical placements, and up to 1.7 microseconds on the two lowest axes. So a step takes
+  at most about a minute typically, and at the slow placement on 20 qubits about 7.5 minutes quiet, an upper bound no
+  list quite reaches; a crate's two steps at most about 15.
+
+**The rounds** (docs/reviews/P2.2/):
+1. **NOT READY,** on the full bar, on one false sentence: the page said 2^28 passes is "under a minute here", false
+   where a two-qubit block sits on the two lowest qubits, where `_quarters` and `_within` cut the state into
+   one-amplitude slices. Measured:
+   - 1.7 microseconds an amplitude at 20 qubits;
+   - a crate just under the budget took 236.5 s beside other work, where a random list of the same price took 47.4 s.
+
+   Everything else held:
+   - the count, cold, warm and in any order;
+   - the price against the simulator's own work on 3,600 lists, with no mismatch;
+   - the refusal's place and order, and the pair key;
+   - the meanings, and both controls;
+   - 37 mutants of its own, all killed.
+
+   Ruled (lead.md 10:39:41Z), prose only: the two time passages and the reading bullet restated. Three more loose
+   sentences the builder reported were taken before round 2 (10:49:16Z).
+2. **READY,** on the full bar. It measured:
+   - every restated time true, at 16 and 20 qubits;
+   - a step-6 crate just over its budget refused in about a second, and just under it simulated, then refused for
+     its law;
+   - a 20-qubit crate just under step 7's budget simulated in 265 s beside other work;
+   - 35 distinct bundles at 261,772,510, accepted by step 7, and 36 refused;
+   - a 100,004-entry manifest parsed in 2.6 s.
+
+   Its notes are below the bar (Left).
+
+**Measured at the merge:**
+- P2.2's hand mutants after their baselines: 40 before the budget, 39 killed, the survivor moving a figure below the
+  place the page prints; and the budget's 33, all killed.
+- **Decision 7, the twin's four gate lists** (lead.md 2026-10-16T00:24:00Z): "if P2 has added more than about 20 s
+  idle, the twin moves to the known-answer gate lists only". Measured by P2.2's instrumented method on the merged tree,
+  with no agent of the round running and the host's CPU at 13% when it began:
+  - P2's own code took 23.9 s in the three stages that check P1's twin: p1 12.0 s, control-tests 9.3 s, controls-run
+    2.6 s. P2.2 measured 24.5 s beside other work;
+  - of it, step 7's holds of the twin's gate lists took 6.9 s.
+
+  **The twin keeps its four gate lists all the same** (lead.md 2026-11-08T12:24:51Z). The alternative would save at
+  most those 6.9 s, of a quick budget now about 18 minutes of stage time. It would also plant `compile-broken` into a
+  known answer's gate list, on classical bits the dense simulation never reaches, in place of the real law gate list,
+  and change P1's twin under P1's, P2's and P4's tests;
+- the runner on the merged tree, staged, with `QRO_MOTH_ROOT` and `QRO_SHACL_PYTHON` set: run
+  `20261108-052510-32266-35be18e+dirty`, 24 stages passed and none skipped, 6,221 tests, p2's 586 and p2-crates' 25
+  among them; the controls' run: 18 of 18 built controls as section 11 says, 12 pending, P3's and P5's.
+
+**M1's stage 2 is met:** v0's two crates are accepted with P2's measures and exact hold. Each crate-level control of
+section 11 that is built comes out as that section says. The rest are P3's and P5's, for stages 3 and 4.
+
+**The stated limits** are docs/P2.md's.
+
+**Left:**
+- **For P2's next piece, round 2's notes,** all prose or reach where the code is right:
+  - the reading bullet could add the cold hold's own simulation of many tiny blocks: a crate of 100,000-gate cz lists
+    on 3 to 8 qubits costs about 440 to 470 ns a priced unit end to end, about 2 minutes at the budget;
+  - the page describes memory only for the memo, where a manifest or metadata file parses at about three times its
+    bytes;
+  - synthetic compiles cannot pass step 9, so the budget at the command line is tested on the twin's own files or in
+    process.
+- **The slow placement itself:** `_quarters` and `_within` could be made faster on the lowest axes, should P2's next
+  piece want the bound tighter in time; the count is right as it stands.
+- **For P4's next piece:** no test holds that a must shape does not fail on a refused crate plant, P2.2's two among
+  them (P4.3's verifier, note 2; P2.2's first verifier measured none failing).

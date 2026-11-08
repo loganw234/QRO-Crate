@@ -10,26 +10,20 @@ import json
 import math
 import re
 from fractions import Fraction
-from pathlib import Path
 
 import pytest
-from p2_builder import SMALL_T1, qasm, small_gates, small_law_bytes, transpile
+from p2_builder import SMALL_T1, data, qasm, small_gates, small_law_bytes, transpile
 
 from qro import p2_hold, p2_law, p2_sim
 from qro.p2_hold import HoldError
 from qro.p2_sim import SimError
 
-DATA = Path(__file__).parent / "data"
 F = Fraction
 NAMES = ("known-answer", "law", "coherence-xx", "coherence-yy")
 
 
 def sha(b):
     return hashlib.sha256(b).hexdigest()
-
-
-def data(name):
-    return (DATA / name).read_bytes()
 
 
 def v0():

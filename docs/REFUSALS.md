@@ -20,8 +20,8 @@ Every name the checker, the comparison, the kit or the custody check refuses by,
 | `count-unpaid` | step 3 | refused | P0 | a stated count is not the count the raw bytes hold |
 | `commitment` | step 4 | refused | P1 | a commitment does not recompute, or is not the one the provider echoed |
 | `known-answer` | step 5; kit intake | refused | P1 | the decode does not read the known answer: bit order is not held |
-| `measure-class` | step 6 | refused | P2 | a measure's value, interval or class, or the law they rest on, does not re-derive |
-| `compile-uncontrolled` | step 7 | refused | P2 | a gate list does not pass the exact hold, or a compile's hold is not what its gate lists give |
+| `measure-class` | step 6 | refused | P2 | a measure's value, interval or class, or the law they rest on, does not re-derive, or simulating the law circuit would exceed the work the measure set allows |
+| `compile-uncontrolled` | step 7 | refused | P2 | a gate list does not pass the exact hold, or holding it would exceed the work the rule allows a crate, or a compile's hold is not what its gate lists give |
 | `calibration-link` | step 8 | refused | P1 | a calibration link or values-digest does not hold |
 | `metadata-generated` | step 9 | refused | P0 | the metadata is not what its generator makes from the records, the header normalised |
 | `step-unbuilt` | seam | refused | P0 | a CHECKED field, a raw form or a generator whose checker step is not built yet |

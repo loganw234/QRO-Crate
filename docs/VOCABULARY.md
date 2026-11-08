@@ -100,8 +100,8 @@ The prefix `qro` is `https://github.com/loganw234/QRO-Crate/blob/main/docs/VOCAB
 | verdict | `count-unpaid` | a stated count is not the count the raw bytes hold |
 | verdict | `commitment` | a commitment does not recompute, or is not the one the provider echoed |
 | verdict | `known-answer` | the decode does not read the known answer: bit order is not held |
-| verdict | `measure-class` | a measure's value, interval or class, or the law they rest on, does not re-derive |
-| verdict | `compile-uncontrolled` | a gate list does not pass the exact hold, or a compile's hold is not what its gate lists give |
+| verdict | `measure-class` | a measure's value, interval or class, or the law they rest on, does not re-derive, or simulating the law circuit would exceed the work the measure set allows |
+| verdict | `compile-uncontrolled` | a gate list does not pass the exact hold, or holding it would exceed the work the rule allows a crate, or a compile's hold is not what its gate lists give |
 | verdict | `calibration-link` | a calibration link or values-digest does not hold |
 | verdict | `metadata-generated` | the metadata is not what its generator makes from the records, the header normalised |
 | verdict | `step-unbuilt` | a CHECKED field, a raw form or a generator whose checker step is not built yet |

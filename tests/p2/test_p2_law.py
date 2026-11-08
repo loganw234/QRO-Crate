@@ -114,6 +114,9 @@ def dropping(key):
     return plant
 
 
+ACCENTED = ("G" + chr(0xED) + "vens").encode("utf-8")      # the source's word, one letter accented, spelt raw
+
+
 HOSTILE_BYTES = {
     "not UTF-8": (lambda: b"\xff" + small_law_bytes(), "not UTF-8"),
     "not JSON": (lambda: b"{", "not JSON"),
@@ -129,7 +132,7 @@ HOSTILE_BYTES = {
     "two line feeds": (lambda: small_law_bytes() + b"\n", "one spelling"),
     "keys unsorted": (lambda: (json.dumps(dict(reversed(list(doc().items()))), separators=(",", ":")) + "\n").encode(),
                       "one spelling"),
-    "a non-ASCII escape spelt raw": (lambda: small_law_bytes().replace(b"Givens", "Gívens".encode("utf-8"), 1),
+    "a non-ASCII escape spelt raw": (lambda: small_law_bytes().replace(b"Givens", ACCENTED, 1),
                                      "one spelling"),
 }
 HOSTILE_DOCS = {

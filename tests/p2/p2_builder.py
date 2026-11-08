@@ -1,6 +1,7 @@
 """A test-only builder of synthetic crates for P2's steps (P2.1). It is not a generator: no step runs it, and it reads
-no record of Quantum-Film's or IBM's but the copies under tests/p2/data/ (kingston's morning bundle, Quantum-Film's,
-MIT; their README names them).
+no record of Quantum-Film's or IBM's but ten files of P1's twin, under tests/p1/data/moth (kingston's morning bundle
+and the source circuit, Quantum-Film's, MIT): `data` reads them there, so each has one place in the tree (the lead's
+decision 9 on P2's design; P2.2).
 
 A Model holds a crate as its files (path -> bytes) and P1's entities (id -> terms). write() writes the files, gives
 every File its digest and size, adds P2's terms and entities as qro.p2_measures.contribute makes them from those files,
@@ -18,8 +19,8 @@ at its word), the known answer's record names its circuit (step 5 reads its expe
       It can leave all of the gate lists uncarried, or some.
   sheet_model(): the small crate with a second compile in the shape of P1's sheets, whose law and coherence circuits
       and gate lists are the morning bundle's, found by digest.
-  real_model(): v0's question (the pauli-4x4 law from p2_law, the source circuit's copy) and kingston's morning
-      compile, its four gate lists and logical circuits and its manifest, copied byte for byte.
+  real_model(): v0's question (the pauli-4x4 law from p2_law, the twin's source circuit) and kingston's morning
+      compile, its four gate lists and logical circuits and its manifest, the twin's, byte for byte.
   atlas_model(): v0's question and Atlas-shaped jobs, their raw results tomography results that Atlas's rule decodes;
       no compile. It can hold a coherence PUB on an Atlas raw result, which P2 refuses.
 """
@@ -34,12 +35,18 @@ import zlib
 from fractions import Fraction
 from pathlib import Path
 
+from controls.plants_p1 import MORNING_BUNDLE, TWIN
 from qro import canonical, fixture, p2_law, p2_measures, reader
 from qro import vocabulary as V
 from qro.refusal import Refused
 
 HERE = Path(__file__).resolve().parent
-DATA = HERE / "data"
+RECORDS = TWIN / "docs" / "records"        # P1's twin, laid out as moth-quantum's tree
+SOURCE_RECORD = "2026-09-25/p3/circuit-ed767c01bd4b851d.qasm"
+BUNDLE_FILES = ("manifest.json", "known-answer.qasm", "law.qasm", "coherence-xx.qasm", "coherence-yy.qasm",
+                "known-answer.gates.json", "law.gates.json", "coherence-xx.gates.json", "coherence-yy.gates.json")
+# Each file P2's tests read, by the name they read it under, and its path among the twin's records.
+TWIN_FILES = {"circuit-ed767c01bd4b851d.qasm": SOURCE_RECORD, **{n: f"{MORNING_BUNDLE}/{n}" for n in BUNDLE_FILES}}
 GENERATOR = "qro-p2-test-builder"          # a name no parcel registers: as a process, a crate naming it stops at step 9
 IBM_FORM, IBM_RULE = "ibm-sampler-result/v1", "quantum_film.ibm.decode/v1"
 DEVICE, PROGRAM, STOCK = "ibm_synth", "sampler", "pauli-4x4"
@@ -53,8 +60,8 @@ def sha(data):
 
 
 def data(name):
-    """The bytes of one of the copies under tests/p2/data/."""
-    return (DATA / name).read_bytes()
+    """The bytes of one of the ten files of P1's twin that P2's tests read, by the name TWIN_FILES gives it."""
+    return RECORDS.joinpath(*TWIN_FILES[name].split("/")).read_bytes()
 
 
 def outcome(qubits):

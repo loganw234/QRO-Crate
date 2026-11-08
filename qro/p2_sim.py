@@ -25,13 +25,21 @@ first block on it that is not a permutation of the basis with phases, tested exa
 so the dense state holds only the qubits the circuit has spread to. A phase on a basis state is global and dropped,
 which no probability and no Pauli expectation can see. Outcomes are indexed sum of clbit c * 2^c.
 
+THE WORK (P2.2; the lead's ruling of 2026-11-08T07:36:59Z), in amplitude passes: a block applied to the dense state of
+k qubits costs 2^k, and a block that does not enter the state costs none. Whether a block enters is one function,
+`enters`, which the simulator asks before it applies a block and `cost` asks as it walks fused blocks without touching
+an amplitude; so the walk counts exactly the passes the simulator makes, which the simulator counts itself
+(`State.work`). `gate_list_cost` and `logical_cost` give what qro.p2_hold prices a file at: its size in gates or lines,
+its simulation's amplitude passes, and its distribution's state and outcomes. Each is a pure function of the bytes,
+memoised by their SHA-256 in `PRICES`.
+
 THE MEMO (the lead's E2 (11)): a pure function of the bytes read and hashed here (a gate list, by its SHA-256) or of a
 logical circuit's width and parsed operations, in process only, an LRU of 64 entries for each kind, emptied by
-`clear()`. A logical circuit is simulated in two parts, always: its core, every operation up to its last x, cx or ry,
-and then its tail, the trailing h and sdg that change a measurement's basis. Cores are memoised by their operations,
-so the coherence circuits, the law circuit's core with a tail, resume from the law circuit's core; and since the split
-is the circuit's own, never the memo's, a circuit's distribution is the same bytes whatever the memo held before.
-Nothing is read from disk here.
+`clear()`, which empties `PRICES` too. A logical circuit is simulated in two parts, always: its core, every operation
+up to its last x, cx or ry, and then its tail, the trailing h and sdg that change a measurement's basis. Cores are
+memoised by their operations, so the coherence circuits, the law circuit's core with a tail, resume from the law
+circuit's core; and since the split is the circuit's own, never the memo's, a circuit's distribution is the same bytes
+whatever the memo held before. Nothing is read from disk here.
 """
 import hashlib
 import math
@@ -107,6 +115,7 @@ class GateList:
     num_clbits: int
     ops: tuple                 # ("1q", qubit, U) or ("2q", a, b, U), physical qubits
     clbits: tuple              # clbit c -> the physical qubit measured into it
+    size: int = 0              # the gates the list holds, barriers and measures among them: what its reading costs
 
 
 def _whole(x):
@@ -178,7 +187,7 @@ def read_gate_list(data):
     missing = [c for c in range(m) if c not in clbit_of]
     if missing:
         raise SimError(f"the clbits {missing[:8]} are never measured")
-    return GateList(n, m, tuple(ops), tuple(clbit_of[c] for c in range(m)))
+    return GateList(n, m, tuple(ops), tuple(clbit_of[c] for c in range(m)), len(gates))
 
 
 # -- the logical circuit -----------------------------------------------------------------------------------------------
@@ -302,14 +311,24 @@ def fuse(ops):
     return out
 
 
+def enters(axes, qs, U):
+    """Whether a block on the qubits `qs`, its matrix U, enters the dense state whose qubits are `axes`: it does unless
+    every one of its qubits is still a classical bit and U permutes the basis with phases. The one test of the light
+    cone: `simulate` asks it before it applies a block, and `cost` as it prices one, so the two cannot drift apart."""
+    return not (all(q not in axes for q in qs) and monomial(U))
+
+
 class State:
     """A state as the light cone holds it: the qubits it has spread to, each an axis of the dense amplitudes `psi`
-    (index sum of bit k * 2^k, axes in the order they entered), and every other qubit a classical bit (0 unless set)."""
+    (index sum of bit k * 2^k, axes in the order they entered), and every other qubit a classical bit (0 unless set).
+    `work` is the simulator's own count of the amplitude passes the run that made this State applied: 2^k for each
+    block that entered a state of k qubits."""
 
     def __init__(self, axes=None, psi=None, bits=None):
         self.axes = dict(axes or {})
         self.psi = list(psi) if psi is not None else [1 + 0j]
         self.bits = dict(bits or {})
+        self.work = 0
 
     def copy(self):
         return State(self.axes, self.psi, self.bits)
@@ -379,12 +398,13 @@ def _apply2(psi, n, high, low, U):
 
 
 def simulate(blocks, start=None):
-    """The State after `blocks` (from fuse), from |0...0> or a copy of `start`."""
+    """The State after `blocks` (from fuse), from |0...0> or a copy of `start`; its `work`, the amplitude passes this
+    run applied."""
     st = State() if start is None else start.copy()
     for blk in blocks:
         qs = (blk[1],) if blk[0] == "1" else (blk[1], blk[2])
         U = blk[2] if blk[0] == "1" else blk[3]
-        if all(q not in st.axes for q in qs) and monomial(U):
+        if not enters(st.axes, qs, U):
             if blk[0] == "1":
                 st.bits[qs[0]] = next(r for r in range(2) if U[r][st.bits.get(qs[0], 0)] != 0)
             else:
@@ -396,6 +416,7 @@ def simulate(blocks, start=None):
             if q not in st.axes:
                 st._enter(q)
         n = len(st.axes)
+        st.work += 1 << n
         if blk[0] == "1":
             _apply1(st.psi, n, st.axes[qs[0]], U)
         else:
@@ -476,10 +497,13 @@ MEMOS = [GATE_LISTS, CORES, LOGICAL]
 TAIL = ("h", "sdg")
 
 
+PRICES = Memo()               # ("gates" or "logical", a file's SHA-256) -> its Cost, what qro.p2_hold prices it at
+
+
 def clear():
-    """Empty every memo of the exact hold's: this module's three, and the three qro.p2_hold keeps beside them. The law's
-    classes have their own, p2_law.clear()."""
-    for memo in MEMOS:
+    """Empty every memo of the exact hold's: this module's three, the three qro.p2_hold keeps beside them, and the
+    prices' memo, PRICES. The law's classes have their own, p2_law.clear()."""
+    for memo in MEMOS + [PRICES]:
         memo.clear()
 
 
@@ -515,4 +539,56 @@ def logical(circuit):
             st = CORES.put(core, simulate(fuse([_matrix(op) for op in core])))
         st = simulate(fuse([_matrix(op) for op in tail]), st)
         got = LOGICAL.put(key, (st, distribution(st, tuple(range(circuit.n)))))
+    return got
+
+
+# -- the work, priced without an amplitude -----------------------------------------------------------------------------
+def cost(blocks, axes=()):
+    """(the amplitude passes that simulating `blocks` from a state whose dense qubits are `axes` costs, the dense
+    state's qubits after them): a block that `enters` costs 2^k, k the state's qubits once its own have entered, as
+    `simulate` counts it in State.work; one that does not, none. No amplitude is touched."""
+    axes, passes = set(axes), 0
+    for blk in blocks:
+        qs = (blk[1],) if blk[0] == "1" else (blk[1], blk[2])
+        U = blk[2] if blk[0] == "1" else blk[3]
+        if enters(axes, qs, U):
+            axes.update(qs)
+            passes += 1 << len(axes)
+    return passes, axes
+
+
+@dataclass(frozen=True)
+class Cost:
+    """What holding one file costs, in the parts qro.p2_hold prices: `size` gates or lines read and fused, `passes`
+    amplitude passes simulated, and a distribution read off a dense state of `state` qubits into 2^`width` outcomes."""
+    size: int
+    passes: int
+    state: int
+    width: int
+
+
+def gate_list_cost(data):
+    """A gate list's Cost, from its fused blocks, memoised by the SHA-256 of its bytes; SimError for bytes the
+    simulator does not read."""
+    key = ("gates", hashlib.sha256(bytes(data)).hexdigest())
+    got = PRICES.get(key)
+    if got is None:
+        g = read_gate_list(data)
+        passes, axes = cost(fuse(g.ops))
+        got = PRICES.put(key, Cost(g.size, passes, len(axes), g.num_clbits))
+    return got
+
+
+def logical_cost(data):
+    """A logical circuit's Cost: every line read, its core's passes from |0...0> and its tail's from the core's state,
+    as `logical` simulates them; memoised by the SHA-256 of its bytes; SimError for bytes the simulator does not
+    read."""
+    key = ("logical", hashlib.sha256(bytes(data)).hexdigest())
+    got = PRICES.get(key)
+    if got is None:
+        circuit = read_qasm(data)
+        core, tail = split(circuit.ops)
+        core_passes, axes = cost(fuse([_matrix(op) for op in core]))
+        tail_passes, axes = cost(fuse([_matrix(op) for op in tail]), axes)
+        got = PRICES.put(key, Cost(bytes(data).count(b"\n"), core_passes + tail_passes, len(axes), circuit.n))
     return got
