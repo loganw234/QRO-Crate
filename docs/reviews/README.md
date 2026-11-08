@@ -16,6 +16,7 @@ Every report a verifier returned on this repository's work, kept so that the doc
 - [P0.10/](P0.10/README.md): P0.10's verifier, the rows, the command, the stages and the controls' runner for P3 and P5.
 - [P1.1/](P1.1/README.md): P1.1's verifier, the adapter's checker side.
 - [P1.2/](P1.2/README.md): P1.2's verifier, the adapter's producer side.
+- [P1.3/](P1.3/README.md): P1.3's verifier, F1's closure and the guards P5 imports.
 - [P2.1/](P2.1/README.md): P2.1's verifier, the golden measures' core.
 - [P2.2/](P2.2/README.md): P2.2's verifier, P2's controls, its tests on v0's crates and the exact hold's work budget.
 - [P4/](P4/README.md): P4's verifier, the profile.

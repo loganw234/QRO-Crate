@@ -19,8 +19,11 @@ generator and the step cannot drift apart in one place and a record's own claim 
   qro:knownAnswer                         the Pub of role known-answer of the Job's bundle, found by bundle_sha256;
   qro:shots, startTime, endTime           p1_forms, from the raw result's bytes.
 Every record's claim that the output also states is a guard instead: a changed claim raises, and is never emitted.
-Each guard goes through `_hold`, so that a test can switch them off and see the producing function's value in the
-output (the sentinel test, T2); with the guards on, the same sentinel raises (T3).
+Each guard goes through `p1_guards.hold`, looked up on that module when it is called, so that one monkeypatch of it
+switches them all off and a test sees the producing function's value in the output (the sentinel test, T2); with the
+guards on, the same sentinel raises (T3). G2's line half, G3 to G9 are the functions of qro/p1_guards.py, which P5's
+unit generator calls as well; this module calls them with Quantum-Film's layout (the read's directories, G8's
+committed path) and holds the rest (G1, G2's known-answer half, G10 to G12, the seam).
 
 The guards:
   G1  each file a manifest names, where present, hashes as the manifest says; no bundle file is one it does not name;
@@ -65,7 +68,7 @@ import sys
 from dataclasses import dataclass
 from pathlib import Path
 
-from qro import canonical, p1_calibration as cal, p1_commit, p1_decode, p1_forms, p1_records as rec, spelling
+from qro import canonical, p1_calibration as cal, p1_commit, p1_decode, p1_forms, p1_guards, p1_records as rec, spelling
 from qro import vocabulary as V
 
 IBM_GENERATOR = "qro-p1-ibm"
@@ -80,30 +83,10 @@ P2_MODULE = "qro.p2_measures"
 QUESTION_DIR = "question/"
 READ = "2026-10-14"
 RECORDS_DIR = "docs/records/"        # in Quantum-Film's tree; a path of its records, here, has this removed
-MAX_PUBS = 10                        # a Pub's id ends in one decimal digit of its index (step 4)
+MAX_PUBS = p1_guards.MAX_PUBS
 
 
-class GuardError(ValueError):
-    """A record that disagrees with another, or a file that fits no layout: the guard, the place and the reason."""
-
-    def __init__(self, guard, where, detail):
-        super().__init__(f"{guard} at {where}: {detail}")
-        self.guard, self.where, self.detail = guard, where, detail
-
-
-def _hold(ok, guard, where, detail):
-    """Every guard of the generators: the one place a test switches them off (T2)."""
-    if not ok:
-        raise GuardError(guard, where, detail)
-
-
-def _read(guard, where, fn, *args):
-    """A reader of p1_records, p1_forms or p1_decode, its refusal a raise of `guard`: a decode rule that cannot read the
-    bytes it is told to is a verdict on the records, as a record that is not in its format is."""
-    try:
-        return fn(*args)
-    except (rec.RecordError, p1_forms.RawFormError, p1_forms.SnapshotError, p1_decode.DecodeError) as x:
-        raise GuardError(guard, where, str(x)) from None
+GuardError = p1_guards.GuardError       # the same class: every raise of a guard, here or P5's, is one
 
 
 class _Entities(dict):
@@ -118,7 +101,7 @@ class _Entities(dict):
         self.guard = guard
 
     def __setitem__(self, i, entity):
-        _hold(i not in self, self.guard, i, "this @id is written twice: two of the records make an entity of it")
+        p1_guards.hold(i not in self, self.guard, i, "this @id is written twice: two of the records make an entity of it")
         super().__setitem__(i, entity)
 
     def update(self, *args, **kwargs):
@@ -131,7 +114,7 @@ class _Entities(dict):
     def shared(self, entity):
         i = entity["@id"]
         if i in self:
-            _hold(self[i] == entity, self.guard, i, "two of the records make this entity differently")
+            p1_guards.hold(self[i] == entity, self.guard, i, "two of the records make this entity differently")
         else:
             self[i] = entity
 
@@ -226,7 +209,7 @@ def _by_kind(crate, layouts, question):
     out = {}
     for rel in crate.paths:
         got = classify(rel, layouts, question)
-        _hold(got is not None, "G12", rel, "this file fits no layout of the adapter, so no entity describes it")
+        p1_guards.hold(got is not None, "G12", rel, "this file fits no layout of the adapter, so no entity describes it")
         out.setdefault(got[0], []).append((rel, got[1]))
     return out
 
@@ -272,7 +255,7 @@ def p2_module():
         return None
     module = importlib.import_module(P2_MODULE)
     for fn in ("question_files", "contribute"):
-        _hold(callable(getattr(module, fn, None)), "seam", P2_MODULE, f"the module is present without {fn}")
+        p1_guards.hold(callable(getattr(module, fn, None)), "seam", P2_MODULE, f"the module is present without {fn}")
     return module
 
 
@@ -293,17 +276,17 @@ def _merge_p2(module, crate_dir, entities):
     """P2's question terms and entities, added to P1's. A term or an @id P1 already holds is a raise. Called only for a
     crate that holds files under question/ (`_finish`): a crate P2 has no law for carries none of P2's terms."""
     got = call_p2(module, "contribute", Path(crate_dir), copy.deepcopy(dict(entities)))
-    _hold(isinstance(got, (tuple, list)) and len(got) == 2, "seam", P2_MODULE,
+    p1_guards.hold(isinstance(got, (tuple, list)) and len(got) == 2, "seam", P2_MODULE,
           "contribute returned something that is not (question terms, new entities)")
     terms, new = got
-    _hold(isinstance(terms, dict), "seam", P2_MODULE, "contribute returned question terms that are no dict")
-    _hold(isinstance(new, (dict, list, tuple)), "seam", P2_MODULE, "contribute returned new entities that are no list or dict")
+    p1_guards.hold(isinstance(terms, dict), "seam", P2_MODULE, "contribute returned question terms that are no dict")
+    p1_guards.hold(isinstance(new, (dict, list, tuple)), "seam", P2_MODULE, "contribute returned new entities that are no list or dict")
     question = entities["#question"]
     for k in terms:
-        _hold(k not in question, "seam", P2_MODULE, f"contribute returned {k}, a term of #question that P1 holds")
+        p1_guards.hold(k not in question, "seam", P2_MODULE, f"contribute returned {k}, a term of #question that P1 holds")
     question.update(terms)
     for e in list(new.values()) if isinstance(new, dict) else list(new):
-        _hold(isinstance(e, dict) and isinstance(e.get("@id"), str) and e["@id"] not in entities, "seam", P2_MODULE,
+        p1_guards.hold(isinstance(e, dict) and isinstance(e.get("@id"), str) and e["@id"] not in entities, "seam", P2_MODULE,
               "contribute returned an entity that is no dict, or holds an @id P1 holds")
         entities[e["@id"]] = e
 
@@ -459,11 +442,11 @@ def _snapshots(crate, by, entities):
     out = {}
     for kind in ("snapshot", "refetch-snapshot"):
         for rel, groups in by.get(kind, []):
-            snap = _read("G10", rel, p1_forms.parse_snapshot, crate.read(rel))
+            snap = p1_guards.read_record("G10", rel, p1_forms.parse_snapshot, crate.read(rel))
             device = groups["device"]
-            _hold(snap.device == device, "G10", rel, f"the snapshot is of {snap.device!r}, in the place of {device}'s")
-            stamped = _read("G10", rel, rec.stamp_of, rel.rsplit("/", 1)[1], rel)
-            _hold(stamped == spelling.time(snap.stamp), "G10", rel,
+            p1_guards.hold(snap.device == device, "G10", rel, f"the snapshot is of {snap.device!r}, in the place of {device}'s")
+            stamped = p1_guards.read_record("G10", rel, rec.stamp_of, rel.rsplit("/", 1)[1], rel)
+            p1_guards.hold(stamped == spelling.time(snap.stamp), "G10", rel,
                   f"the file is stamped {spelling.time(snap.stamp)}, not as its name says")
             out.setdefault(device, {})[rel] = snap
             entities[rel] = file_entity(crate, rel, ["File", "qro:Snapshot"], IBM_LICENCE, **cal.claims(snap), **{
@@ -483,25 +466,25 @@ def _manifests(crate, by):
     for key, files in sorted(held.items()):
         device, label = key
         path = next((r for r, g in files if g["file"] == "manifest.json"), None)
-        _hold(path is not None, "G1", f"{device} {label}", "a bundle with files and no manifest.json")
-        m = _read("G1", path, rec.manifest, crate.read(path), path)
-        _hold(m.backend == device, "G1", path, f"the manifest is of {m.backend}, in the place of {device}'s")
-        _hold(p1_commit.options_digest(m.options) == m.options_sha256, "G1", path,
+        p1_guards.hold(path is not None, "G1", f"{device} {label}", "a bundle with files and no manifest.json")
+        m = p1_guards.read_record("G1", path, rec.manifest, crate.read(path), path)
+        p1_guards.hold(m.backend == device, "G1", path, f"the manifest is of {m.backend}, in the place of {device}'s")
+        p1_guards.hold(p1_commit.options_digest(m.options) == m.options_sha256, "G1", path,
               "the manifest's options_sha256 is not the digest of its options")
         names = {c.name: c for c in m.circuits()}
         for rel, g in files:
             if g["file"] == "manifest.json":
                 continue
             if g["file"] == "README.md":
-                _hold(crate.info(rel)[0] == m.readme_sha256, "G1", rel, "the README is not the one the manifest digests")
+                p1_guards.hold(crate.info(rel)[0] == m.readme_sha256, "G1", rel, "the README is not the one the manifest digests")
                 continue
             c = names.get(g["circuit"])
-            _hold(c is not None, "G1", rel, f"the manifest names no circuit {g['circuit']}")
-            _hold(crate.info(rel)[0] == getattr(c, _EXT[g["ext"]]), "G1", rel,
+            p1_guards.hold(c is not None, "G1", rel, f"the manifest names no circuit {g['circuit']}")
+            p1_guards.hold(crate.info(rel)[0] == getattr(c, _EXT[g["ext"]]), "G1", rel,
                   f"the file is not the one the manifest digests as {_EXT[g['ext']]}")
         source = m.source_path[len(RECORDS_DIR):] if m.source_path.startswith(RECORDS_DIR) else m.source_path
-        _hold(source in crate.paths, "G1", source, "the source circuit the manifest names is not in the crate")
-        _hold(crate.info(source)[0] == m.source_sha256, "G1", source, "the source circuit is not the one the manifest digests")
+        p1_guards.hold(source in crate.paths, "G1", source, "the source circuit the manifest names is not in the crate")
+        p1_guards.hold(crate.info(source)[0] == m.source_sha256, "G1", source, "the source circuit is not the one the manifest digests")
         out[key] = (path, m, crate.info(path)[0])
     return out
 
@@ -519,94 +502,24 @@ def _jobs(crate, by, manifests):
     jobs, seen = [], {}
     for (device, label, name), (files, found) in sorted(runs.items()):
         where = f"{device} {label} {name}"
-        _hold((device, label) in manifests, "G2", where, "a job in a bundle the crate carries no manifest of")
+        p1_guards.hold((device, label) in manifests, "G2", where, "a job in a bundle the crate carries no manifest of")
         mpath, manifest, mdigest = manifests[(device, label)]
         spec = dict(manifest.jobs).get(name)
-        _hold(spec is not None, "G2", where, f"the manifest {mpath} names no job {name}")
+        p1_guards.hold(spec is not None, "G2", where, f"the manifest {mpath} names no job {name}")
         for part in ("line", "metrics", "raw", "submitting"):
-            _hold(part in files, "G2", where, f"a job with no {part} file")
-        line = _read("G2", files["line"], rec.line, crate.read(files["line"]), files["line"])
-        _hold(line.job_id not in seen, "G2", files["line"], f"job {line.job_id} is also {seen.get(line.job_id)}")
+            p1_guards.hold(part in files, "G2", where, f"a job with no {part} file")
+        line = p1_guards.read_record("G2", files["line"], rec.line, crate.read(files["line"]), files["line"])
+        p1_guards.hold(line.job_id not in seen, "G2", files["line"], f"job {line.job_id} is also {seen.get(line.job_id)}")
         seen[line.job_id] = where
-        _g2(crate, name, files, manifest, mdigest, spec, line)
-        records = _g3(crate, where, found, manifest, spec, line)
-        raw = _read("G5", files["raw"], p1_forms.parse_ibm_result, crate.read(files["raw"]))
-        _g4_g5(files, manifest, spec, line, records, raw)
-        metrics = _read("G6", files["metrics"], rec.metrics, crate.read(files["metrics"]), files["metrics"])
-        _g6(files, line, metrics, raw)
+        p1_guards.hold_line(crate, name, files, manifest, mdigest, spec, line)
+        records = p1_guards.hold_device_runs(crate, where, found, manifest, spec, line)
+        raw = p1_guards.read_record("G5", files["raw"], p1_forms.parse_ibm_result, crate.read(files["raw"]))
+        p1_guards.hold_commitments_and_counts(files, manifest, spec, line, records, raw)
+        metrics = p1_guards.read_record("G6", files["metrics"], rec.metrics, crate.read(files["metrics"]), files["metrics"])
+        p1_guards.hold_metrics(files, line, metrics, raw)
         jobs.append(Job(device, label, name, files, manifest, mpath, mdigest, spec, line, records, metrics,
                         raw.first_shot, raw.last_shot, raw.shots))
     return jobs
-
-
-def _g2(crate, name, files, manifest, mdigest, spec, line):
-    path = files["line"]
-    _hold(line.bundle_sha256 == mdigest, "G2", path, "the line's bundle_sha256 is not the manifest's SHA-256")
-    _hold(line.commitments == tuple(c.commitment for c in spec), "G2", path,
-          "the line's commitments are not the manifest job's, in PUB order")
-    for term in ("stock", "kind", "route", "backend", "program"):
-        _hold(getattr(line, term) == getattr(manifest, term), "G2", path, f"the line's {term} is not the manifest's")
-    marker = _read("G2", files["submitting"], rec.parse, crate.read(files["submitting"]), files["submitting"])
-    _hold(marker.get("job") == name and marker.get("bundle_sha256") == mdigest, "G2", files["submitting"],
-          "the submitting marker does not name this job and its bundle")
-
-
-def _g3(crate, where, found, manifest, spec, line):
-    """The job's device-run records, one for each PUB (G3): {k: (path, DeviceRun, Circuit)}."""
-    _hold(len(spec) <= MAX_PUBS, "G3", where,
-          f"the job has {len(spec)} PUBs; a PUB index is one decimal digit of its id, and an eleventh needs a new rule")
-    _hold(sorted(found) == list(range(len(spec))), "G3", where,
-          f"the records are of PUBs {sorted(found)}; the job has {len(spec)}")
-    out = {}
-    for k, held in sorted(found.items()):
-        _hold(len(held) == 1, "G3", where, f"PUB {k} has {len(held)} records")
-        path, circuit_name = held[0]
-        c = spec[k]
-        _hold(circuit_name == c.name, "G3", path, f"the record is of circuit {circuit_name}; the manifest's PUB {k} is {c.name}")
-        run = _read("G3", path, rec.device_run, crate.read(path), path)
-        _hold(run.digest == rec.record_digest(run.doc), "G3", path, "the record's digest is not the SHA-256 of its body")
-        s = run.source
-        for term, want in (("job_id", line.job_id), ("submitted_at", line.submitted_at), ("backend", manifest.backend),
-                           ("kind", manifest.kind), ("program", manifest.program), ("route", manifest.route),
-                           ("decode", manifest.decode), ("options", manifest.options),
-                           ("options_sha256", manifest.options_sha256), ("pub", k), ("shots", c.shots),
-                           ("circuit_sha256", c.circuit_sha256), ("isa_sha256", c.isa_sha256),
-                           ("commitment", c.commitment), ("salt", c.salt)):
-            _hold(term in s and s[term] == want and type(s[term]) is type(want), "G3", path,
-                  f"the record's source.{term} is not the manifest's or the line's")
-        for term, have, want in (("stock", run.stock, manifest.stock), ("role", run.role, c.role),
-                                 ("basis", run.basis, c.basis)):
-            _hold(have == want, "G3", path, f"the record's {term} is not the manifest's")
-        out[k] = (path, run, c)
-    return out
-
-
-def _g4_g5(files, manifest, spec, line, records, raw):
-    rule = p1_decode.RULES.get(manifest.decode)
-    _hold(rule is not None, "G5", files["raw"], f"no decode rule {manifest.decode} is built")
-    _hold(len(raw.pubs) == len(spec) == len(line.commitments), "G5", files["raw"],
-          f"the raw result holds {len(raw.pubs)} PUBs; the line lists {len(line.commitments)} and the manifest {len(spec)}")
-    for k, (path, run, c) in records.items():
-        want = p1_commit.commitment_of(_read("G4", path, run.fields, path))
-        for name, have in (("the manifest's", c.commitment), ("the line's", line.commitments[k]),
-                           ("the record's", run.source.get("commitment")), ("IBM's echo", raw.pubs[k].echo)):
-            _hold(have == want, "G4", path, f"{name} commitment is not the one the record's inputs recompute to")
-        _hold(raw.pubs[k].rows == c.shots, "G5", files["raw"],
-              f"PUB {k} holds {raw.pubs[k].rows} rows; the manifest says {c.shots} shots")
-        counts = _read("G5", path, p1_decode.ibm_counts, raw.pubs[k], rule.order)
-        _hold(counts == run.counts, "G5", path,
-              "the record's counts are not the raw result's, decoded under the manifest's rule")
-
-
-def _g6(files, line, metrics, raw):
-    path = files["metrics"]
-    _hold(metrics.job_id == line.job_id and metrics.backend == line.backend, "G6", path,
-          "the metrics wrapper names another job or device than the line")
-    submitted = _read("G6", path, rec.instant, line.submitted_at, f"{files['line']} submitted_at")
-    _hold(metrics.created == submitted, "G6", path, "IBM's created time is not the line's submitted time")
-    if raw.spans:
-        _hold(metrics.running <= raw.first_shot and raw.last_shot <= metrics.finished, "G6", path,
-              "the execution span is not inside [running, finished]")
 
 
 def _known_answers(jobs):
@@ -617,11 +530,11 @@ def _known_answers(jobs):
         known = [k for k in jobs if (k.device, k.label) == (j.device, j.label)
                  and k.line.bundle_sha256 == j.line.bundle_sha256
                  and any(c.role == "known-answer" for c in k.spec)]
-        _hold(len(known) == 1, "G2", f"{j.device} {j.label}",
+        p1_guards.hold(len(known) == 1, "G2", f"{j.device} {j.label}",
               f"the bundle's jobs hold {len(known)} known-answer jobs, and a bundle's order is held by one")
         k = known[0]
         pubs = [i for i, (_, run, _) in sorted(k.records.items()) if run.role == "known-answer"]
-        _hold(len(pubs) == 1, "G2", k.files["line"], "the known-answer job holds more than one known-answer PUB")
+        p1_guards.hold(len(pubs) == 1, "G2", k.files["line"], "the known-answer job holds more than one known-answer PUB")
         out[(j.device, j.label)] = f"#pub-{k.id}-{pubs[0]}"
     return out
 
@@ -631,67 +544,20 @@ def _reads(crate, by, jobs):
     job_records = {(g["device"], g["job_id"]): r for r, g in by.get("refetch-job", [])}
     result_records = {(g["device"], g["job_id"]): r for r, g in by.get("results-record", [])}
     ids = {(j.device, j.id) for j in jobs}
-    _hold(set(job_records) == ids, "G7", READ, "the read's job records are not those of the jobs the crate carries")
-    _hold(set(result_records) == ids, "G8", READ, "the read's result records are not those of the jobs the crate carries")
+    p1_guards.hold(set(job_records) == ids, "G7", READ, "the read's job records are not those of the jobs the crate carries")
+    p1_guards.hold(set(result_records) == ids, "G8", READ, "the read's result records are not those of the jobs the crate carries")
     carried = {j.device for j in jobs}
     for kind, expect, root in (("refetch-manifest", rec.REFETCH_MANIFEST_FORMAT, f"{READ}/ibm-refetch/"),
                                ("results-manifest", rec.RESULTS_MANIFEST_FORMAT, f"{READ}/ibm-results-refetch/")):
-        held = by.get(kind, [])
-        _hold(len(held) <= 1, "G9", root, "more than one MANIFEST")
-        _hold(bool(held) or not any(rel.startswith(root) for rel in crate.paths), "G9", root,
-              "the read's directory holds files and not its MANIFEST, which lists them")
-        if not held:
-            continue
-        listed = _read("G9", held[0][0], rec.read_manifest, crate.read(held[0][0]), held[0][0], expect)
-        for rel in crate.paths:
-            if rel.startswith(root) and rel != held[0][0]:
-                name = rel[len(root):]
-                _hold(name in listed, "G9", rel, "this file is in the read's directory and not in its MANIFEST")
-                _hold((crate.info(rel)[1], crate.info(rel)[0]) == listed[name], "G9", rel,
-                      "this file is not the size and SHA-256 its MANIFEST lists")
-        for name in sorted(listed):               # a snapshot the read lists of a device the crate carries is carried
-            m = _LISTED_SNAPSHOT.fullmatch(name)
-            if m and m.group("device") in carried:
-                _hold(root + name in crate.paths, "G9", held[0][0],
-                      f"the MANIFEST lists {name}, a snapshot of {m.group('device')}, which the crate carries jobs of, "
-                      "and the crate lacks it")
+        p1_guards.hold_read_manifest(crate, [r for r, _ in by.get(kind, [])], root, expect, carried, _LISTED_SNAPSHOT)
     out = {}
     for j in jobs:
         key = (j.device, j.id)
-        out[j.id] = (_g7(crate, job_records[key], j), _g8(crate, result_records[key], j), job_records[key],
-                     result_records[key])
+        raw = j.files["raw"]
+        out[j.id] = (p1_guards.hold_refetch_job(crate, job_records[key], j),
+                     p1_guards.hold_refetch_result(crate, result_records[key], j, raw, RECORDS_DIR + raw),
+                     job_records[key], result_records[key])
     return out
-
-
-def _g7(crate, path, job):
-    r = _read("G7", path, rec.refetch_job, crate.read(path), path)
-    _hold((r.device, r.job_id) == (job.device, job.id), "G7", path, "the record is of another job or device")
-    _hold({c.role for c in job.spec} == {r.role}, "G7", path, "the record's role is not the job's")
-    for flag in ("commitments_equal", "created_equal_to_line", "options_equal_to_manifest"):
-        _hold(r.holds.get(flag) is True, "G7", path, f"the read's flag {flag} does not hold")
-    _hold(r.pubs_in_ibm_copy == r.pubs_in_line == len(job.line.commitments) == len(r.pubs), "G7", path,
-          "IBM's copy, the line and the read do not hold the same PUBs")
-    for k, p in enumerate(r.pubs):
-        _hold(p.get("gate_list_equal") is True and p.get("gates_equal") is True, "G7", path,
-              f"the read's gate-list flags do not hold for PUB {k}")
-        _hold(p.get("commitment_in_ibm_copy") == p.get("commitment_in_line") == job.line.commitments[k], "G7", path,
-              f"the read's commitments for PUB {k} are not the line's")
-    if job.first is not None:
-        _hold(r.first_shot == job.first, "G7", path, "the read's first shot is not the execution span's start")
-    _hold(r.running == job.metrics.running, "G7", path, "the read's running time is not the metrics'")
-    return r
-
-
-def _g8(crate, path, job):
-    r = _read("G8", path, rec.refetch_result, crate.read(path), path)
-    raw = job.files["raw"]
-    digest, size = crate.info(raw)
-    _hold((r.device, r.job_id) == (job.device, job.id), "G8", path, "the record is of another job or device")
-    _hold(r.bytes_equal and r.agree_at == "bytes", "G8", path, "the read does not say IBM's copy is the same bytes")
-    _hold(r.committed_sha256 == r.ibm_sha256 == digest and r.committed_bytes == r.ibm_bytes == size, "G8", path,
-          "the record's digests and sizes are not the raw result's")
-    _hold(r.committed_path == RECORDS_DIR + raw, "G8", path, "the record names another file than the raw result")
-    return r
 
 
 def _job_entities(crate, job, snapshots, read, known, entities):
@@ -716,19 +582,19 @@ def _job_entities(crate, job, snapshots, read, known, entities):
         record_paths.append(path)
         entities[path] = file_entity(crate, path, licence=LICENSE_QF)
         entities[pid] = {"@id": pid, "@type": "qro:Pub", "qro:role": run.role, "qro:basis": run.basis,
-                         "qro:commitment": p1_commit.commitment_of(_read("G4", path, run.fields, path)),
+                         "qro:commitment": p1_commit.commitment_of(p1_guards.read_record("G4", path, run.fields, path)),
                          "qro:record": ref(path)}
     word, named = "unknown", ()
     history = f"{READ}/ibm-refetch/{read_job.at_first_shot}"
     carried = snapshots.get(device, {})
-    _hold(history in carried, "G7", jpath, f"the snapshot the history returned, {history}, is not carried")
+    p1_guards.hold(history in carried, "G7", jpath, f"the snapshot the history returned, {history}, is not carried")
     if job.first is not None:
         try:
             word, named = cal.link_for(job.first, history, carried)
         except cal.LinkError as x:
             raise GuardError("G7", jpath, f"the history's snapshot is no link: {x}") from None
     running = f"{READ}/ibm-refetch/{read_job.at_running}"
-    _hold(running in snapshots.get(device, {}), "G7", jpath, f"the snapshot at running time, {running}, is not carried")
+    p1_guards.hold(running in snapshots.get(device, {}), "G7", jpath, f"the snapshot at running time, {running}, is not carried")
     spanned = job.first is not None
     e = {"@id": f"#job-{jid}", "@type": ["CreateAction", "qro:Job"], "name": f"{job.name} job on {device}",
          "instrument": ref(program), "object": refs(pubs), "result": refs(results),
@@ -791,11 +657,11 @@ def atlas(crate_dir):
         parts.add(rel)
     lines = {}
     for rel, g in by.get("lines", []):
-        for jid, line in _read("G11", rel, rec.atlas_lines, crate.read(rel), rel).items():
-            _hold(jid not in lines, "G11", rel, f"job {jid} has a line twice")
+        for jid, line in p1_guards.read_record("G11", rel, rec.atlas_lines, crate.read(rel), rel).items():
+            p1_guards.hold(jid not in lines, "G11", rel, f"job {jid} has a line twice")
             lines[jid] = (g["day"], line, rel)
     engines = sorted({line.engine for _, line, _ in lines.values()})
-    _hold(len(engines) <= 1, "G11", "commitments.jsonl", f"the lines name more than one engine: {engines}")
+    p1_guards.hold(len(engines) <= 1, "G11", "commitments.jsonl", f"the lines name more than one engine: {engines}")
     _atlas_lines(lines)
     rule = p1_decode.RULES[p1_decode.ATLAS_RULE]
     device, engine = "#device-moth-atlas-emu", f"#engine-{engines[0] if engines else 'unknown'}"
@@ -809,12 +675,12 @@ def atlas(crate_dir):
         "2026-10-14; Logan and Moth are to settle them, and no licence is claimed over them.")
     laws = _atlas_laws(crate, by, lines)
     orphans = sorted(set(lines) - set(laws))
-    _hold(not orphans, "G11", lines[orphans[0]][2] if orphans else "commitments.jsonl",
+    p1_guards.hold(not orphans, "G11", lines[orphans[0]][2] if orphans else "commitments.jsonl",
           f"the lines name jobs the crate carries no files of: {orphans}")
     vector = by.get("vector", [])
-    _hold(len(vector) == 1, "G11", "vectors", "an Atlas crate carries one known-answer vector, which holds its order")
+    p1_guards.hold(len(vector) == 1, "G11", "vectors", "an Atlas crate carries one known-answer vector, which holds its order")
     vpath = vector[0][0]
-    vparsed = _read("G11", vpath, p1_forms.parse_atlas_vector, crate.read(vpath))
+    vparsed = p1_guards.read_record("G11", vpath, p1_forms.parse_atlas_vector, crate.read(vpath))
     ka_pub = f"#pub-{vparsed.job}-0"
     jobs = [(jid, "law", law["result"], ATLAS_FORM, law["parsed"].shots, law["files"], law["commit"])
             for jid, law in sorted(laws.items())]
@@ -869,9 +735,9 @@ def _atlas_lines(lines):
     for jid, (_, line, rel) in sorted(lines.items()):
         got = rec.commitment_v2(line.stock, line.circuit_sha256, line.engine, line.job_id, line.shots, line.decode,
                                 line.salt)
-        _hold(got == line.commitment, "G11", rel, f"job {jid}: the line's commitment does not recompute (v2)")
-        _hold(line.decode == p1_decode.ATLAS_RULE, "G11", rel, f"job {jid}: the line's decode is {line.decode}")
-        _hold(not spelling.problem("commit", line.code_commit), "G11", rel,
+        p1_guards.hold(got == line.commitment, "G11", rel, f"job {jid}: the line's commitment does not recompute (v2)")
+        p1_guards.hold(line.decode == p1_decode.ATLAS_RULE, "G11", rel, f"job {jid}: the line's decode is {line.decode}")
+        p1_guards.hold(not spelling.problem("commit", line.code_commit), "G11", rel,
               f"job {jid}: the line's code_commit is no commit")
 
 
@@ -886,23 +752,23 @@ def _atlas_laws(crate, by, lines):
     for (day, id8), held in sorted(files.items()):
         where = f"{day} {id8}"
         for part in ("submit", "status", "result", "score"):
-            _hold(part in held, "G11", where, f"a job with no {part} file")
-        jid, qasm, asked = _read("G11", held["submit"], rec.atlas_submit, crate.read(held["submit"]), held["submit"])
-        _hold(jid in lines and lines[jid][0] == day and jid[:8] == id8, "G11", held["submit"],
+            p1_guards.hold(part in held, "G11", where, f"a job with no {part} file")
+        jid, qasm, asked = p1_guards.read_record("G11", held["submit"], rec.atlas_submit, crate.read(held["submit"]), held["submit"])
+        p1_guards.hold(jid in lines and lines[jid][0] == day and jid[:8] == id8, "G11", held["submit"],
               "the job has no line of its day, or an id that is not its files'")
         line = lines[jid][1]
         qrel = f"{day}/p3/{line.qasm_file}"
-        _hold(qrel in crate.paths and qrel == circuits.get(day) and crate.info(qrel)[0] == line.circuit_sha256, "G11",
+        p1_guards.hold(qrel in crate.paths and qrel == circuits.get(day) and crate.info(qrel)[0] == line.circuit_sha256, "G11",
               held["submit"], "the circuit the line names is not the day's, or does not hash as the line says")
-        _hold(qasm.encode("utf-8") == crate.read(qrel), "G11", held["submit"], "the request's circuit is not the file's")
-        parsed = _read("G11", held["result"], p1_forms.parse_atlas_result, crate.read(held["result"]))
-        _hold(parsed.job == jid, "G11", held["result"], "the result is of another job")
-        _hold(line.shots == asked == parsed.shots, "G11", held["submit"],
+        p1_guards.hold(qasm.encode("utf-8") == crate.read(qrel), "G11", held["submit"], "the request's circuit is not the file's")
+        parsed = p1_guards.read_record("G11", held["result"], p1_forms.parse_atlas_result, crate.read(held["result"]))
+        p1_guards.hold(parsed.job == jid, "G11", held["result"], "the result is of another job")
+        p1_guards.hold(line.shots == asked == parsed.shots, "G11", held["submit"],
               "the line, the request and the result disagree on the shots")
-        status = _read("G11", held["status"], rec.atlas_status, crate.read(held["status"]), held["status"])
-        _hold(status == (jid, "completed"), "G11", held["status"], "the status file is not of this job, completed")
-        score = _read("G11", held["score"], rec.atlas_score, crate.read(held["score"]), held["score"])
-        _hold(score == jid, "G11", held["score"], "the score file is of another job")
+        status = p1_guards.read_record("G11", held["status"], rec.atlas_status, crate.read(held["status"]), held["status"])
+        p1_guards.hold(status == (jid, "completed"), "G11", held["status"], "the status file is not of this job, completed")
+        score = p1_guards.read_record("G11", held["score"], rec.atlas_score, crate.read(held["score"]), held["score"])
+        p1_guards.hold(score == jid, "G11", held["score"], "the score file is of another job")
         out[jid] = {"result": held["result"], "files": [held["submit"], held["status"], held["score"]],
                     "commit": line.code_commit, "parsed": parsed}
     return out

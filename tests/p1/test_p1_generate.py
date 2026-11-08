@@ -315,7 +315,7 @@ SENTINEL = "5" * 64
 
 
 def guards_off(monkeypatch):
-    monkeypatch.setattr(G, "_hold", lambda *a: None)
+    monkeypatch.setattr(G.p1_guards, "hold", lambda *a: None)          # the one switch: every guard of either module
 
 
 def test_every_commitment_is_made_by_p1_commits_function_and_a_sentinel_there_is_refused_by_the_guard(quick, monkeypatch):
@@ -385,12 +385,19 @@ def test_with_no_guard_switched_off_the_honest_twin_raises_nothing(quick):
 
 def test_the_guards_all_go_through_the_one_function_a_test_can_switch_off():
     import ast
-    tree = ast.parse(Path(G.__file__).read_text(encoding="utf-8"))
-    raisers = [n.lineno for n in ast.walk(tree) if isinstance(n, ast.Raise) and isinstance(n.exc, ast.Call)
-               and getattr(n.exc.func, "id", None) == "GuardError"]
-    holds = [n for n in ast.walk(tree) if isinstance(n, ast.Call) and getattr(n.func, "id", None) == "_hold"]
-    assert len(holds) > 60 and len(raisers) == 4       # the one in _hold, the two where a LinkError is a G7 raise, and call_p2's, a raise of P2's made a `seam` one
-    named = {n.args[1].value for n in holds if isinstance(n.args[1], ast.Constant)}
+    trees = {m.__name__: ast.parse(Path(m.__file__).read_text(encoding="utf-8")) for m in (G, G.p1_guards)}
+
+    def calls_of(tree):
+        return [n for n in ast.walk(tree) if isinstance(n, ast.Call)]
+    gen_holds = [n for n in calls_of(trees[G.__name__]) if getattr(n.func, "attr", None) == "hold"
+                 and getattr(n.func.value, "id", None) == "p1_guards"]
+    own_holds = [n for n in calls_of(trees[G.p1_guards.__name__]) if getattr(n.func, "id", None) == "hold"]
+    raisers = {name: [n.lineno for n in ast.walk(tree) if isinstance(n, ast.Raise) and isinstance(n.exc, ast.Call)
+                      and getattr(n.exc.func, "id", None) == "GuardError"] for name, tree in trees.items()}
+    # the generator raises itself in two places (where a LinkError is a G7 raise, and call_p2's, a raise of P2's made a `seam`
+    # one); the guards' module raises in two, `hold` and `read_record`
+    assert len(gen_holds) > 25 and len(own_holds) > 30 and [len(v) for v in raisers.values()] == [2, 2]
+    named = {n.args[1].value for n in gen_holds + own_holds if isinstance(n.args[1], ast.Constant)}
     assert named == {"G1", "G2", "G3", "G4", "G5", "G6", "G7", "G8", "G9", "G10", "G11", "G12", "seam"}
 
 
@@ -979,7 +986,7 @@ def test_an_unknown_decode_rule_is_a_g5_raise(quick, monkeypatch):
 
 
 def g4_g5_arguments(quick):
-    """What G._g4_g5 is given for the morning known-answer job, parsed from the twin's own records."""
+    """What p1_guards.hold_commitments_and_counts is given for the morning known-answer job, parsed from the twin's own records."""
     def read(rel):
         return plants.read_file(quick, rel)
     manifest = rec.manifest(read(MANIFEST), MANIFEST)
@@ -990,9 +997,9 @@ def g4_g5_arguments(quick):
 
 def test_a_manifest_naming_a_decode_rule_that_is_not_built_is_a_g5_raise_at_the_raw_result(quick):
     files, manifest, spec, line, records, raw = g4_g5_arguments(quick)
-    assert G._g4_g5(files, manifest, spec, line, records, raw) is None
+    assert G.p1_guards.hold_commitments_and_counts(files, manifest, spec, line, records, raw) is None
     with pytest.raises(G.GuardError) as x:
-        G._g4_g5(files, dataclasses.replace(manifest, decode="quantum_film.ibm.decode/v9"), spec, line, records, raw)
+        G.p1_guards.hold_commitments_and_counts(files, dataclasses.replace(manifest, decode="quantum_film.ibm.decode/v9"), spec, line, records, raw)
     assert (x.value.guard, x.value.where) == ("G5", KA_RAW) and "no decode rule" in x.value.detail
 
 
@@ -1000,9 +1007,9 @@ def test_g5_holds_the_raw_results_pubs_to_the_manifests_and_to_the_lines(quick):
     """G2 holds the line's commitments to the manifest job's before G5 looks, so a planted crate cannot tell the counts apart."""
     files, manifest, spec, line, records, raw = g4_g5_arguments(quick)
     with pytest.raises(G.GuardError) as manifest_longer:
-        G._g4_g5(files, manifest, (spec[0], spec[0]), line, records, raw)
+        G.p1_guards.hold_commitments_and_counts(files, manifest, (spec[0], spec[0]), line, records, raw)
     with pytest.raises(G.GuardError) as line_longer:
-        G._g4_g5(files, manifest, spec, dataclasses.replace(line, commitments=(line.commitments[0],) * 2), records, raw)
+        G.p1_guards.hold_commitments_and_counts(files, manifest, spec, dataclasses.replace(line, commitments=(line.commitments[0],) * 2), records, raw)
     for raised in (manifest_longer, line_longer):
         assert (raised.value.guard, raised.value.where) == ("G5", KA_RAW) and "holds 1 PUBs" in raised.value.detail
 
@@ -1024,7 +1031,7 @@ def test_g4_holds_the_manifests_the_lines_the_records_and_ibms_echo_each_to_the_
     }
     for name, args in variants.items():
         with pytest.raises(G.GuardError) as x:
-            G._g4_g5(*args)
+            G.p1_guards.hold_commitments_and_counts(*args)
         assert (x.value.guard, x.value.where, x.value.detail.startswith(name)) == ("G4", path, True), name
 
 
@@ -1122,10 +1129,10 @@ def test_the_programs_and_transpilers_of_many_jobs_and_bundles_are_written_once_
 
 def test_a_job_of_more_than_ten_pubs_is_a_g3_raise_before_an_id_of_two_digits_is_written():
     with pytest.raises(G.GuardError) as eleven:
-        G._g3(None, "w", {}, None, (None,) * 11, None)
+        G.p1_guards.hold_device_runs(None, "w", {}, None, (None,) * 11, None)
     assert (eleven.value.guard, eleven.value.where, "11 PUBs" in eleven.value.detail) == ("G3", "w", True)
     with pytest.raises(G.GuardError) as ten:                 # ten pass the count, and lack their records
-        G._g3(None, "w", {}, None, (None,) * 10, None)
+        G.p1_guards.hold_device_runs(None, "w", {}, None, (None,) * 10, None)
     assert ten.value.guard == "G3" and "the records are of PUBs []" in ten.value.detail
     assert G.MAX_PUBS == 10
 

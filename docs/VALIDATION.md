@@ -5086,3 +5086,90 @@ The runs:
 - **For P4's notes piece:** figures the grant left in P4's comments and docstrings, in
   tests/p4shacl/test_p4shacl_sweeps.py, tests/p4/p4_sweeps.py, qro/p4_shapes.py and tests/p4/test_p4_twin.py, and
   docs/P4.md's historical figures; and the fuzz, which passes or fails by where the stream puts its rarest kind.
+
+## 2026-11-08 - P0.10 committed; P1.3 merged: F1's closure, and the guards P5 imports
+
+**P0.10 is committed and pushed** as 0813f8c, with the entry above, on Logan's standing word. The runner on the
+committed tree, before the push: run `20261108-101113-12445-0813f8c`, 24 stages passed and 6 skipped by
+name, 6,343 tests.
+
+**What P1.3 is.** P1 is the adapter of Quantum-Film's records: P1.1, its checker side, and P1.2, its producer side, are
+merged. P1.3 takes what P1.2's merge left (its seventh verifier's F1, N2 and N3, and its eighth's note 1), and exports
+the guards P5's unit generator needs (lead.md 2026-11-08T12:56:23Z and 15:33:03Z). A builder on Sonnet built it in its
+own worktree from 118009a. It was laid on main at 0813f8c, touching none of P0.10's files. It adds 2 files and changes
+6:
+- **qro/p1_adapter.py, F1's closure.** For a checkout, not a slice, the build refuses, exit 2 with the file named, any
+  entry of HEAD's tree under what its plan walks that it did not take:
+  - the IBM day's `ibm` directory, whole;
+  - each Atlas day's `p3` files, but for the platform descriptions and the rolls, which the plan leaves out by its own
+    rule;
+  - LICENSE, the source circuit and the vector.
+
+  It refuses before any file is written. A checkout whose own `core.fsmonitor` hook reports no change can hide a
+  deleted file from `git status`, as P1.2's seventh verifier showed with a snapshot. Such a file can no longer go
+  missing from a crate the checker accepts. The docstring now says "Clean is four things" and names them (N3).
+- **qro/p1_guards.py, new:** the guards from G2's line half to G9, moved from qro/p1_generate.py unchanged but for G8's
+  `committed_path`:
+  - `hold_line`, `hold_device_runs`, `hold_commitments_and_counts`, `hold_metrics`, `hold_refetch_job`,
+    `hold_refetch_result` and `hold_read_manifest`;
+  - with `GuardError`, `hold`, `read_record`, `MAX_PUBS` and `EXPORTS`.
+
+  It imports the standard library and P1's readers only, so P5 imports it with no seam to P2.
+- **qro/p1_generate.py** calls them. Every guard raise goes through `p1_guards.hold`, looked up when called, so one
+  switch turns the guards off; no private copy remains.
+- **tests/p1/test_p1_exports.py, new:**
+  - `EXPORTS` and each signature are pinned;
+  - each guard is called directly with what P5 can pass;
+  - the generator has one place for each rule.
+- **tests/p1/test_p1_adapter.py:**
+  - the lying hook on a committed checkout of the twin, with a lost file of each of 9 classes;
+  - N2, one byte flipped with its stat kept in 10 IBM classes and 3 Atlas classes, each exit 2;
+  - the honest checkout under the hook, built as before.
+
+  tests/p1/test_p1_generate.py follows the move.
+- **docs/P1.md:** F1's sentence, the exit-2 list, the section "The guards P5 imports", and the seam's limit as ruled.
+- **docs/P2.md:** limit 15's last clause, in the lead's words, by the lead's grant.
+
+**Nothing a build writes moved.** The builder measured it, and the verifier again on main's code and P1.3's, with the
+adapter as a process on moth-quantum at 3a73823:
+- the IBM crate, 1,074 files, `88259c78…`;
+- the Atlas crate, 32 files, `f657f60e…`;
+- the twin as the tree builds it, 74 files, `23143075…`;
+- the twin as P1 alone builds it, 73 files, `4352ebc7…`.
+
+**Round 8's note 1 was measured, and not built** (lead.md 2026-11-08T15:33:03Z).
+- **The change measured.** Step 9 would ask P2 whether it has a law for a crate with no `question/` files.
+- **Why it is not built.** It would refuse a crate for what it does not claim, against the rule that a parcel's step
+  accepts a crate carrying none of its terms. It would also refuse P4.3's second example, `p1-twin-alone`, and P2's
+  and P1's tests of the limit.
+- **So it stays a stated limit:** docs/P1.md's seam section, and P2's limit 15.
+
+**The round** (docs/reviews/P1.3/): **READY,** on the full bar, with no defect. It measured:
+- **lost files under lying hooks.** Under v2 and v1 hooks, on a clone of moth-quantum, a lost file of every IBM and
+  Atlas class was refused, exit 2. So were assume-unchanged, skip-worktree, a sparse checkout, a directory in place of
+  a file, an ignored untracked file, and a byte flipped with its stat kept. `GIT_DIR`, `GIT_INDEX_FILE` and
+  `GIT_WORK_TREE` are stripped;
+- **the six moved guards' syntax trees** against their originals: they differ only in whitespace, names and G8's
+  parameter;
+- **the identities above,** rebuilt on both codes;
+- **14 mutants of its own** on qro/p1_guards.py, all killed by tests/p1;
+- **its full run,** `20261108-100457-10144-3b69bc4`: 24 passed, none skipped.
+
+Its notes are below the bar (Left).
+
+The runs:
+- the builder's, on its last freeze: run `20261108-091948-1541-90ed139`, 24 stages passed, none skipped;
+- the verifier's, on the packet: run `20261108-100457-10144-3b69bc4`, 24 passed, none skipped;
+- the lead's, on the merged tree, staged: run `20261108-110158-20266-0813f8c+dirty`, 24 stages passed and 6 skipped
+  by name, 6,401 tests, p1's 1,938 among them; the controls' run: 18 of 18 built controls as section 11 says, 12
+  pending, P3's and P5's.
+
+**Left, for P1's next piece:**
+- **test_p1_exports.py alone misses four conditions:** G3's type check, G7's `gates_equal`, and G8's `agree_at` and
+  sizes. Other P1 tests hold them, but the pin P5 relies on should hold every condition in one place.
+- **N2's and the lost-file tests do not name every class** the build takes. The hold is per file.
+- **"Before anything is written"** in `hold_plan_to_tree`: the out directory is made first, and removed on refusal.
+- **The page's "one switch turns off G1 to G12":** two direct raises, the LinkError conversion and the seam's, do not
+  go through it, as before the move.
+- **git's built-in FSMonitor daemon** (`core.fsmonitor=true`) is untried: it starts a detached process, which no agent
+  may start.

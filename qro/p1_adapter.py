@@ -5,14 +5,17 @@ items 1 and 11; P1.2).
 
 `--moth` is a checkout of moth-quantum, clean at 3a73823, or with `--slice` a directory laid out as one that holds
 a part of its records (the committed twin, tests/p1/data/moth, which is not a checkout and is not asked to be one).
-Clean is two things (P1.2's sixth verifier, D2). `git status` finds no change and no untracked file, whatever the
-checkout's `status.showUntrackedFiles` says, and `git ls-files -v` marks no file assume-unchanged or skip-worktree
-(`check_moth`). And every file the build takes from the checkout is 3a73823's own, whatever the checkout's own settings
+Clean is four things (P1.2's sixth verifier, D2; P1.3). (1) `git status` finds no change and no untracked file, whatever the
+checkout's `status.showUntrackedFiles` says, and (2) `git ls-files -v` marks no file assume-unchanged or skip-worktree
+(`check_moth`). (3) Every file the build takes from the checkout is 3a73823's own, whatever the checkout's own settings
 say of what git shows of it (an ignore rule, an attribute, a filter): its path is a regular file of HEAD's tree (mode
 100644 or 100755) and the bytes the build copies, from the one read it copies, are that blob's by git's own hash of a
-blob (`head_tree`, `hold_to_head`). git's output is read as bytes and decoded as UTF-8, git's own spelling of a path on
-every host, so that no name in the checkout, under any `core.quotePath`, and no error of git's decides the exit or adds
-a line (P1.2's sixth verifier, D1); a git that fails shows the first line it said. A slice is taken as it is: it is not a checkout, and the adapter does not check what
+blob (`head_tree`, `hold_to_head`). (4) Every entry of HEAD's tree under what the plan walks is a file the build takes, but
+for what the plan leaves out by its own rule (`hold_plan_to_tree`): a checkout whose own configuration makes git say that
+nothing is changed (a `core.fsmonitor` hook that reports none) can lose a file without (1) or (2) saying so, and (3) cannot
+see a file that is not there (P1.2's seventh verifier, F1). git's output is read as bytes and decoded as UTF-8, git's own
+spelling of a path on every host, so that no name in the checkout, under any `core.quotePath`, and no error of git's decides
+the exit or adds a line (P1.2's sixth verifier, D1); a git that fails shows the first line it said. A slice is taken as it is: it is not a checkout, and the adapter does not check what
 it builds, the checker does (a slice that lacks a file a carried job's commitment binds builds a crate the checker
 refuses, `commitment`). `--records` is this repository's records/, where the read of 2026-10-14 is; by default the
 repository's own. `--out`
@@ -38,7 +41,8 @@ The command line writes one line, as `python -m qro check` does. Exit 0 is a cra
 records refused: by `metadata-generated` and the guard's place and reason, or by the writer's own refusal of the text the
 records make (a program name with a space in it); 2 is misuse, a command line that is not the command's (an option
 given twice among it), a checkout, a `--records` or an `--out` the adapter will not use, among it a file the build would
-take from the checkout that is not 3a73823's own (not a regular file of HEAD's tree, or not that blob's bytes), a
+take from the checkout that is not 3a73823's own (not a regular file of HEAD's tree, or not that blob's bytes), a file
+of HEAD's tree under what the plan walks that the build does not take (a file the checkout has lost), a
 `--moth` or a `--records` the host will not let the adapter look at (asked what it is or holds, or
 listed), an `--out` that names no directory an entry can be made in (a network, extended-length or device spelling
 with no share or no name, or a root that is not there), and an `--out` the host cannot look at (one it cannot list),
@@ -300,6 +304,44 @@ def hold_to_head(moth, tree, rel, data):
                            f"moth-quantum's own bytes at {MOTH_COMMIT}")
 
 
+def walked(kind):
+    """What the plan of `kind` takes from the checkout, by the rule it takes it with: ([paths the plan asks for by name],
+    [(a directory the plan lists, whether it lists the directory's whole subtree)]), each as a tuple of parts to be joined
+    with `/`. The plan's own rule, as `plan` takes it: the licence, and the source circuit or the vector; and the IBM day's
+    directory, whole, or each Atlas day's p3 directory, its own files but for the platform descriptions, which are left
+    out as the rolls directories under it are (hold_plan_to_tree)."""
+    if kind == "ibm":
+        return [("LICENSE",), (*RECORDS, *SOURCE_CIRCUIT)], [((*RECORDS, IBM_DAY, "ibm"), True)]
+    return [("LICENSE",), VECTOR[0]], [((*RECORDS, day, "p3"), False) for day in ATLAS_DAYS]
+
+
+def hold_plan_to_tree(moth, tree, kind, taken):
+    """Every entry of HEAD's tree (`head_tree`) under what the plan of `kind` walks (`walked`) is a file the build takes
+    (AdapterError otherwise, the entry named): `taken` is the set of the paths in the checkout, joined with `/`, that the plan
+    took from it (`_in_checkout`). hold_to_head holds each file the build takes to the tree; this holds the tree to the files
+    the build takes, so that a file the checkout has lost is refused where git's own status says nothing (a `core.fsmonitor`
+    hook that reports no change: P1.2's seventh verifier, F1, deleted one of Quantum-Film's five snapshots, and the build was
+    one file short and was accepted). What the plan leaves out by its own rule is not asked: under an Atlas day's p3, a
+    platform description and anything in a directory (the rolls directories). Paths are matched as the bytes git wrote them,
+    as `hold_to_head` matches them."""
+    names, directories = walked(kind)
+    have = {os.fsencode(t) for t in taken}
+    exact = {os.fsencode("/".join(parts)) for parts in names}
+    lists = [(os.fsencode("/".join(parts)) + b"/", whole) for parts, whole in directories]
+    for path in sorted(tree):
+        if path in have:
+            continue
+        asked = path in exact or any(path == prefix[:-1] for prefix, _ in lists)    # a directory's own entry (a gitlink) too
+        for prefix, whole in lists:
+            if path.startswith(prefix):
+                rest = path[len(prefix):]
+                asked = asked or whole or not (b"/" in rest or rest.endswith(b".platform.json"))
+        if asked:
+            raise AdapterError(f"{moth}: {_shown(path)} is a file of moth-quantum at {MOTH_COMMIT} that the build would take, "
+                               "and the checkout has not got it as a regular file there (a file lost, which git's own status "
+                               "can be made to say nothing of); the adapter reads the checkout whole")
+
+
 def _in_checkout(src, moth):
     """The path of `src` in the checkout, joined with `/`, if the plan took it from there (it lies under the path it was
     given, as the plan joined it); None for a file of this repository's records."""
@@ -385,7 +427,10 @@ def build(kind, moth, out, records=None, sliced=False, now=None):
             made.directory(out)
         except (OSError, ValueError) as x:
             raise AdapterError(f"{out}: cannot be made ({_why(x)})") from None
-        for rel, src in plan(kind, moth, REPO / "records" if records is None else records, sliced):
+        steps = plan(kind, moth, REPO / "records" if records is None else records, sliced)
+        if tree is not None:
+            hold_plan_to_tree(moth, tree, kind, {t for t in (_in_checkout(src, moth) for _, src in steps) if t is not None})
+        for rel, src in steps:
             data = src.read_bytes()                             # the one read: the bytes held to the blob are the ones copied
             held = None if tree is None else _in_checkout(src, moth)
             if held is not None:

@@ -500,7 +500,7 @@ def surrogate_in_a_commitments_line(moth):
 
 def surrogate_in_a_salt_the_manifest_and_the_record_agree_on(moth):
     """The morning known-answer salt, a lone surrogate in the manifest and in the device-run record alike, the digests that
-    hold them recomputed (the site of _g4_g5's commitment_of, which G1 to G3 would not reach first)."""
+    hold them recomputed (the site of hold_commitments_and_counts' commitment_of, which G1 to G3 would not reach first)."""
     f = plants.Forge(moth / "docs" / "records")
 
     def salt(m):
@@ -2045,3 +2045,250 @@ def test_slice_given_twice_is_misuse_as_every_other_option_given_twice_is(tmp_pa
     assert USAGE.encode("ascii") in err and err.count(b"\n") == 1 and not out.exists()
     p = process(twin_args(tmp_path / "again", "--slice"))
     assert (p.returncode, p.stdout) == (2, b"") and p.stderr == err and not (tmp_path / "again").exists()
+
+
+# -- HEAD's tree is held to the files the build takes (P1.3, closing P1.2's seventh verifier's F1), and a byte flipped under a forged stat is
+#    refused in every class of file (N2). The hook tests run git's `core.fsmonitor` hook through sh: through sbx-mid.sh, not at low integrity ----
+def tree_of(*rels):
+    return {os.fsencode(r): ("100644", "0" * 40) for r in rels}
+
+
+IBM_WALK = "/".join((*A.RECORDS, A.IBM_DAY, "ibm"))
+CIRCUIT = "/".join((*A.RECORDS, *A.SOURCE_CIRCUIT))
+P3 = "/".join((*A.RECORDS, A.ATLAS_DAYS[0], "p3"))
+VECTOR = "/".join(A.VECTOR[0])
+
+
+def test_the_tree_is_held_to_the_files_the_ibm_plan_takes_and_asked_nothing_of_what_the_plan_does_not_walk():
+    taken = {"LICENSE", CIRCUIT, f"{IBM_WALK}/ibm_x/a.json", f"{IBM_WALK}/ibm_x/sheet-01/run/b.json"}
+    elsewhere = ["README.md", "/".join(("docs", "other", "x.json")), "/".join((A.RECORDS[0], A.RECORDS[1], "2026-10-14", "y.json")),
+                 "/".join((*A.RECORDS, A.ATLAS_DAYS[0], "p3", "z.json")), f"{IBM_WALK}-more/c.json",
+                 "/".join((*A.VECTOR[0][:2], "v.json"))]          # none of them is the plan's: all are the tree's, and are asked nothing
+    tree = tree_of(*taken, *elsewhere)
+    A.hold_plan_to_tree("moth", tree, "ibm", taken)
+    for lost in sorted(taken):
+        with pytest.raises(A.AdapterError) as refused:
+            A.hold_plan_to_tree("moth", tree, "ibm", taken - {lost})
+        assert f" {lost} is a file of moth-quantum at {A.MOTH_COMMIT} that the build would take" in str(refused.value), lost
+    with pytest.raises(A.AdapterError, match=re.escape(CIRCUIT)):          # two lost: the first by path is the one named
+        A.hold_plan_to_tree("moth", tree, "ibm", taken - {f"{IBM_WALK}/ibm_x/a.json", CIRCUIT})
+
+
+def test_the_tree_is_held_to_the_files_the_atlas_plan_takes_but_not_to_what_it_leaves_out():
+    def day(d, n):
+        return "/".join((*A.RECORDS, d, "p3", n))
+    taken = {"LICENSE", VECTOR, *(day(d, "atlas-aaaaaaaa-status.json") for d in A.ATLAS_DAYS),
+             day(A.ATLAS_DAYS[1], "commitments.jsonl"), CIRCUIT}          # the source circuit sits in a day's p3: the Atlas plan takes it
+    left_out = [day(A.ATLAS_DAYS[0], "circuit-0123456789abcdef.platform.json"), day(A.ATLAS_DAYS[1], "x.platform.json"),
+                day(A.ATLAS_DAYS[0], "rolls-aaaaaaaa/r1.json"), day(A.ATLAS_DAYS[1], "rolls-bbbbbbbb/sub/r2.json"),
+                f"{IBM_WALK}/ibm_x/a.json"]          # the IBM crate's files are none of the Atlas plan's
+    tree = tree_of(*taken, *left_out)
+    A.hold_plan_to_tree("moth", tree, "atlas", taken)
+    for lost in sorted(taken):
+        with pytest.raises(A.AdapterError, match=re.escape(lost)):
+            A.hold_plan_to_tree("moth", tree, "atlas", taken - {lost})
+
+
+def test_a_directory_the_plan_walks_that_the_tree_holds_as_one_entry_a_submodule_is_refused_and_a_name_is_matched_as_git_wrote_it():
+    tree = {os.fsencode(IBM_WALK): ("160000", "0" * 40)}
+    with pytest.raises(A.AdapterError, match=re.escape(IBM_WALK)):
+        A.hold_plan_to_tree("moth", tree, "ibm", set())
+    name = f"{IBM_WALK}/ibm_x/{chr(0x141)}{chr(0x150)}.json"
+    tree = tree_of(name)
+    A.hold_plan_to_tree("moth", tree, "ibm", {name})
+    with pytest.raises(A.AdapterError) as refused:
+        A.hold_plan_to_tree("moth", tree, "ibm", set())
+    assert name in str(refused.value)
+
+
+HOOK = b"#!/bin/sh\nprintf 'lie1\\0'\n"
+IBM_KINGSTON = "/".join((*A.RECORDS, plants.IBM))
+PREDICTION = f"{IBM_KINGSTON}/prediction-none.json"
+
+
+def commit_more(moth, records, monkeypatch, files):
+    """Add to the checkout a snapshot and a prediction file of Quantum-Film's places (the twin has none), and `files`
+    ({path in the checkout: bytes}), commit them, and pin the commit the adapter reads."""
+    snap, data = extra_snapshot(records)
+    for rel, blob in {snap: data, PREDICTION: b'{"backend": "ibm_kingston"}\n', **files}.items():
+        (moth / rel).parent.mkdir(parents=True, exist_ok=True)
+        (moth / rel).write_bytes(blob)
+    git(moth, "add", "-A")
+    git(moth, "commit", "-q", "-m", "more")
+    pin(monkeypatch, moth)
+    return snap
+
+
+def lie_about_changes(moth, tmp_path):
+    """The checkout's own configuration makes git say what is not so: `core.fsmonitor` is a hook that reports no change. Three
+    statuses (the first may write the index, which stores the hook's token), and then a lost file is in neither status nor
+    `ls-files -v`. A hook is a shell script, which sh runs: through sbx-mid.sh, never at low integrity."""
+    hook = tmp_path / "fsmonitor-hook.sh"
+    hook.write_bytes(HOOK)
+    git(moth, "config", "core.fsmonitor", hook.as_posix())
+    for _ in range(3):
+        git(moth, "status", "--porcelain")
+
+
+def says_nothing(moth):
+    """The premise of every test of the hook: git's status has nothing to say and no file is marked, whatever is on the disk."""
+    assert git(moth, "status", "--porcelain", "--untracked-files=all") == ""
+    assert all(e[:1] in (b"", b"H") for e in git_run(moth, "ls-files", "-v", "-z").stdout.split(b"\0"))
+
+
+LOST_IBM = {
+    "a snapshot": None,
+    "a prediction file": PREDICTION,
+    "a bundle file": f"{IBM_KINGSTON}/bundle/known-answer.qpy",
+    "a run file": f"{IBM_KINGSTON}/run/known-answer-raw.json",
+    "a job line": f"{IBM_KINGSTON}/run/coherence-line.json",
+    "a sheet's file": f"{IBM_KINGSTON}/sheet-01/bundle/known-answer.qasm",
+    "a qasm file": f"{IBM_KINGSTON}/bundle/coherence-xx.qasm",
+    "the licence": "LICENSE",
+    "the source circuit": CIRCUIT,
+}
+
+
+@pytest.fixture
+def lying(tmp_path, checkout, monkeypatch):
+    """The committed twin, with a snapshot and a prediction file added, under a hook that reports no change: (moth, records)."""
+    moth, records = checkout
+    commit_more(moth, records, monkeypatch, {})
+    lie_about_changes(moth, tmp_path)
+    says_nothing(moth)
+    return moth, records
+
+
+def test_the_honest_checkout_under_the_hook_is_built_as_ever(tmp_path, lying):
+    moth, records = lying
+    built = A.build("ibm", moth, tmp_path / "built", records=records)
+    assert built["files"] == len(A.plan("ibm", moth, records, False)) + 1
+    assert built == A.build("ibm", moth, tmp_path / "slice", records=records, sliced=True)
+
+
+@pytest.mark.parametrize("lost", sorted(LOST_IBM))
+def test_a_file_the_checkout_has_lost_is_refused_where_git_status_and_ls_files_say_nothing(tmp_path, lying, lost):
+    """P1.2's seventh verifier deleted one of Quantum-Film's five snapshots under such a hook: git said nothing, the build was one
+    file short (1,072 files for 1,073), and the checker accepted the crate. HEAD's tree is held to the files the build takes."""
+    moth, records = lying
+    rel = LOST_IBM[lost] or extra_snapshot(records)[0]
+    assert (moth / rel).is_file()
+    (moth / rel).unlink()
+    says_nothing(moth)                                    # the premise: git does not see it ...
+    assert not (moth / rel).exists() and git(moth, "ls-tree", "HEAD", rel).endswith("\t" + rel)      # ... and the tree holds it
+    out = tmp_path / "out"
+    code, stdout, err = run(tmp_path, build_args(moth, records, out))
+    assert (code, stdout) == (2, b"") and one_line(err, escape(rel).encode("ascii"), b"that the build would take"), err
+    assert not out.exists()
+
+
+def test_a_lost_file_under_the_hook_is_refused_as_a_process_too(tmp_path, lying):
+    moth, records = lying
+    snap = extra_snapshot(records)[0]
+    (moth / snap).unlink()
+    says_nothing(moth)
+    out = tmp_path / "out"
+    p = pinned(moth, build_args(moth, records, out))
+    assert (p.returncode, p.stdout) == (2, b"")
+    assert one_line(p.stderr, escape(snap).encode("ascii"), b"that the build would take"), p.stderr
+    assert not out.exists()
+
+
+def test_a_slice_is_asked_nothing_of_the_tree_though_the_hook_hides_a_lost_file(tmp_path, lying):
+    moth, records = lying
+    honest = len(A.plan("ibm", moth, records, True)) + 1
+    (moth / extra_snapshot(records)[0]).unlink()
+    assert A.build("ibm", moth, tmp_path / "slice", records=records, sliced=True)["files"] == honest - 1
+
+
+def atlas_lying(tmp_path, monkeypatch):
+    pin_p2(monkeypatch, None)
+    _, moth = synthetic_moth(tmp_path)
+    commit_checkout(moth)
+    pin(monkeypatch, moth)
+    lie_about_changes(moth, tmp_path)
+    says_nothing(moth)
+    return moth, sorted(os.listdir(moth / P3))
+
+
+def test_what_the_atlas_plan_leaves_out_may_be_lost_and_the_build_is_what_it_was(tmp_path, monkeypatch):
+    moth, _ = atlas_lying(tmp_path, monkeypatch)
+    whole = A.build("atlas", moth, tmp_path / "whole")
+    for rel in (f"{P3}/circuit-0123456789abcdef.platform.json", f"{P3}/rolls-aaaaaaaa/r1.json"):
+        (moth / rel).unlink()
+    says_nothing(moth)
+    assert A.build("atlas", moth, tmp_path / "again") == whole
+
+
+@pytest.mark.parametrize("lost", ["a day's file", "the vector", "the licence"])
+def test_a_file_the_atlas_checkout_has_lost_is_refused_under_the_hook(tmp_path, monkeypatch, lost):
+    moth, names = atlas_lying(tmp_path, monkeypatch)
+    rel = {"a day's file": f"{P3}/" + next(n for n in names if n.endswith("-status.json")), "the vector": VECTOR,
+           "the licence": "LICENSE"}[lost]
+    (moth / rel).unlink()
+    says_nothing(moth)
+    code, stdout, err = run(tmp_path, ["atlas", "--moth", str(moth), "--out", str(tmp_path / "out")])
+    assert (code, stdout) == (2, b"") and one_line(err, escape(rel).encode("ascii"), b"that the build would take"), err
+    assert not (tmp_path / "out").exists()
+
+
+# -- N2: one byte flipped in a file of each class, its size and mtime kept, where `git status` says clean ---------------------------------------
+def flip_one_byte_keeping_stat(moth, rel):
+    """The file's mtime is set long ago and git is asked once (which refreshes its index to that stat); then one byte is changed, the
+    size is the same, and the mtime is put back. `git status` compares the stat to the index's and finds nothing to read."""
+    path = moth / rel
+    old = 1_700_000_000_000_000_000
+    os.utime(path, ns=(old, old))
+    git(moth, "status", "--porcelain")
+    data = bytearray(path.read_bytes())
+    data[len(data) // 2] ^= 0x01
+    path.write_bytes(bytes(data))
+    os.utime(path, ns=(old, old))
+    assert path.stat().st_size == len(data)
+
+
+N2_IBM = {
+    "a sheet's file": f"{IBM_KINGSTON}/sheet-02/run/known-answer-raw.json",
+    "a QPY file": f"{IBM_KINGSTON}/bundle/law.qpy",
+    "a job line": f"{IBM_KINGSTON}/run/known-answer-line.json",
+    "a bundle file": f"{IBM_KINGSTON}/bundle/manifest.json",
+    "a run file": f"{IBM_KINGSTON}/run/coherence-metrics.json",
+    "a qasm file": f"{IBM_KINGSTON}/bundle/coherence-yy.qasm",
+    "a prediction file": PREDICTION,
+    "a snapshot": None,
+    "the licence": "LICENSE",
+    "the source circuit": CIRCUIT,
+}
+
+
+@pytest.mark.parametrize("cls", sorted(N2_IBM))
+def test_one_byte_flipped_in_a_file_of_each_class_with_its_stat_kept_is_refused_though_status_is_clean(tmp_path, checkout, monkeypatch,
+                                                                                                   cls):
+    moth, records = checkout
+    commit_more(moth, records, monkeypatch, {})
+    rel = N2_IBM[cls] or extra_snapshot(records)[0]
+    assert A.build("ibm", moth, tmp_path / "control", records=records)["files"]          # the control: it builds as it is
+    flip_one_byte_keeping_stat(moth, rel)
+    assert git(moth, "status", "--porcelain", "--untracked-files=all") == "" and A.check_moth(moth)      # the premise: clean
+    assert (moth / rel).read_bytes() != git_run(moth, "cat-file", "blob", f"HEAD:{rel}").stdout
+    out = tmp_path / "out"
+    code, stdout, err = run(tmp_path, build_args(moth, records, out))
+    assert (code, stdout) == (2, b"") and one_line(err, escape(rel).encode("ascii"), b"is not moth-quantum's bytes"), err
+    assert not out.exists()
+
+
+@pytest.mark.parametrize("cls", ["an Atlas day's file", "the vector", "the licence"])
+def test_one_byte_flipped_in_a_file_of_the_atlas_checkout_with_its_stat_kept_is_refused_though_status_is_clean(
+        tmp_path, monkeypatch, cls):
+    pin_p2(monkeypatch, None)
+    _, moth = synthetic_moth(tmp_path)
+    commit_checkout(moth)
+    pin(monkeypatch, moth)
+    rel = {"the vector": VECTOR, "the licence": "LICENSE"}.get(cls) or \
+        f"{P3}/" + next(n for n in sorted(os.listdir(moth / P3)) if n.endswith("-result.json"))
+    assert A.build("atlas", moth, tmp_path / "control")["files"]
+    flip_one_byte_keeping_stat(moth, rel)
+    assert git(moth, "status", "--porcelain", "--untracked-files=all") == "" and A.check_moth(moth)
+    code, stdout, err = run(tmp_path, ["atlas", "--moth", str(moth), "--out", str(tmp_path / "out")])
+    assert (code, stdout) == (2, b"") and one_line(err, escape(rel).encode("ascii"), b"is not moth-quantum's bytes"), err
+    assert not (tmp_path / "out").exists()
