@@ -76,12 +76,52 @@ The prefix `qro` is `https://github.com/loganw234/QRO-Crate/blob/main/docs/VOCAB
 | measure | `one-site-occupations` | each site's occupation: a class only, in v1 |
 | measure | `pair-occupations` | each pair of sites' occupation: a class only, in v1 |
 | exact-hold | `holds` | every gate list the compile's manifest names is carried, and passes the exact hold |
+| comparison-kind | `real` | a comparison that admits only qpu units |
+| comparison-kind | `rehearsal` | a comparison that may pool simulator units, says so in its body, and is never cited as a result |
+| means | `differ` | the certified difference of the runs' means lies above epsilon |
+| means | `agree` | it lies within epsilon |
+| means | `unresolved` | neither |
+| status | `EQUAL` | byte-identical in both runs |
+| status | `DIFFERS` | not equal; a compile that differs may be logically equivalent by the exact hold |
+| status | `CONTROLLED` | a certified bound on the cause's effect exists, under a named model where one is needed |
+| status | `UNMEASURED` | no bound exists; its absence word says why |
+| granularity | `job` | the strong form compares every job of one run with every job of the other |
+| granularity | `crate` | it compares each crate's pooled jobs of one run with each of the other's |
+| factor | `question` | both runs share it, so no difference between them can show it |
+| factor | `compile` | both runs share it, so no difference between them can show it |
+| factor | `submitted` | both runs share it, so no difference between them can show it |
+| factor | `commit` | both runs share it, so no difference between them can show it |
+| factor | `device` | both runs share it, so no difference between them can show it |
+| factor | `decode` | both runs share it, so no difference between them can show it |
+| factor | `known-answer` | both runs share it, so no difference between them can show it |
+| factor | `date` | both runs share it, so no difference between them can show it |
+| statement | `isolated-pipeline` | isolated from the pipeline |
+| statement | `drift-unmeasured` | not isolated from the pipeline: drift UNMEASURED, `none` |
+| statement | `strong-form-short` | not isolated from the pipeline: the strong form is not above epsilon |
+| statement | `question-varied` | not isolated from the pipeline: the question DIFFERS |
+| statement | `submitted-differs` | not isolated from the pipeline: what was submitted DIFFERS |
+| statement | `commit-unknown` | not isolated from the pipeline: the producing commit is `unknown` |
+| statement | `commit-differs` | not isolated from the pipeline: the producing commit DIFFERS |
+| statement | `compile-unheld` | not isolated from the pipeline: the compile DIFFERS and is not held |
+| statement | `device-alone` | the difference is the device's |
+| statement | `device-and-time` | the difference is the device's-and-its-time's |
+| statement | `one-device` | the runs ran on one device: the difference is its time's |
+| statement | `quantum-unpiped` | isolated as quantum: no, not isolated from the pipeline |
+| statement | `readout-unbounded` | isolated as quantum: no, readout's effect unbounded |
+| statement | `readout-short` | isolated as quantum: no, the strong form less the readout bound is not above epsilon |
+| statement | `integrity-dephased` | isolated as quantum against the dephased twin: no, the measure is integrity against it |
+| statement | `integrity-uniform` | isolated as quantum against the uniform twin: no, the measure is integrity against it |
+| statement | `quantum-dephased` | isolated as quantum against the dephased twin |
+| statement | `quantum-uniform` | isolated as quantum against the uniform twin |
+| route | `ibm-direct` | the line committed and pushed to the producer's repository |
+| route | `moth` | the line sent to the owner |
 | custody-event | `received` | a crate received, from where and when |
 | custody-event | `withdrawn` | a crate withdrawn: its bytes removed, its received line kept |
 | audit-stage | `crate-only` | the checker's nine steps, on the crate alone |
 | audit-stage | `compile` | the compile, re-derived through the named qiskit |
 | audit-stage | `qpy` | each QPY's gate list, re-derived and held to the held one |
 | audit-stage | `anchors` | the anchors, re-fetched from the provider with the owner's key |
+| audit-stage | `comparison` | the comparison's record, re-derived from its runs' crates |
 | independence | `producer-build` | the producer's own checker build |
 | independence | `same-source` | the same checker source, built independently at a tagged commit |
 | independence | `independent-implementation` | an independent implementation, written from this profile |
@@ -109,7 +149,19 @@ The prefix `qro` is `https://github.com/loganw234/QRO-Crate/blob/main/docs/VOCAB
 | verdict | `question-differs` | the two runs' questions differ by digest |
 | verdict | `role-missing` | a measure needs a role one run lacks |
 | verdict | `kind-not-qpu` | a comparison declared real, with a run holding a simulator unit |
+| verdict | `comparison-generated` | a comparison's record is not what its declaration and its runs' crates give: verdicts are computed only on the runs' data |
 | verdict | `kit-dirty` | the kit started from a dirty tree or an untagged commit |
+| verdict | `once-only` | the unit's records directory already holds a submission of this unit |
+| verdict | `spend-usage` | the instance's remaining seconds or resource units do not cover the unit |
+| verdict | `spend-unit` | a job would pass the unit's running ceiling, or one charged past twice its estimate |
+| verdict | `spend-cap` | a job's execution cap is not a whole number of seconds from 1 to 300, or is under its estimate |
+| verdict | `plan-not-open` | the instance's plan is not the open plan |
+| verdict | `kind-mismatch` | the real route was given a backend that is not the provider's own |
+| verdict | `route-unsafe` | the real route asked for while any of its five conditions fails: the flag given, the confirmation given, a pre-flight under a day old that holds, a clean tree, every spend rule clear |
+| verdict | `key-leak` | the key or the instance is where it could leak, or a secret is in a file the kit wrote |
+| verdict | `preflight-circuit` | a circuit the device's current target no longer takes |
+| verdict | `preflight-chain` | a pinned chain whose qubits or couplers are now faulty |
+| verdict | `preflight-options` | the options the sampler would send are not the manifest's |
 | verdict | `custody-chain` | a custody-log line's predecessor hash does not match the line before it |
 | verdict | `custody-head` | an audit record's log head matches no line of its auditor's custody log |
 
@@ -184,6 +236,12 @@ A term stands only on the entities its domain admits: `*` any, `./` the root, th
 | <a id="heldCompile"></a>`qro:heldCompile` | CHECKED | ref | no | - | body | 7 | `qro:Hold` | P2 | the compile whose gate lists are held |
 | <a id="holdRule"></a>`qro:holdRule` | CHECKED | text | no | - | body | 7 | `qro:Hold` | P2 | the exact hold's rule and version |
 | <a id="exactHold"></a>`qro:exactHold` | CHECKED | word:exact-hold | no | `withheld`, `unexposed` | body | 7 | `qro:Hold` | P2 | holds: every gate list the compile's manifest names is carried and passes the exact hold |
+| <a id="comparisonKind"></a>`qro:comparisonKind` | REPORTED | word:comparison-kind | no | - | body | - | `qro:Comparison` | P3 | whether the comparison is declared real or a rehearsal, as its declaration says; a rehearsal is never cited as a result |
+| <a id="recipe"></a>`qro:recipe` | REPORTED | digest | no | - | body | - | `qro:Unit` | P5 | the SHA-256 of the unit's recipe: devices, passes, job plan, shots, known answers, options |
+| <a id="contributor"></a>`qro:contributor` | REPORTED | text | no | `withheld` | body | - | `qro:Unit` | P5 | the contributor's public handle, or withheld (rule 3); never a provider identifier |
+| <a id="kitTag"></a>`qro:kitTag` | REPORTED | text | no | `unknown` | body | - | `qro:Unit` | P5 | the tag the kit's commit carried when the unit ran |
+| <a id="unitJobs"></a>`qro:unitJobs` | REPORTED | ref | yes | - | body | - | `qro:Unit` | P5 | the unit's jobs as the crate carries them |
+| <a id="route"></a>`qro:route` | REPORTED | word:route | no | - | body | - | `qro:Job` | P5 | Quantum-Film's route for the job (optional: it is in the line) |
 
 ## Types
 
@@ -206,6 +264,8 @@ A term stands only on the entities its domain admits: `*` any, `./` the root, th
 | <a id="Contrast"></a>`qro:Contrast` | no | P2 | one measure's class against one twin |
 | <a id="Measurement"></a>`qro:Measurement` | no | P2 | one measure's value on one PUB, with its certified interval |
 | <a id="Hold"></a>`qro:Hold` | no | P2 | the exact hold of one compile's gate lists |
+| <a id="Comparison"></a>`qro:Comparison` | no | P3 | a comparison of two runs: its declaration, its pre-registration where it has one, and the record of its verdicts |
+| <a id="Unit"></a>`qro:Unit` | no | P5 | a free-tier unit: one recipe run on its devices in passes, as one crate holds it |
 | <a id="RawResult"></a>`qro:RawResult` | no | P0 | a raw result: the provider's bytes, fixed before anything decodes them |
 
 ## The custody log's lines and the audit record (section 9.2)
@@ -230,6 +290,6 @@ A term stands only on the entities its domain admits: `*` any, `./` the root, th
 | audit record | `independence` | REPORTED | word:independence | no | - | the audit's degree of independence |
 | audit record | `logHead` | CHECKED | digest | no | `none` | the auditor's custody-log head when it wrote the record; `none` with no log, which pins nothing |
 | audit record | `signature` | REPORTED | slot | no | `none` | the signature slot, `none` in v0 |
-| audit record | `stages` | REPORTED | word:audit-stage | yes | - | which stages ran: crate-only, and any of the three |
+| audit record | `stages` | REPORTED | word:audit-stage | yes | - | which stages ran: crate-only, and any of the four |
 | audit record | `trustedTime` | REPORTED | slot | no | `none` | the trusted-time slot, `none` in v0 |
 | audit record | `verdict` | REPORTED | word:verdict | no | - | accepted, or the refusal's name |

@@ -40,7 +40,7 @@ def shapes():
 
 def test_the_pool_is_the_verifiers_and_its_classes_are_all_in_it(work):
     names = [n for n, _ in edits(work.pristine)]
-    assert len(names) == 12591 and set(CLASSES) | set(MORE) <= set(names)
+    assert len(names) == 13671 and set(CLASSES) | set(MORE) <= set(names)
     assert len(CLASSES) == len(set(CLASSES)) == 35          # 21 classes, two edits of each where it has two
     assert len(MORE) == len(set(MORE)) == 5 and not set(MORE) & set(CLASSES)
 
@@ -59,7 +59,7 @@ def test_every_6th_single_edit_of_the_pool_is_refused_by_a_name_a_failing_shape_
 
 def test_every_alias_key_crate_is_refused_and_the_shapes_that_fail_claim_the_refusal(work, shapes):
     crates = alias_crates(work)
-    assert len(crates) == 2 * (len(V.TERMS) - 1) == 124
+    assert len(crates) == 2 * (len(V.TERMS) - 1) == 136
     assert alias_problems(work, shapes) == []
 
 

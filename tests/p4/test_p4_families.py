@@ -44,17 +44,17 @@ def shapes():
 
 def test_the_families_are_the_three_the_second_verifier_found_and_none_of_their_crates_is_in_the_pool(work):
     base = work.pristine
-    assert len(base["@graph"]) == 6 and len(duplicates(base)) == 6 * (1 + len(V.TERMS)) + len(CLASHES) == 388
+    assert len(base["@graph"]) == 6 and len(duplicates(base)) == 6 * (1 + len(V.TERMS)) + len(CLASHES) == 424
     assert len(contexts(base)) == len(context_variants()) + len(TOP_LEVEL) == 8 + 5 == 13 and "an @reverse" in TOP_LEVEL
     assert len(added_files(base)) == 2 * 2 * 2 * 2 * 2 * 2 + 4 == 68 and LINK == "data/jct"
     names = [entry[0] for entry in families(base)]
-    assert len(names) == len(set(names)) == 469 and not set(names) & {entry[0] for entry in edits(base)}
+    assert len(names) == len(set(names)) == 505 and not set(names) & {entry[0] for entry in edits(base)}
 
 
 def test_every_crate_of_the_families_is_refused_by_a_name_a_failing_shape_claims_and_none_is_accepted_while_a_shape_fails(work, shapes):
     r = sweep(work, shapes, pool=families)
     assert r["A"] == [] and r["B"] == {} and r["U"] == [], (r["A"][:3], list(r["B"].items())[:3], r["U"][:3])
-    assert r["n"] == 469 and r["unreadable"] == 13                       # the evaluator abstains from the 13 contexts and top-level keys
+    assert r["n"] == 505 and r["unreadable"] == 13                       # the evaluator abstains from the 13 contexts and top-level keys
     assert r["held"] >= 400 and len(r["failing"]) >= 70                  # and the sweep is not vacuous: 430 and 78 when it was written
 
 
@@ -135,7 +135,7 @@ def test_a_crate_the_expansion_cannot_read_and_the_checker_accepts_is_found_with
     assert sorted(r["U"]) == sorted([
         'added "File" x.txt with a digest with a size, listed, on disk', 'added "File" data/x.txt with a digest with a size, listed, on disk',
         "case clash of a CreativeWork"])
-    assert r["n"] == 469 and r["unreadable"] == 469 - 3 and r["held"] == 0 and r["A"] == [] and r["B"] == {}
+    assert r["n"] == 505 and r["unreadable"] == 505 - 3 and r["held"] == 0 and r["A"] == [] and r["B"] == {}
 
 
 def test_a_claim_left_out_of_one_shape_is_found_by_the_families(work, shapes):

@@ -121,6 +121,8 @@ def problems():
             out.append(f"control {c.name}: {c.refusal} is not a refusal")
         if c.expected not in ("refused", "accepted", "states"):
             out.append(f"control {c.name}: expected {c.expected}")
+        if c.expected == "states" and C.sentence(c) is None:
+            out.append(f"control {c.name}: a `states` row's text quotes no sentence and names no label")
     try:
         every = C.plants()
     except C.PlantClash as x:   # a name planted twice (P0.1's verifier, round 2, note 4.3.5), and nothing else: any
@@ -128,6 +130,13 @@ def problems():
     for name in every:
         if name not in C.CONTROL:
             out.append(f"plant {name} names no control")
+    try:
+        for table, kind in ((C.statements(), "STATEMENTS"), (C.twins(), "TWINS")):
+            for name in table:                                  # P0.10: held only for a `states` row
+                if name not in C.CONTROL or C.CONTROL[name].expected != "states":
+                    out.append(f"{kind} entry {name} names no `states` control")
+    except C.PlantClash as x:
+        out.append(str(x))
     return out
 
 

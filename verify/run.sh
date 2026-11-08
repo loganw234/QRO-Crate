@@ -32,13 +32,14 @@
 #   §6  a run id of timestamp + pid + commit; per-stage .ok markers; --resume
 #       reruns only what has not passed, and REFUSES to cross commits, to run
 #       on a dirty tree (two dirty trees of one commit share an id), or to run
-#       in another environment (the interpreter, its packages, moth-quantum's checkout, the SHACL engine);
+#       in another environment (the interpreter, its packages, moth-quantum's checkout, the SHACL engine,
+#       the kit's environment);
 #   §7  an append-only JSONL record of every stage verdict.
 #
 # USAGE
 #   bash verify/run.sh                     every stage
 #   bash verify/run.sh --budget quick      the everyday cut: all but study-plants, privacy-controls, instruments,
-#                                          p1-crates, p2-crates, p4-shacl
+#                                          p1-crates, p2-crates, p3-crates, p4-shacl, p5-kit, p5-crates
 #   bash verify/run.sh --only format,twin  by name (refuses unknown names)
 #   bash verify/run.sh --require-all       a skipped stage FAILS the run
 #   bash verify/run.sh --list              stages, with * on what would run
@@ -55,7 +56,7 @@ export PYTHONIOENCODING=utf-8
 ONLY=""; SKIP=""; REQUIRE_ALL=0; LIST=0; RESUME=""; FRESH=0; BUDGET=""
 
 # Named cuts, checked against the derived stage list below.
-BUDGET_QUICK=lint,docs,check-docs,vocabulary,tool-tests,vocab-tests,format,custody,p1,p2,p4,profile,control-tests,controls-run,twin,controls,study,privacy
+BUDGET_QUICK=lint,lint-kit,docs,check-docs,vocabulary,tool-tests,vocab-tests,format,custody,p1,p2,p3,p4,p5,profile,control-tests,controls-run,twin,controls,study,privacy
 
 die () { echo "FATAL: $*" >&2; exit 2; }
 
@@ -176,7 +177,8 @@ mkdir -p "$STATEROOT"
 # What a stage runs against that is not in the tree: the interpreter and its
 # packages, the variables that decide what an import finds, the moth-quantum
 # checkout the instruments stage reads (its commit and whether it is clean, never
-# its path), and the SHACL engine P4's stage runs (its interpreter's path, and its
+# its path), the SHACL engine P4's stage runs and the kit's environment P5's stage runs (each by its
+# interpreter's path, and its
 # packages). A resumed run once reported a stage passed for an environment that
 # failed a fresh run (moth-quantum, verifier-P0's re-check).
 #
@@ -205,6 +207,7 @@ fingerprint () {
   echo "machine=$(python -c 'import platform; print(platform.platform(), platform.machine())' 2>&1)"
   echo "moth-quantum=$moth"
   echo "shacl-engine=$(shacl_engine)"
+  echo "kit-env=$(kit_env)"
 }
 
 # The SHACL engine of P4's p4-shacl stage, by its interpreter and the packages it holds, read isolated (-I), so
@@ -213,6 +216,13 @@ fingerprint () {
 shacl_engine () {
   if [ -z "${QRO_SHACL_PYTHON:-}" ]; then echo absent; return; fi
   echo "$QRO_SHACL_PYTHON $(packages "$QRO_SHACL_PYTHON" -I)"
+}
+
+# The contributor kit's environment, P5's p5-kit stage (P0.10): its interpreter, named by QRO_KIT_PYTHON, and the
+# packages it holds (qiskit and the rest, outside the tree), read isolated as the engine's are.
+kit_env () {
+  if [ -z "${QRO_KIT_PYTHON:-}" ]; then echo absent; return; fi
+  echo "$QRO_KIT_PYTHON $(packages "$QRO_KIT_PYTHON" -I)"
 }
 if [ -z "$RESUME" ]; then
   # Two fresh runs in one second once shared a directory, and the second read
@@ -223,7 +233,7 @@ if [ -z "$RESUME" ]; then
 else
   [ -d "$RUNDIR" ] || die "--resume: there is no run $RUNID under $STATEROOT"
   [ "$(fingerprint)" = "$(cat "$RUNDIR/environment" 2>/dev/null)" ] || die "--resume: this environment is not
-  the run's (python and its packages, the import path, moth-quantum's checkout, or the SHACL engine); see $RUNDIR/environment. Use --fresh."
+  the run's (python and its packages, the import path, moth-quantum's checkout, the SHACL engine, or the kit's environment); see $RUNDIR/environment. Use --fresh."
 fi
 JSONL="$RUNDIR/stages.jsonl"
 
@@ -318,6 +328,13 @@ need_env ()  { [ -n "${!1:-}" ] || STAGE_SKIP_REASON="$2"; }
 stage lint "ruff over the package, the controls, the tools and the tests" -- \
   python -m ruff check qro controls tools tests
 
+# P5's package is linted as qro is, once it exists (P0.10). ruff exits 1 on a directory that is not there (E902,
+# MEASURED, ruff 0.11.9), so the lint line cannot name it before then, and a lint that quietly passed over it would
+# look like a pass: it is its own stage, skipped by name until qro_kit exists.
+need_file qro_kit "P5's kit is not built yet: there is no qro_kit"
+stage lint-kit "ruff over the contributor kit, qro_kit, as the lint reads the package" -- \
+  python -m ruff check qro_kit
+
 stage docs "the registry, from the runner's text: each test file and tool check run by a stage; no two test files share a name, and a parcel's carry its prefix; pytest's and ruff's configuration pinned to pyproject.toml" -- \
   bash verify/pytest-stage.sh tests/docs
 
@@ -341,7 +358,8 @@ stage custody "the custody log's chain and head, the audit record, the appended 
 
 # The parcels' stages, written by the lead before the parcels build, so that parcels building at once never edit
 # this file (P0.1's verifier, round 1, D3). Each runs its parcel's own directory, and skips by name until that
-# directory exists. P3's and P5's are written when their briefs go out; a parcel that needs another stage asks.
+# directory exists. P3's and P5's are written with P0.10 (the lead's approval of their designs, 2026-11-08); a
+# parcel that needs another stage asks.
 need_file tests/p1 "P1, the adapter, is not built yet: there is no tests/p1"
 stage p1 "P1, the adapter: Quantum-Film's records and IBM's into crates; checker steps 4, 5 and 8" -- \
   bash verify/pytest-stage.sh tests/p1
@@ -353,6 +371,14 @@ stage p2 "P2, the golden measures: measures, twins, floor, certified intervals, 
 need_file tests/p4 "P4, the profile, is not built yet: there is no tests/p4"
 stage p4 "P4, the profile: the Profile Crate, the context, the shapes and the examples" -- \
   bash verify/pytest-stage.sh tests/p4
+
+need_file tests/p3 "P3, the comparison, is not built yet: there is no tests/p3"
+stage p3 "P3, the comparison: declaration, runs, refusals, verdicts, statements and the record, on synthetic crates and P1's twin" -- \
+  bash verify/pytest-stage.sh tests/p3
+
+need_file tests/p5 "P5, the contributor kit, is not built yet: there is no tests/p5"
+stage p5 "P5, the contributor kit: the recipe, the spend rules on a stand-in service, the unit generator and its twin; the checker stays stdlib" -- \
+  bash verify/pytest-stage.sh tests/p5
 
 # P1's second stage (its design, approved 2026-10-15): its two crates built from moth-quantum's records, so
 # out of the quick budget, and skipped by name without moth-quantum or before the directory exists.
@@ -367,6 +393,26 @@ need_env QRO_MOTH_ROOT "moth-quantum's checkout is not named (QRO_MOTH_ROOT, cle
 need_file tests/p2crates "P2's crate-level tests are not built yet: there is no tests/p2crates"
 stage p2-crates "P2 on v0's two crates: every gate list held, the measures and section 6.1's intervals reproduced" -- \
   bash verify/pytest-stage.sh tests/p2crates
+
+# P3's second stage (its design, approved 2026-11-08): v0's crates compared by the command, so out of the quick
+# budget, as P1's and P2's are.
+need_env QRO_MOTH_ROOT "moth-quantum's checkout is not named (QRO_MOTH_ROOT, clean at 3a73823)"
+need_file tests/p3crates "P3's crate-level tests are not built yet: there is no tests/p3crates"
+stage p3-crates "P3 on v0's crates: kingston against fez reproduces section 6.1, the three pairs pinned, IBM against Atlas refused" -- \
+  bash verify/pytest-stage.sh tests/p3crates
+
+# P5's second and third stages (its design, approved 2026-11-08). The kit's runs need a Python outside the tree with
+# qiskit and the rest, named by QRO_KIT_PYTHON, so they are out of the quick budget; the crate-level stage needs
+# moth-quantum's checkout.
+need_env QRO_KIT_PYTHON "no kit environment is named (QRO_KIT_PYTHON: Python 3.12 with qiskit 2.5.2, qiskit-ibm-runtime 0.50.0, qiskit-aer 0.17.2, numpy, mpmath; outside the tree)"
+need_file tests/p5kit "P5's kit stage is not built yet: there is no tests/p5kit"
+stage p5-kit "the kit end to end in its own environment: a local unit on the fake backends, the vendored runner, the offline wrapper" -- \
+  bash verify/pytest-stage.sh tests/p5kit
+
+need_env QRO_MOTH_ROOT "moth-quantum's checkout is not named (QRO_MOTH_ROOT, clean at 3a73823)"
+need_file tests/p5crates "P5's crate-level tests are not built yet: there is no tests/p5crates"
+stage p5-crates "P5 on v0's records: the vendored files equal the checkout's, the cost constants recomputed from v0's metrics" -- \
+  bash verify/pytest-stage.sh tests/p5crates
 
 # P4's generator, and its engine's stage (its design, approved 2026-10-15). The generated profile is checked in
 # the quick budget once the tool exists. The engine's stage needs a SHACL engine outside the tree, named by

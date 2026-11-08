@@ -29,9 +29,21 @@ Every name the checker, the comparison, the kit or the custody check refuses by,
 | `question-differs` | comparison | refused | P3 | the two runs' questions differ by digest |
 | `role-missing` | comparison | refused | P3 | a measure needs a role one run lacks |
 | `kind-not-qpu` | comparison | refused | P3 | a comparison declared real, with a run holding a simulator unit |
+| `comparison-generated` | comparison | refused | P3 | a comparison's record is not what its declaration and its runs' crates give: verdicts are computed only on the runs' data |
 | `selector-late` | comparison | kept | P3 | a selector or tolerance declared after the data were read: labelled exploratory |
 | `kit-dirty` | kit | refused | P5 | the kit started from a dirty tree or an untagged commit |
 | `unit-incomplete` | kit | kept | P5 | a unit missing a job: left out of every pair with that device |
 | `not-interleaved` | kit | kept | P5 | a unit whose devices ran in blocks: the difference is the device's-and-its-time's |
+| `once-only` | kit | refused | P5 | the unit's records directory already holds a submission of this unit |
+| `spend-usage` | kit | refused | P5 | the instance's remaining seconds or resource units do not cover the unit |
+| `spend-unit` | kit | refused | P5 | a job would pass the unit's running ceiling, or one charged past twice its estimate |
+| `spend-cap` | kit | refused | P5 | a job's execution cap is not a whole number of seconds from 1 to 300, or is under its estimate |
+| `plan-not-open` | kit | refused | P5 | the instance's plan is not the open plan |
+| `kind-mismatch` | kit | refused | P5 | the real route was given a backend that is not the provider's own |
+| `route-unsafe` | kit | refused | P5 | the real route asked for while any of its five conditions fails: the flag given, the confirmation given, a pre-flight under a day old that holds, a clean tree, every spend rule clear |
+| `key-leak` | kit | refused | P5 | the key or the instance is where it could leak, or a secret is in a file the kit wrote |
+| `preflight-circuit` | kit | refused | P5 | a circuit the device's current target no longer takes |
+| `preflight-chain` | kit | refused | P5 | a pinned chain whose qubits or couplers are now faulty |
+| `preflight-options` | kit | refused | P5 | the options the sampler would send are not the manifest's |
 | `custody-chain` | custody | refused | P0 | a custody-log line's predecessor hash does not match the line before it |
 | `custody-head` | custody | refused | P0 | an audit record's log head matches no line of its auditor's custody log |

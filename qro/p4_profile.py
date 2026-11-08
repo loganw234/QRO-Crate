@@ -85,9 +85,9 @@ LIMITS = (
     ("The checker is the authority.",
      "A shape is a consequence of what the checker holds. Tests hold two things, and the second is narrower. When a must "
      "shape fails, the checker refuses the crate (steps 1 to 3): over every plant, a seeded fuzz and every one of the "
-     "12,591 single edits of the fixture that the first verifier's pool makes. When a crate is one fault away from one the "
-     "checker accepts, it is refused by a name that a failing shape claims: over the same edits, 124 crates with a key "
-     "spelt another way, and 469 crates of three families the second verifier found and the pool never made "
+     "13,671 single edits of the fixture that the first verifier's pool makes. When a crate is one fault away from one the "
+     "checker accepts, it is refused by a name that a failing shape claims: over the same edits, 136 crates with a key "
+     "spelt another way, and 505 crates of three families the second verifier found and the pool never made "
      "(an @id added again with a term of its own, or a path the reader holds as another's; a top-level @context or key of "
      "the crate's own; a File added whose file the disk lacks, or a link). Every must shape claims, beside the refusals it "
      "mirrors, the six of steps 1 and 2 that can come before its own and that RDF cannot show: `spelling`, "
@@ -230,7 +230,8 @@ LIMITS = (
      "RO-Crate 1.3 asks the `termCode` of a DefinedTerm to be valid as a key in a conforming crate's context, and the term "
      "to be mapped to its `@id` in the Profile Crate's `@context`. The Profile Crate's `@context` maps the one prefix a QRO "
      "crate's maps, `qro`, so that every `qro:code` is its DefinedTerm's `@id`. The codes are not mapped as bare keys: QRO "
-     "crates write `qro:code`, and some codes (`device`, `line`, `value` and `Question` today) are terms of RO-Crate's own "
+     "crates write `qro:code`, and some codes (`contributor`, `device`, `line`, `recipe`, `value` and `Question` "
+     "today) are terms of RO-Crate's own "
      "context, which a mapping in the Profile Crate would redefine. That SHOULD is not met."),
     ("The evaluator and pyshacl read three things differently, and none changes a verdict on a crate.",
      "`sh:minLength 0` on a blank node: the evaluator fails it, since a blank node has no string to measure (READ, the "
@@ -465,7 +466,7 @@ def readme():
            "`graph-form`, `context`, `file-missing` and `file-link`. When a must shape fails, the checker refuses the "
            "crate; and when the crate is one fault away from one the checker accepts, it refuses it by one of the names the "
            "failing shapes claim. Tests hold that over every plant in this directory, a fuzz, every single edit of the "
-           "fixture that a pool of 12,591 makes, 469 crates of three families beside it, 124 crates with a key spelt "
+           "fixture that a pool of 13,671 makes, 505 crates of three families beside it, 136 crates with a key spelt "
            "another way, and a walk over any parcel's accepted crate plants (none is built yet). It is not proved, limit 1 "
            "says over what, limit 19 says what is held of ids and at which base, and what the shapes do not say is the "
            "checker's alone (see the limits below).", "",

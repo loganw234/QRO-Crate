@@ -125,8 +125,9 @@ def test_every_record_named_is_checked_not_only_the_first(tmp_path):
                                   ["check", "a", "--fixtures"]],
                          ids=lambda a: " ".join(a) or "nothing")
 def test_misuse_exits_2_and_says_how(tmp_path, argv):
-    assert run(tmp_path, argv) == (2, b"", b"usage: python -m qro check [--fixtures] CRATE_DIR, or python -m qro "
-                                           b"custody LOG [AUDIT_RECORD ...]\n")
+    assert run(tmp_path, argv) == (2, b"", b"usage: python -m qro check [--fixtures] CRATE_DIR, python -m qro "
+                                           b"custody LOG [AUDIT_RECORD ...], or python -m qro compare "
+                                           b"COMPARISON_DIR CRATE_DIR [CRATE_DIR ...]\n")
 
 
 def test_two_crates_are_misuse_even_when_the_first_is_accepted(tmp_path):

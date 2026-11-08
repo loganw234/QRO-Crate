@@ -88,14 +88,20 @@ qs:entity
     sh:targetSubjectsOf qro:heldCompile ;
     sh:targetSubjectsOf qro:holdRule ;
     sh:targetSubjectsOf qro:exactHold ;
+    sh:targetSubjectsOf qro:comparisonKind ;
+    sh:targetSubjectsOf qro:recipe ;
+    sh:targetSubjectsOf qro:contributor ;
+    sh:targetSubjectsOf qro:kitTag ;
+    sh:targetSubjectsOf qro:unitJobs ;
+    sh:targetSubjectsOf qro:route ;
     sh:nodeKind sh:IRI ;
     sh:closed true ;
-    sh:ignoredProperties ( rdf:type schema:about dct:conformsTo schema:mentions schema:license schema:name schema:description schema:version schema:hasPart schema:sha256 schema:contentSize schema:encodingFormat qro:rawForm qro:shots qro:generator schema:datePublished qro:writer qro:writtenAt qro:implementation qro:signature qro:trustedTime schema:instrument schema:object schema:result qro:deviceKind qro:device qro:jobId qro:line qro:kitCommit qro:role qro:basis qro:record qro:commitment qro:decodeRule qro:bitOrder qro:knownAnswer qro:calibrationLink qro:calibration qro:valuesDigest qro:stamp qro:newestValue qro:historyAtRunning qro:clock schema:startTime schema:endTime qro:law qro:lawCircuit qro:twins qro:measureSet qro:alpha qro:family qro:measure qro:twin qro:class qro:lawValue qro:twinValue qro:measuredPub qro:inScope qro:value qro:lower qro:upper qro:heldCompile qro:holdRule qro:exactHold ) ;
+    sh:ignoredProperties ( rdf:type schema:about dct:conformsTo schema:mentions schema:license schema:name schema:description schema:version schema:hasPart schema:sha256 schema:contentSize schema:encodingFormat qro:rawForm qro:shots qro:generator schema:datePublished qro:writer qro:writtenAt qro:implementation qro:signature qro:trustedTime schema:instrument schema:object schema:result qro:deviceKind qro:device qro:jobId qro:line qro:kitCommit qro:role qro:basis qro:record qro:commitment qro:decodeRule qro:bitOrder qro:knownAnswer qro:calibrationLink qro:calibration qro:valuesDigest qro:stamp qro:newestValue qro:historyAtRunning qro:clock schema:startTime schema:endTime qro:law qro:lawCircuit qro:twins qro:measureSet qro:alpha qro:family qro:measure qro:twin qro:class qro:lawValue qro:twinValue qro:measuredPub qro:inScope qro:value qro:lower qro:upper qro:heldCompile qro:holdRule qro:exactHold qro:comparisonKind qro:recipe qro:contributor qro:kitTag qro:unitJobs qro:route ) ;
     sh:property [
         sh:path rdf:type ;
         sh:message "an entity has a type, and it is one the profile lists" ;
         sh:severity sh:Violation ;
-        sh:in ( schema:Dataset schema:MediaObject schema:CreativeWork prof:Profile schema:CreateAction schema:IndividualProduct schema:SoftwareApplication qro:Question qro:Job qro:Pub qro:Decode qro:Compile qro:Snapshot qro:Measuring qro:Contrast qro:Measurement qro:Hold qro:RawResult ) ;
+        sh:in ( schema:Dataset schema:MediaObject schema:CreativeWork prof:Profile schema:CreateAction schema:IndividualProduct schema:SoftwareApplication qro:Question qro:Job qro:Pub qro:Decode qro:Compile qro:Snapshot qro:Measuring qro:Contrast qro:Measurement qro:Hold qro:Comparison qro:Unit qro:RawResult ) ;
         sh:minCount 1
     ] .
 

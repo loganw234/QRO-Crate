@@ -10,13 +10,25 @@ beside this file (P0.1), so that parcels building at once never edit this file. 
 while this module is being imported: a parcel's plants module imports this one, for twin(), RAW and the helpers,
 and a merge made at import found that module half made whenever it was imported first (P0.1's verifier, round 1,
 D2). Each plant takes an empty directory and returns what it planted: a crate directory for the checker, or a
-(log, record) pair for the custody check. Stdlib only.
+(log, record) pair for the custody check, or, for a comparison, a `Compared` (P0.10; below). Stdlib only.
+
+One protocol for P3's and P5's rows (P0.10; P3's design, item 9, and P5's, item 11):
+  - a plant that raises `Refused` makes that refusal the control's outcome, judged by its name as any other
+    (P5's `kit-dirty`);
+  - a plant may return `Compared(comparison_dir, crate_dirs)`, whose outcome is the comparison check's
+    (`qro.__main__.compare`), judged by name. It is a tuple, so a walk of planted things that skips tuples as it
+    skips a custody pair skips it too (P4's, tests/p4/p4_helpers.py), and a test for it comes first;
+  - a plants module may export `STATEMENTS = {row: fn(planted) -> frozenset of sentences}` and
+    `TWINS = {row: fn(dest) -> planted}`. A `states` row is met when its sentence is in its plant's set and its
+    twin is accepted without saying it; a `states` row lacking either entry is pending, never WRONG, and never met.
 """
 import hashlib
 import importlib
 import json
+import re
 from dataclasses import dataclass
 from pathlib import Path
+from typing import NamedTuple
 
 from qro import canonical, custody, fixture
 
@@ -68,7 +80,7 @@ CONTROLS = (
     Control("time-confounded", "runs on two devices in disjoint time blocks", "states", None, "P3",
             "\"the difference is the device's-and-its-time's\""),
     Control("joint-omission", "per-cause tolerance checks that each pass, offered in place of the data", "refused",
-            None, "P3", "refused: verdicts are computed only on the runs' data"),
+            "comparison-generated", "P3", "refused: verdicts are computed only on the runs' data"),
     Control("shot-moved-resealed", "one shot moved, every digest recomputed", "accepted", None, "P1",
             "accepted by the crate-only checker, a stated limit. Refused by the raw re-fetch, where the provider's "
             "copy differs"),
@@ -93,6 +105,26 @@ CONTROLS = (
             "refused", "custody-head", "P0", "refused: `custody-head`"),
 )
 CONTROL = {c.name: c for c in CONTROLS}
+
+
+class Compared(NamedTuple):
+    """What a comparison's plant returns: the comparison crate's directory and its runs' crates' directories. The
+    outcome is the comparison check's (qro.__main__.compare)."""
+    comparison_dir: str
+    crate_dirs: tuple
+
+
+def sentence(control):
+    """What a `states` row says: the sentence its text cell quotes (everything between its first double quote and its
+    last), or, where the cell quotes none, its first backticked word, which is a kept refusal's label. None for a
+    row that is no `states` row or whose text holds neither."""
+    if control.expected != "states":
+        return None
+    quoted = re.search(r'"(.+)"', control.text)
+    if quoted:
+        return quoted.group(1)
+    word = re.search(r"`([^`]+)`", control.text)
+    return word.group(1) if word else None
 
 
 # -- P0's plants: each on a fresh copy of the twin ----------------------------------------------------------
@@ -228,7 +260,33 @@ def merged(plants, modules):
     return out
 
 
+def _modules():
+    return [importlib.import_module(f"controls.{p.stem}") for p in sorted(Path(__file__).parent.glob("plants_*.py"))]
+
+
 def plants():
     """Every plant: P0's, then each parcel module's, plants_*.py beside this file in name order, merged now."""
-    return merged(PLANTS, [importlib.import_module(f"controls.{p.stem}")
-                           for p in sorted(Path(__file__).parent.glob("plants_*.py"))])
+    return merged(PLANTS, _modules())
+
+
+def merged_table(modules, attr):
+    """Each module's `attr` dict (STATEMENTS or TWINS), merged; a module with none adds none. A row two modules
+    give is refused, as a plant is."""
+    out = {}
+    for module in modules:
+        table = getattr(module, attr, {})
+        clash = sorted(set(table) & set(out))
+        if clash:
+            raise PlantClash(f"{module.__name__} gives {attr} for {clash}, which another module already gives")
+        out.update(table)
+    return out
+
+
+def statements():
+    """{row: fn(planted) -> the sentences it says}, every plants module's STATEMENTS merged."""
+    return merged_table(_modules(), "STATEMENTS")
+
+
+def twins():
+    """{row: fn(dest) -> planted}, every plants module's TWINS merged."""
+    return merged_table(_modules(), "TWINS")

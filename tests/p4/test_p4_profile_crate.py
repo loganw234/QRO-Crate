@@ -414,7 +414,7 @@ def test_the_fuzz_makes_each_kind_of_input_it_says(rendered, context, monkeypatc
             seen[why] += bool(kind(files))
         return real(files, context_bytes)
     monkeypatch.setattr(P, "_check", spy)
-    run(800, seed=9, files=rendered, context=context)
+    run(1500, seed=9, files=rendered, context=context)
     assert [why for why, n in seen.items() if n == 0] == [], seen
 
 
@@ -749,7 +749,7 @@ def test_the_limit_about_extension_terms_names_the_codes_that_clash_and_the_cont
     from qro import p4_expand
     clash = sorted(t["termCode"] for t in P.defined_terms() if t["termCode"] in p4_expand.context())
     text = next(body for title, body in P.LIMITS if title.startswith("The extension terms are mapped by one prefix"))
-    assert clash == ["Question", "device", "line", "value"], clash                # the table moves: this names the new one
+    assert clash == ["Question", "contributor", "device", "line", "recipe", "value"], clash                # the table moves: this names the new one
     for code in clash:
         assert f"`{code}`" in text, code
     assert json.loads(rendered[canonical.DESCRIPTOR])["@context"] == V.context() and len(V.context()) == 2

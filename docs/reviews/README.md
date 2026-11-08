@@ -13,6 +13,7 @@ Every report a verifier returned on this repository's work, kept so that the doc
 - [P0.7/](P0.7/README.md): P0.7's verifier.
 - [P0.8/](P0.8/README.md): P0.8's verifier.
 - [P0.9/](P0.9/README.md): P0.9's verifier.
+- [P0.10/](P0.10/README.md): P0.10's verifier, the rows, the command, the stages and the controls' runner for P3 and P5.
 - [P1.1/](P1.1/README.md): P1.1's verifier, the adapter's checker side.
 - [P1.2/](P1.2/README.md): P1.2's verifier, the adapter's producer side.
 - [P2.1/](P2.1/README.md): P2.1's verifier, the golden measures' core.

@@ -17,6 +17,8 @@ can hold each one to the study.
 | the checker's steps 2, 3 and 9, the seam for steps 4 to 8, and its loading of each parcel's registrations (item 20) | qro/checker.py |
 | the custody log, the audit record and the custody check | qro/custody.py |
 | the controls of section 11 | controls/registry.py, rendered as [CONTROLS.md](CONTROLS.md); each parcel's plants in its own module beside it, merged by `plants()`; which are built, `python -m controls.run` says |
+| a plant's own refusal, a comparison's plant, and a `states` row's sentence and twin | controls/registry.py's docstring and controls/run.py (item 24) |
+| the command `python -m qro compare`, and the module it dispatches to | qro/__main__.py, its docstring, and item 23 |
 
 ## The choices P0 made
 
@@ -164,6 +166,10 @@ can hold each one to the study.
       reading of a crate raises, as P1's steps do. Whatever else a step lets
       through is the checker failing, exit 3, but a `PermissionError`, which
       is misuse, exit 2 (below).
+    - The three commands, `check`, `custody` and `compare` (item 23), exit
+      alike: 0 accepted, 1 a REFUSED line, 2 misuse, 3 the checker itself
+      failing. `compare` answers a missing `qro.p3_compare` as a refusal,
+      `step-unbuilt`, exit 1, and never as exit 0 or a crash.
     - The command line exits 3 when the checker itself fails, which is never
       a verdict: a crash, or an exit or interrupt raised inside it, in a
       parcel's step or count rule among others, and a parcel's module that
@@ -398,6 +404,59 @@ can hold each one to the study.
       `geo`, permanent, and `maps`, `query` and `tool`, provisional. An IRI
       of those schemes, a `data:` or a `geo:` IRI say, is refused though
       it names no term (MEASURED, against the pinned context).
+
+23. **`python -m qro compare COMPARISON_DIR CRATE_DIR [CRATE_DIR ...]`
+    holds a comparison** (P3's design, item 7, approved 2026-11-08; P0.10).
+    - **Its misuse, exit 2,** is `check`'s rules for every directory it
+      names, the comparison's among them (an empty name, a path that is no
+      directory, a name the host reads as another, a directory the user may
+      not list; item 16), fewer than two arguments, and a crate directory
+      named twice, however each is spelt (a link is followed). The line
+      names the argument and ends with the usage, which lists the three
+      commands.
+    - **Its checking is P3's,** in `qro.p3_compare`. The command loads
+      every parcel's steps (item 20) and calls
+      `qro.p3_compare.check(comparison_dir, crate_dirs)`, the arguments as
+      given, the crates in order. The call returns a Summary whose `str()` is
+      the one ACCEPTED line, beginning `ACCEPTED comparison `, which the
+      command writes with exit 0; or raises `Refused` (exit 1, one REFUSED
+      line); or raises the module's own `Misuse` (exit 2; its message, then
+      the usage). Anything else it raises, a summary that is no ACCEPTED
+      line, and a module with no `check` are the checker failing, exit 3,
+      never a verdict.
+    - **Where `qro.p3_compare` is not there,** the comparison is refused
+      `step-unbuilt` at `comparison`, exit 1, one line, as a crate carrying
+      a term of an unbuilt step is: the command never accepts what no check
+      has held. A module that is there and will not import is exit 3.
+    - The controls' runner asks the same function, `qro.__main__.compare`,
+      for the outcome of a `Compared` plant (item 24), so the command and
+      the control answer alike on every comparison the command takes. The
+      misuse rules above are the command's alone: the runner does not hold
+      a plant's directories to them, so a plant that names one crate
+      directory twice reaches the check (P0.10's verifier, its first note).
+24. **The controls' runner has one protocol for P3's and P5's rows**
+    (P0.10; controls/registry.py's docstring, controls/run.py).
+    - A plant that raises `Refused` makes that refusal the control's
+      outcome, judged by its name as any other. `python -m controls.plant`
+      writes it as the command line writes its own, exit 1.
+    - A plant may return `Compared(comparison_dir, crate_dirs)`, a named
+      tuple; its outcome is the comparison check's (item 23), judged by name.
+      While `qro.p3_compare` is missing it is `step-unbuilt`. A `Compared` is
+      a tuple, so a walk of planted things that skips tuples as it skips a
+      custody pair skips it too (P4's accepted-plant walk does), and a test
+      for it comes before the custody branch.
+    - A plants module may export `STATEMENTS = {row: fn(planted) ->
+      frozenset of sentences}` and `TWINS = {row: fn(dest) -> planted}`, each
+      row naming a `states` control (the generator refuses any other).
+      A `states` row is met when its sentence is in its plant's set and its
+      twin is accepted without saying it. The row's sentence is the one its
+      text cell quotes, or, where it quotes none, its first backticked word,
+      a kept refusal's label (`unit-incomplete`). A built `states` row with
+      no `STATEMENTS` entry, or no `TWINS` entry, is pending in the run's
+      output and never WRONG, and never counted as met. A `STATEMENTS` entry
+      that returns anything but a set is the run failing, exit 3.
+    - `joint-omission` is refused `comparison-generated`; its text cell is
+      the study's, unchanged.
 
 ## Stated limits of P0's format
 

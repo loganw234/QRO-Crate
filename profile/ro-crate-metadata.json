@@ -162,7 +162,7 @@
       "description": "The matrix of examples: what the checker and the shapes each say of every example and plant.",
       "encodingFormat": "text/markdown",
       "name": "EXAMPLES.md",
-      "sha256": "468ac2a7c4b5fcfac372cba8fe382739366a199580d3f65e56f9c8db7d25a06c"
+      "sha256": "7ee3ce42ba5e0fd8b2a056e7be902be3dce7d3ed1630dd31705aee489d575efd"
     },
     {
       "@id": "README.md",
@@ -170,11 +170,11 @@
       "about": {
         "@id": "https://github.com/loganw234/QRO-Crate/blob/main/profile/README.md"
       },
-      "contentSize": "62689",
+      "contentSize": "66225",
       "description": "The profile description: what the profile is, how a crate declares it, what the shapes hold and cannot see.",
       "encodingFormat": "text/markdown",
       "name": "README.md",
-      "sha256": "5995f72baffeca356ea5ba6dfda8cc39b1956b8eb998e480f515b3346f33f29c"
+      "sha256": "14efe880cdba48778d470cd8f8bd97a2abe0eca2516aad7d55e32ad6b5507612"
     },
     {
       "@id": "context.jsonld",
@@ -250,6 +250,16 @@
       "encodingFormat": "text/html",
       "name": "the QRO-Crate vocabulary",
       "url": "https://github.com/loganw234/QRO-Crate/blob/main/docs/VOCABULARY.md"
+    },
+    {
+      "@id": "https://github.com/loganw234/QRO-Crate/blob/main/docs/VOCABULARY.md#Comparison",
+      "@type": "DefinedTerm",
+      "description": "a comparison of two runs: its declaration, its pre-registration where it has one, and the record of its verdicts",
+      "inDefinedTermSet": {
+        "@id": "https://github.com/loganw234/QRO-Crate/blob/main/docs/VOCABULARY.md#"
+      },
+      "name": "qro:Comparison",
+      "termCode": "Comparison"
     },
     {
       "@id": "https://github.com/loganw234/QRO-Crate/blob/main/docs/VOCABULARY.md#Compile",
@@ -362,6 +372,16 @@
       "termCode": "Snapshot"
     },
     {
+      "@id": "https://github.com/loganw234/QRO-Crate/blob/main/docs/VOCABULARY.md#Unit",
+      "@type": "DefinedTerm",
+      "description": "a free-tier unit: one recipe run on its devices in passes, as one crate holds it",
+      "inDefinedTermSet": {
+        "@id": "https://github.com/loganw234/QRO-Crate/blob/main/docs/VOCABULARY.md#"
+      },
+      "name": "qro:Unit",
+      "termCode": "Unit"
+    },
+    {
       "@id": "https://github.com/loganw234/QRO-Crate/blob/main/docs/VOCABULARY.md#alpha",
       "@type": "DefinedTerm",
       "description": "the crate's certified intervals hold together with probability at least 1 - alpha",
@@ -440,6 +460,26 @@
       },
       "name": "qro:commitment",
       "termCode": "commitment"
+    },
+    {
+      "@id": "https://github.com/loganw234/QRO-Crate/blob/main/docs/VOCABULARY.md#comparisonKind",
+      "@type": "DefinedTerm",
+      "description": "whether the comparison is declared real or a rehearsal, as its declaration says; a rehearsal is never cited as a result",
+      "inDefinedTermSet": {
+        "@id": "https://github.com/loganw234/QRO-Crate/blob/main/docs/VOCABULARY.md#"
+      },
+      "name": "qro:comparisonKind",
+      "termCode": "comparisonKind"
+    },
+    {
+      "@id": "https://github.com/loganw234/QRO-Crate/blob/main/docs/VOCABULARY.md#contributor",
+      "@type": "DefinedTerm",
+      "description": "the contributor's public handle, or withheld (rule 3); never a provider identifier",
+      "inDefinedTermSet": {
+        "@id": "https://github.com/loganw234/QRO-Crate/blob/main/docs/VOCABULARY.md#"
+      },
+      "name": "qro:contributor",
+      "termCode": "contributor"
     },
     {
       "@id": "https://github.com/loganw234/QRO-Crate/blob/main/docs/VOCABULARY.md#decodeRule",
@@ -572,6 +612,16 @@
       "termCode": "kitCommit"
     },
     {
+      "@id": "https://github.com/loganw234/QRO-Crate/blob/main/docs/VOCABULARY.md#kitTag",
+      "@type": "DefinedTerm",
+      "description": "the tag the kit's commit carried when the unit ran",
+      "inDefinedTermSet": {
+        "@id": "https://github.com/loganw234/QRO-Crate/blob/main/docs/VOCABULARY.md#"
+      },
+      "name": "qro:kitTag",
+      "termCode": "kitTag"
+    },
+    {
       "@id": "https://github.com/loganw234/QRO-Crate/blob/main/docs/VOCABULARY.md#knownAnswer",
       "@type": "DefinedTerm",
       "description": "the known-answer PUB whose verdict holds this decode's order",
@@ -682,6 +732,16 @@
       "termCode": "rawForm"
     },
     {
+      "@id": "https://github.com/loganw234/QRO-Crate/blob/main/docs/VOCABULARY.md#recipe",
+      "@type": "DefinedTerm",
+      "description": "the SHA-256 of the unit's recipe: devices, passes, job plan, shots, known answers, options",
+      "inDefinedTermSet": {
+        "@id": "https://github.com/loganw234/QRO-Crate/blob/main/docs/VOCABULARY.md#"
+      },
+      "name": "qro:recipe",
+      "termCode": "recipe"
+    },
+    {
       "@id": "https://github.com/loganw234/QRO-Crate/blob/main/docs/VOCABULARY.md#record",
       "@type": "DefinedTerm",
       "description": "the PUB's decoded record: Quantum-Film's device-run file",
@@ -700,6 +760,16 @@
       },
       "name": "qro:role",
       "termCode": "role"
+    },
+    {
+      "@id": "https://github.com/loganw234/QRO-Crate/blob/main/docs/VOCABULARY.md#route",
+      "@type": "DefinedTerm",
+      "description": "Quantum-Film's route for the job (optional: it is in the line)",
+      "inDefinedTermSet": {
+        "@id": "https://github.com/loganw234/QRO-Crate/blob/main/docs/VOCABULARY.md#"
+      },
+      "name": "qro:route",
+      "termCode": "route"
     },
     {
       "@id": "https://github.com/loganw234/QRO-Crate/blob/main/docs/VOCABULARY.md#shots",
@@ -770,6 +840,16 @@
       },
       "name": "qro:twins",
       "termCode": "twins"
+    },
+    {
+      "@id": "https://github.com/loganw234/QRO-Crate/blob/main/docs/VOCABULARY.md#unitJobs",
+      "@type": "DefinedTerm",
+      "description": "the unit's jobs as the crate carries them",
+      "inDefinedTermSet": {
+        "@id": "https://github.com/loganw234/QRO-Crate/blob/main/docs/VOCABULARY.md#"
+      },
+      "name": "qro:unitJobs",
+      "termCode": "unitJobs"
     },
     {
       "@id": "https://github.com/loganw234/QRO-Crate/blob/main/docs/VOCABULARY.md#upper",
@@ -877,29 +957,29 @@
     {
       "@id": "validator/qro-crate/must/1_structure.ttl",
       "@type": "File",
-      "contentSize": "15615",
+      "contentSize": "15955",
       "description": "Must-level shapes: the graph's structure.",
       "encodingFormat": "text/turtle",
       "name": "validator/qro-crate/must/1_structure.ttl",
-      "sha256": "3adfb598bbf50eb4e8e0daeae005ff15c9ef69f553bfd2034f5c4d958f4d4553"
+      "sha256": "3a921e66da0ccc92a3ccd30bae611f7851bd6ce121f968e5fbba6d5fdb36390b"
     },
     {
       "@id": "validator/qro-crate/must/2_terms.ttl",
       "@type": "File",
-      "contentSize": "53601",
+      "contentSize": "58650",
       "description": "Must-level shapes: a shape for each term's one spelling.",
       "encodingFormat": "text/turtle",
       "name": "validator/qro-crate/must/2_terms.ttl",
-      "sha256": "56975f84c074e245de9ddf9e97aad35754133a23d8c6ddaa7076c5beaa4a1c6e"
+      "sha256": "46016a64b5e4a8644f54d83f5e9573e33950f6465208ec3c401327a34283ba4b"
     },
     {
       "@id": "validator/qro-crate/must/3_domains.ttl",
       "@type": "File",
-      "contentSize": "26603",
+      "contentSize": "28954",
       "description": "Must-level shapes: a shape for each term's domain.",
       "encodingFormat": "text/turtle",
       "name": "validator/qro-crate/must/3_domains.ttl",
-      "sha256": "1491aa9baae41507169dcb6a0bdd49767ad1f074c891e56cbba60588bfa3258d"
+      "sha256": "2f67a887ff6705bb49c992c3b5fe9fdecae8dd491666c19e3ff74c4b852309ef"
     },
     {
       "@id": "validator/qro-crate/profile.ttl",
@@ -913,11 +993,11 @@
     {
       "@id": "validator/qro-crate/should/1_absence.ttl",
       "@type": "File",
-      "contentSize": "5856",
+      "contentSize": "6948",
       "description": "Should-level shapes: rule 2, absence written as a word.",
       "encodingFormat": "text/turtle",
       "name": "validator/qro-crate/should/1_absence.ttl",
-      "sha256": "2fa1fb67263d759b07487c94541e7d88d04c4c61b9369cbab9f37a5f7714e9ab"
+      "sha256": "2dfeff64a30675813b1b3ab16a2133ab167e81f078c6e9dfa2f22eb231cb0a5a"
     }
   ]
 }

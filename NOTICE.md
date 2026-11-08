@@ -116,6 +116,33 @@ Machines Corporation, registered in many jurisdictions worldwide.
 - **Atlas's engine descriptions are not carried.** They are Moth's text,
   and they state no licence.
 
+## Quantum-Film
+
+- **What is kept, and where.** `tests/p1/data/moth/` holds 56 files of
+  Quantum-Film's, copied byte for byte from the moth-quantum repository at
+  3a73823 for P1's twin (docs/P1.md, "The twin and the controls"). They are
+  test data: the twin is built from them at stage time, and the tree carries
+  no other file of Quantum-Film's. By the path under `docs/records/`:
+  - `2026-10-05/ibm/ibm_kingston/bundle/`: ibm_kingston's morning bundle,
+    18 files (four circuits, each as `.qasm`, `.qpy`, `.isa.qasm3` and
+    `.gates.json`, with `manifest.json` and `README.md`);
+  - `2026-10-05/ibm/ibm_kingston/run/`: the runs of two jobs, the known
+    answer and the coherence job, 12 files (job line, metrics, PUB records,
+    raw result, submit record and verdict);
+  - `2026-10-05/ibm/ibm_kingston/sheet-01/` and `sheet-02/`: the known
+    answer's circuit files and run of two later sheets, 12 files each;
+  - `2026-09-25/p3/circuit-ed767c01bd4b851d.qasm`: the source circuit.
+- **The licence.** All 56 files are MIT-licensed, Copyright (c) 2026 Logan
+  W.: the licence text is tests/p1/data/moth/LICENSE, one of the 56, and
+  its notice is to stay with every copy. A crate P1's adapter builds from
+  them carries it as `LICENSE-quantum-film`.
+- **What is not Quantum-Film's in them.** The run files wrap IBM's job
+  documents and raw result text, which are IBM's data (above): no licence is
+  claimed over IBM's part, and the MIT licence is Quantum-Film's over its own
+  records and code.
+- **Not here yet.** The vendored runner code the contributor kit (P5) is to
+  carry, with its MIT notice, is named when it is added.
+
 ## Others
 
 - **RO-Crate 1.3's JSON-LD context,**

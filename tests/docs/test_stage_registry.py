@@ -34,7 +34,7 @@ lines are the pinned ones (round 3, note 7), its refusal of a `pytest_plugins` l
 own configuration is pinned as ruff_configuration_problems says (P0.9; P0.7's second verifier, note 9; P0.9's first
 verifier, D1): pyproject.toml's [tool.ruff] table exactly, and no ruff.toml, no .ruff.toml and no other pyproject.toml
 with a [tool.ruff] table, in any case, where ruff reads for the lint: at the root, and in the directories the runner's
-one ruff line names and every directory below them, whatever such a directory holds and through no link below them,
+ruff lines name and every directory below them, whatever such a directory holds and through no link below them,
 as ruff reads it. A parcel's test files carry its prefix, so two parcels' never share
 a name (round 1, D3). Each `need_file` guards
 the next stage the runner calls, which runs what it guards, a pytest stage its directory and a tool's stage its
@@ -380,15 +380,19 @@ def shape_problems(root, runner_text):
             if not rest or not rest[0].startswith("tests/") or any(not w.startswith("--ignore=tests/")
                                                                   for w in rest[1:]):
                 out.append(f"a pytest stage with another option: {line.strip()}")
+    # The lint is one stage, and `lint-kit` a second ruff line (P0.10: ruff exits 1 on a directory that is not there, so
+    # P5's package has its own stage, skipped by name until it exists). Together they name every directory holding
+    # Python, each once, and no option.
     lint = [line for line in stage_lines(runner_text) if "ruff check" in line]
+    named = [w for line in lint for w in line.split()[4:]]
     python_dirs = {f.relative_to(root).parts[0] for f in committed_files(root) if f.suffix == ".py"} - {"docs"}
     python_dirs = {d for d in python_dirs if not d.startswith(".")}
-    if len(lint) != 1 or not python_dirs <= set(lint[0].split()):
+    if not lint or not python_dirs <= set(named):
         out.append(f"the lint does not name every directory holding Python: {sorted(python_dirs)}")
-    elif lint[0].split()[:4] != ["python", "-m", "ruff", "check"]:      # P0.4's verifier, round 4, note 4: `python -`
-        out.append(f"the lint is not `python -m ruff check`: {lint[0].strip()}")   # read an empty program, lint ok
-    elif any(w.startswith("-") for w in lint[0].split()[4:]) or len(set(lint[0].split()[4:])) < len(lint[0].split()[4:]):
-        out.append(f"the lint names directories, each once, and no option: {lint[0].strip()}")  # P0.6's verifier, round 1
+    elif any(line.split()[:4] != ["python", "-m", "ruff", "check"] for line in lint):   # P0.4's verifier, round 4, note 4
+        out.append(f"the lint is not `python -m ruff check`: {lint}")           # `python -` read an empty program, lint ok
+    elif any(w.startswith("-") for w in named) or len(set(named)) < len(named):
+        out.append(f"the lint names directories, each once, and no option: {lint}")     # P0.6's verifier, round 1
     twin = re.search(r'^stage twin "[^"]*" -- \\\n(.*)$', runner_text, re.M)
     if twin is None or twin.group(1).split()[-2:] != ["controls.plant", "twin"]:
         out.append("the twin's stage does not plant the twin")
@@ -442,7 +446,9 @@ def guard_problems(runner_text):
         name, words = nxt.group(1), nxt.group(2).split()
         ran = words[words.index("verify/pytest-stage.sh") + 1] if "verify/pytest-stage.sh" in words else None
         if ran is None and "python" in words:                       # a tool's stage: python [-I] TOOL ...
-            ran = next((w for w in words[words.index("python") + 1:] if w != "-I"), None)
+            rest = [w for w in words[words.index("python") + 1:] if w != "-I"]
+            # a lint stage: python -m ruff check DIR, guarded by the directory (P0.10's lint-kit)
+            ran = rest[3] if rest[:3] == ["-m", "ruff", "check"] and len(rest) > 3 else (rest[0] if rest else None)
         if ran != m.group(1):
             out.append(f"stage {name} runs {ran}, and guards {m.group(1)}")
     elsewhere = chr(10).join(re.sub(COMMENT, "", line) for line in runner_text.splitlines()
@@ -526,7 +532,7 @@ def test_every_stage_is_written_in_the_two_line_form():
 
 def test_each_parcel_stage_guards_the_directory_it_runs():
     assert guard_problems(RUNNER) == []
-    assert len(re.findall(r"^need_file tests/p[0-9]+ ", RUNNER, re.M)) == 3, "P1's, P2's and P4's stages"
+    assert len(re.findall(r"^need_file tests/p[0-9]+ ", RUNNER, re.M)) == 5, "P1's, P2's, P3's, P4's and P5's stages"
 
 
 @pytest.mark.parametrize("old, new", [('need_file tests/p1 "', 'need_file tests/p2 "'),
@@ -673,14 +679,17 @@ def unguarded(root, runner_text):
         if m is None:
             continue
         words = lines[i + 1].split() if i + 1 < len(lines) else []
+        lint = False
         if "verify/pytest-stage.sh" in words:
             ran = words[words.index("verify/pytest-stage.sh") + 1:][:1]
         elif "python" in words:
-            ran = [w for w in words[words.index("python") + 1:] if w != "-I"][:1]
+            ran = [w for w in words[words.index("python") + 1:] if w != "-I"]
+            lint = ran[:3] == ["-m", "ruff", "check"]            # a lint stage runs the directories it names
+            ran = ran[3:] if lint else ran[:1]
         else:
             ran = []
         for path in ran:
-            if "/" in path and not path.startswith("-") and not (root / path).exists() \
+            if ("/" in path or lint) and not path.startswith("-") and not (root / path).exists() \
                     and f"need_file {path}" not in guards:
                 out.append(f"stage {m.group(1)} runs {path}, which the tree does not hold, and no need_file guards it")
         guards = []
@@ -790,7 +799,7 @@ def test_the_runner_counts_a_failing_stage_and_exits_one(tmp_path, source, rc, s
     import sys
     root = lint_copy(tmp_path, source)
     env = dict(os.environ, PATH=os.path.dirname(sys.executable) + os.pathsep + os.environ.get("PATH", ""))
-    for k in ("QRO_MOTH_ROOT", "QRO_SHACL_PYTHON", "STATEROOT"):
+    for k in ("QRO_MOTH_ROOT", "QRO_SHACL_PYTHON", "QRO_KIT_PYTHON", "STATEROOT"):
         env.pop(k, None)
     r = subprocess.run([runner_bash(), "verify/run.sh", "--only", "lint"], cwd=root, capture_output=True, text=True,
                        env=env)
@@ -819,19 +828,19 @@ def test_the_runner_holds_its_skips_its_selection_and_its_control(tmp_path, args
     if plant is not None:
         (root / "controls" / "plant.py").write_bytes((plant + chr(10)).encode("ascii"))
     env = dict(os.environ, PATH=os.path.dirname(sys.executable) + os.pathsep + os.environ.get("PATH", ""))
-    for k in ("QRO_MOTH_ROOT", "QRO_SHACL_PYTHON", "STATEROOT"):
+    for k in ("QRO_MOTH_ROOT", "QRO_SHACL_PYTHON", "QRO_KIT_PYTHON", "STATEROOT"):
         env.pop(k, None)
     r = subprocess.run([runner_bash(), "verify/run.sh", *args], cwd=root, capture_output=True, text=True, env=env)
     assert r.returncode == rc and says in r.stdout + r.stderr, (r.stdout + r.stderr)[-800:]
 
 
 def quick_problems(runner_text):
-    """CLAUDE.md: the quick budget is "all but study-plants, privacy-controls, instruments, p1-crates, p2-crates and
-    p4-shacl" (round 2, note
-    4.1.2: a parcel's stage dropped from it, or a stage renamed, was held by no test)."""
+    """CLAUDE.md: the quick budget is "all but study-plants, privacy-controls, instruments, p1-crates, p2-crates,
+    p3-crates, p4-shacl, p5-kit and p5-crates" (round 2, note
+    4.1.2: a parcel's stage dropped from it, or a stage renamed, was held by no test; P0.10 added three)."""
     quick = set(re.search(r"^BUDGET_QUICK=([a-z0-9,-]+)$", runner_text, re.M).group(1).split(","))
     want = set(stage_names(runner_text)) - {"study-plants", "privacy-controls", "instruments", "p1-crates",
-                                            "p2-crates", "p4-shacl"}
+                                            "p2-crates", "p3-crates", "p4-shacl", "p5-kit", "p5-crates"}
     return sorted(quick ^ want)
 
 
@@ -898,7 +907,8 @@ def test_pytests_own_configuration_is_what_the_stages_assume():
 
 
 # ruff's own configuration, pinned as pytest's is (P0.9; P0.7's second verifier, note 9; P0.9's first verifier, D1).
-# The lint stage runs ONE ruff line, `python -m ruff check qro controls tools tests`, from the root, and ruff takes,
+# The lint stage runs one ruff line, `python -m ruff check qro controls tools tests`, and lint-kit a second over
+# qro_kit (P0.10), each from the root; and ruff takes,
 # for each file it lints, the configuration of the nearest directory above the file that holds a .ruff.toml, a
 # ruff.toml or a pyproject.toml with a [tool.ruff] table. Any of them can drop a rule, a file or the whole lint, or
 # `extend` one that does (MEASURED, ruff 0.11.9: a tests/ruff.toml that ignores F401 took an unused import out of
@@ -911,10 +921,10 @@ def test_pytests_own_configuration_is_what_the_stages_assume():
 #     files of its directory, and one in a __pycache__ is read for its own. pytest passes over those (`unreached`);
 #     ruff does not. A directory ruff's own default exclude names (.venv, node_modules, dist, ...) is walked too, so
 #     a configuration there is reported though ruff lints no file in it: the walk is wider than it need be;
-#   - no link below the four is followed: ruff goes through none, so a configuration behind a junction masks nothing. A
+#   - no link below the five is followed: ruff goes through none, so a configuration behind a junction masks nothing. A
 #     lint directory that is itself a link is entered, for ruff goes through the path it is given (a `tests` junction to
 #     a directory holding an unused import reported the fault, and with a masking ruff.toml there it reported none);
-#   - what is walked is what the line names: the root's own entries, and the directories the line names and every
+#   - what is walked is what the lines name: the root's own entries, and the directories the lines name and every
 #     directory below them. A root .venv or docs/ beside them holds a ruff.toml that no file the lint reads sees.
 RUFF_OPTIONS = {"line-length": 120, "target-version": "py312", "extend-exclude": ["docs/studies/qro0"]}
 RUFF_FILES = ("ruff.toml", ".ruff.toml")        # lower case: a name is lowered before it is looked up here
@@ -922,11 +932,18 @@ RUFF_PYPROJECT = "pyproject.toml"
 
 
 def lint_dirs(runner_text):
-    """The names the runner's one ruff line gives after `check`, in its order. shape_problems holds that line to
-    `python -m ruff check` and the name of each top-level directory holding Python, each once, and no option."""
+    """The names the runner's ruff lines give after `check`, in their order: the lint's, then `lint-kit`'s (P0.10: ruff
+    exits 1 on a directory that is not there, so qro_kit has its own stage, skipped by name until it exists; its
+    directory is walked for a configuration all the same). shape_problems holds the lines to `python -m ruff check` and
+    the name of each top-level directory holding Python, each once across them, and no option."""
     lint = [line for line in stage_lines(runner_text) if "ruff check" in line]
-    assert len(lint) == 1, f"the runner holds {len(lint)} ruff lines, not one: {lint}"
-    return lint[0].split()[4:]
+    assert lint, "the runner holds no ruff line"
+    return [w for line in lint for w in line.split()[4:]]
+
+
+def lint_line_dirs(runner_text):
+    """The names the first ruff line, the lint stage's, gives: the directories that are always there."""
+    return [line for line in stage_lines(runner_text) if "ruff check" in line][0].split()[4:]
 
 
 def real_directory(entry):
@@ -1094,22 +1111,41 @@ def test_a_configuration_in_a_directory_beside_the_four_is_not_walked(tmp_path, 
 
 def test_the_walk_takes_the_directories_the_runners_one_ruff_line_names(tmp_path):
     dirs = lint_dirs(RUNNER)
-    assert {"qro", "controls", "tools", "tests"} <= set(dirs), dirs
+    assert {"qro", "controls", "tools", "tests", "qro_kit"} <= set(dirs), dirs
     root = configured_tree(tmp_path)
     (root / "docs").mkdir()
     (root / "docs" / "ruff.toml").write_text("[lint]" + chr(10), encoding="utf-8")
     assert ruff_configuration_problems(root) == [], "docs/ is not among the directories the line names"
     more = RUNNER.replace("ruff check qro controls tools tests", "ruff check qro controls tools tests docs")
-    assert more != RUNNER and lint_dirs(more) == dirs + ["docs"]
+    assert more != RUNNER and lint_dirs(more) == dirs[:4] + ["docs"] + dirs[4:]
     got = ruff_configuration_problems(root, more)
     assert len(got) == 1 and got[0].endswith("docs/ruff.toml"), got
     none = RUNNER.replace("ruff check", "ruff chek")
+    assert none != RUNNER
+    with pytest.raises(AssertionError):
+        lint_dirs(none)
     twice = RUNNER.replace("stage docs ", 'stage lint2 "again" -- ' + chr(92) + chr(10) + "  python -m ruff check qro"
                            + chr(10) + chr(10) + "stage docs ", 1)
-    for text in (none, twice):
-        assert text != RUNNER
-        with pytest.raises(AssertionError):
-            lint_dirs(text)
+    assert twice != RUNNER and lint_dirs(twice)[-1] == "qro"
+    got = shape_problems(ROOT, twice)
+    assert len(got) == 1 and "each once" in got[0], got
+
+
+def test_the_kits_directory_is_walked_for_a_configuration_before_it_exists(tmp_path):
+    """P0.10: qro_kit is named by the lint-kit stage's line, so the walk takes it as it takes qro: a ruff.toml there,
+    once the kit exists, masks the lint of its files, and is named. The directory is not there yet in a tree without
+    one, which the walk passes over as it does any directory the lines name that the root does not hold."""
+    root = configured_tree(tmp_path)
+    assert not (root / "qro_kit").exists() and ruff_configuration_problems(root) == []
+    (root / "qro_kit").mkdir()
+    assert ruff_configuration_problems(root) == []
+    (root / "qro_kit" / "ruff.toml").write_text("[lint]" + chr(10), encoding="utf-8")
+    (root / "qro_kit" / "deep").mkdir()
+    (root / "qro_kit" / "deep" / ".ruff.toml").write_text("[lint]" + chr(10), encoding="utf-8")
+    got = ruff_configuration_problems(root)
+    assert [g.rsplit(": ", 1)[-1] for g in got] == ["qro_kit/deep/.ruff.toml", "qro_kit/ruff.toml"], got
+    without = RUNNER.replace("ruff check qro_kit", "ruff check docs")
+    assert without != RUNNER and ruff_configuration_problems(root, without) == []
 
 
 def link_dir(path, target):
@@ -1539,7 +1575,7 @@ def test_a_ruff_file_that_masks_the_lint_does_so_and_is_caught(tmp_path, what, f
     root = lint_copy(tmp_path, "X = 1" + chr(10))
     write_all(tmp_path / "case-probe", {"Probe.TOML": "x"})
     finds_any_case = (tmp_path / "case-probe" / "probe.toml").exists()
-    ruff = [sys.executable, "-m", "ruff", "check", "--no-cache"] + lint_dirs(RUNNER)
+    ruff = [sys.executable, "-m", "ruff", "check", "--no-cache"] + lint_line_dirs(RUNNER)
     write_all(root, faults)
     assert subprocess.run(ruff, cwd=root, capture_output=True, text=True).returncode == 1, "the unmasked lint fails"
     assert ruff_configuration_problems(root) == [], "the pin is clean until the plant"
@@ -1969,3 +2005,169 @@ def test_a_parcel_file_without_its_prefix_is_caught(tmp_path):
         (tmp_path / rel).write_text("", encoding="utf-8")
     assert misnamed(tmp_path) == ["tests/p1/__init__.py", "tests/p1/deep/helpers.py", "tests/p1/helpers.py",
                                   "tests/p1/test_steps.py", "tests/p2/test_p1_steps.py", "tests/p2crates/test_crates.py"]
+
+
+# -- P0.10: P3's and P5's stages, the kit's environment, and the kit's lint ------------------------------------------------
+# (stage, the directory it runs, the variable that guards it, in the quick budget)
+NEW_STAGES = [("p3", "tests/p3", None, True), ("p3-crates", "tests/p3crates", "QRO_MOTH_ROOT", False),
+              ("p5", "tests/p5", None, True), ("p5-kit", "tests/p5kit", "QRO_KIT_PYTHON", False),
+              ("p5-crates", "tests/p5crates", "QRO_MOTH_ROOT", False)]
+KIT_MESSAGE = ("no kit environment is named (QRO_KIT_PYTHON: Python 3.12 with qiskit 2.5.2, qiskit-ibm-runtime 0.50.0, "
+               "qiskit-aer 0.17.2, numpy, mpmath; outside the tree)")
+
+
+@pytest.mark.parametrize("name, directory, variable, quick", NEW_STAGES, ids=[s[0] for s in NEW_STAGES])
+def test_each_stage_of_p3_and_p5_runs_its_directory_guarded_by_it_and_by_its_variable(name, directory, variable, quick):
+    m = re.search(rf'((?:need_(?:env|file) [^\n]*\n)*)stage {name} "[^"]*" -- \\\n  bash verify/pytest-stage\.sh (\S+)\n',
+                  RUNNER)
+    assert m, f"stage {name} is not written as a pytest stage with its guards before it"
+    guards, ran = m.group(1).splitlines(), m.group(2)
+    assert ran == directory
+    assert sum(g.startswith(f'need_file {directory} "') for g in guards) == 1
+    envs = [g for g in guards if g.startswith("need_env ")]
+    assert [g.split()[1] for g in envs] == ([variable] if variable else [])
+    if variable:
+        assert variable in envs[0].split('"', 1)[1]
+    quick_set = re.search(r"^BUDGET_QUICK=([a-z0-9,-]+)$", RUNNER, re.M).group(1).split(",")
+    assert (name in quick_set) is quick
+
+
+def test_the_kit_stage_gives_p5s_message_for_its_variable():
+    assert f'need_env QRO_KIT_PYTHON "{KIT_MESSAGE}"' in RUNNER.splitlines()
+
+
+@pytest.mark.parametrize("planted, problem", [
+    (('need_file tests/p3 "P3,', 'need_file tests/p5 "P3,'), "stage p3 runs tests/p3, and guards tests/p5"),
+    (('need_file tests/p5kit "', 'need_file tests/p5 "'), "stage p5-kit runs tests/p5kit, and guards tests/p5"),
+    (('need_env QRO_KIT_PYTHON "no kit', 'need_env QRO_KIT_PYTHO "no kit'),
+     "need_env QRO_KIT_PYTHO names a variable the runner reads nowhere else"),
+    (('need_env QRO_KIT_PYTHON "no kit environment is named (QRO_KIT_PYTHON:',
+      'need_env QRO_KIT_PYTHON "no kit environment is named (QRO_SHACL_PYTHON:'),
+     "need_env QRO_KIT_PYTHON gives a reason that does not name it"),
+    (('need_file qro_kit "', 'need_file qro "'), "stage lint-kit runs qro_kit, and guards qro")],
+    ids=["p3's guard another's", "p5-kit's guard another's", "the kit's variable misspelt", "the kit's reason another's",
+         "lint-kit's guard another's"])
+def test_a_guard_of_the_new_stages_that_is_not_its_stages_is_caught(planted, problem):
+    text = RUNNER.replace(*planted, 1)
+    assert text != RUNNER and guard_problems(text) == [problem], guard_problems(text)
+
+
+def test_lint_kit_without_its_guard_is_caught_while_the_kit_is_missing(tmp_path):
+    """qro_kit is no directory of a tree without the kit: unguarded, the stage would fail there, not skip by name."""
+    def mine(found):
+        return [p for p in found if "lint-kit" in p]
+    assert mine(unguarded(tmp_path, RUNNER)) == []
+    bare = RUNNER.replace('need_file qro_kit "P5\'s kit is not built yet: there is no qro_kit"\n', "", 1)
+    assert bare != RUNNER and mine(unguarded(tmp_path, bare)) == [
+        "stage lint-kit runs qro_kit, which the tree does not hold, and no need_file guards it"]
+    (tmp_path / "qro_kit").mkdir()
+    assert mine(unguarded(tmp_path, bare)) == [], "once the kit exists the stage runs, guarded or not"
+
+
+def test_the_list_marks_every_stage_of_p3_and_p5_as_the_budget_selects_it():
+    import subprocess
+    marks = {}
+    for args, label in (([], "all"), (["--budget", "quick"], "quick")):
+        r = subprocess.run([runner_bash(), "verify/run.sh", "--list", *args], cwd=ROOT, capture_output=True, text=True)
+        assert r.returncode == 0, r.stderr
+        marks[label] = {m.group(2): m.group(1) == "*" for m in re.finditer(r"^([* ]) (\S+) ", r.stdout, re.M)
+                        if m.group(2) in stage_names(RUNNER)}
+    assert set(marks["all"]) == set(stage_names(RUNNER)) and all(marks["all"].values())
+    for name in ("p3", "p3-crates", "p5", "p5-kit", "p5-crates", "lint-kit"):
+        assert name in marks["all"], name
+    assert {n for n, on in marks["quick"].items() if on} >= {"lint-kit", "p3", "p5"}
+    assert {"p3-crates", "p5-kit", "p5-crates"}.isdisjoint({n for n, on in marks["quick"].items() if on})
+
+
+def runner_run(root, args, **env_extra):
+    import subprocess
+    import sys
+    env = dict(os.environ, PATH=os.path.dirname(sys.executable) + os.pathsep + os.environ.get("PATH", ""))
+    for k in ("QRO_MOTH_ROOT", "QRO_SHACL_PYTHON", "QRO_KIT_PYTHON", "STATEROOT"):
+        env.pop(k, None)
+    env.update(env_extra)
+    return subprocess.run([runner_bash(), "verify/run.sh", *args], cwd=root, capture_output=True, text=True, env=env)
+
+
+def test_the_stages_of_p3_and_p5_skip_by_name_until_their_directories_exist(tmp_path):
+    root = lint_copy(tmp_path, "X = 1" + chr(10))
+    r = runner_run(root, ["--only", "lint,p3,p3-crates,p5,p5-kit,p5-crates"])
+    assert r.returncode == 0 and "passed 1, failed 0, skipped 5" in r.stdout, r.stdout[-800:]
+    for name, reason in (("p3", "there is no tests/p3"), ("p3-crates", "there is no tests/p3crates"),
+                         ("p5", "there is no tests/p5"), ("p5-kit", "there is no tests/p5kit"),
+                         ("p5-crates", "there is no tests/p5crates")):
+        assert re.search(rf"^   {name} +SKIP +.*{reason}", r.stdout, re.M), (name, r.stdout[-800:])
+    assert runner_run(root, ["--only", "lint,p3,p5", "--require-all"]).returncode == 1
+
+
+def test_a_stage_that_needs_a_variable_skips_by_name_while_it_is_unset_and_does_not_run(tmp_path):
+    """The directory is there, so only the variable's guard keeps the stage from running: without it the stage runs
+    the stage script the copy does not hold and FAILS, which is how a dropped guard shows here."""
+    root = lint_copy(tmp_path, "X = 1" + chr(10))
+    for d in ("tests/p3crates", "tests/p5kit", "tests/p5crates"):
+        (root / d).mkdir(parents=True)
+    r = runner_run(root, ["--only", "lint,p3-crates,p5-kit,p5-crates"])
+    assert r.returncode == 0 and "passed 1, failed 0, skipped 3" in r.stdout, r.stdout[-800:]
+    assert re.search(r"^   p3-crates +SKIP .*QRO_MOTH_ROOT", r.stdout, re.M), r.stdout
+    assert re.search(r"^   p5-crates +SKIP .*QRO_MOTH_ROOT", r.stdout, re.M), r.stdout
+    assert re.search(r"^   p5-kit +SKIP .*QRO_KIT_PYTHON: Python 3\.12 with qiskit 2\.5\.2", r.stdout, re.M), r.stdout
+
+
+@pytest.mark.parametrize("kit, rc, says", [
+    (None, 0, "lint-kit +SKIP +P5's kit is not built yet: there is no qro_kit"),
+    ("X = 1", 0, "lint-kit +ok"),
+    ("import os", 1, "lint-kit +FAIL")], ids=["no kit: skipped by name", "a clean kit", "a kit with a lint fault"])
+def test_the_kits_lint_skips_by_name_until_the_kit_exists_then_holds_it_to_the_lint(tmp_path, kit, rc, says):
+    """ruff exits 1 on a directory that is not there (MEASURED, ruff 0.11.9, E902), so the lint line cannot name it: its
+    own stage skips by name, never fails and never passes quietly, and once qro_kit exists a fault in it fails the run."""
+    root = lint_copy(tmp_path, "X = 1" + chr(10))
+    if kit is not None:
+        (root / "qro_kit").mkdir()
+        (root / "qro_kit" / "__init__.py").write_bytes((kit + chr(10)).encode("ascii"))
+    r = runner_run(root, ["--only", "lint,lint-kit"])
+    assert r.returncode == rc and re.search(rf"^   {says}", r.stdout, re.M), r.stdout[-800:]
+    assert re.search(r"^   lint +ok", r.stdout, re.M), "the lint stage itself is not what the kit's fault fails"
+    assert (runner_run(root, ["--only", "lint,lint-kit", "--require-all"]).returncode == 1) is (kit is None or rc == 1)
+
+
+def kit_engine(tmp_path, dists):
+    import sys
+    engine = tmp_path / "kit-python"
+    engine.write_bytes(chr(10).join([
+        "#!/bin/sh", '[ "$1" = -I ] && [ "$2" = -c ] || exit 7',
+        'exec "' + pathlib.Path(sys.executable).as_posix() + '" -I -c "import sys; sys.path.insert(0, '
+        + repr(dists.as_posix()) + '); $3"', ""]).encode("utf-8"))
+    engine.chmod(0o755)
+    return engine
+
+
+def test_the_fingerprint_records_the_kits_environment_as_it_records_the_engine():
+    body = re.search(r"^fingerprint \(\) \{\n(.*?)^\}", RUNNER, re.M | re.S).group(1)
+    assert '  echo "kit-env=$(kit_env)"' in body.splitlines(), body
+    assert "the kit's environment); see $RUNDIR/environment" in RUNNER, "--resume names it among what it refuses"
+
+
+def test_the_kits_line_is_absent_without_the_variable_and_changes_with_its_packages(tmp_path):
+    """kit_env as the runner runs it, in Git Bash, on an interpreter that is this one, run only with -I: `absent` while
+    QRO_KIT_PYTHON is unset, else its path and 16 hexadecimal digits, which change as a distribution is added."""
+    import subprocess
+    funcs = "".join(re.search(rf"^{name} \(\) \{{.*?\n^\}}\n", RUNNER, re.M | re.S).group(0)
+                    for name in ("packages", "kit_env"))
+    dists = tmp_path / "dists"
+    dists.mkdir()
+    engine = kit_engine(tmp_path, dists)
+
+    def line(**env):
+        base = {k: v for k, v in os.environ.items() if k != "QRO_KIT_PYTHON"}
+        r = subprocess.run([runner_bash(), "-c", PACKAGES.group(0) + chr(10) + funcs + "kit_env"],
+                           capture_output=True, text=True, env=dict(base, **env))
+        assert r.returncode == 0, r.stderr
+        return r.stdout.strip()
+    assert line() == "absent" and line(QRO_KIT_PYTHON="") == "absent"
+    first = line(QRO_KIT_PYTHON=engine.as_posix())
+    assert re.fullmatch(re.escape(engine.as_posix()) + " [0-9a-f]{16}", first), first
+    assert line(QRO_KIT_PYTHON=engine.as_posix()) == first
+    (dists / "qro-probe-kit-1.0.dist-info").mkdir()
+    (dists / "qro-probe-kit-1.0.dist-info" / "METADATA").write_text(
+        "Metadata-Version: 2.1" + chr(10) + "Name: qro-probe-kit" + chr(10) + "Version: 1.0" + chr(10), encoding="utf-8")
+    assert line(QRO_KIT_PYTHON=engine.as_posix()) != first

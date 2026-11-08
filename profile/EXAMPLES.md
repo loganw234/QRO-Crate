@@ -15,7 +15,7 @@ Where the checker says `accepted but for step 9`, steps 1 to 8 held and only ste
 | P1's twin (`p1-twin`): a slice of real IBM records built by P1's adapter at stage time, never kept here; with P2's module present, so it carries P2's entities | accepted by `python -m qro check` | conforms to every must shape and every should shape; every shape of the profile has a node to read on it |
 | P1's twin built without P2's module (`p1-twin-alone`) | accepted by `python -m qro check` | conforms to every must shape and every should shape; the shapes of P2's terms have no node to read on it |
 
-## Plants (68 written, 174 made from the table)
+## Plants (68 written, 191 made from the table)
 
 ### descriptor
 

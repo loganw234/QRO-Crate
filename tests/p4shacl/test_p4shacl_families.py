@@ -3,8 +3,8 @@
 and a top-level key. tests/p4/test_p4_families.py holds the claims over them with the evaluator; the evaluator abstains from the 13
 that change the @context or the top level, and a real engine does not: it reads the crate's own context and fails shapes on a crate
 the checker has refused `context`. Held here, in one engine run over the 13 that change the @context or the top level, the 68 added
-Files, the 4 paths the reader holds as one, and every third of the 384 @ids added again (each of the 63 terms is among them, on two
-entities at least; the evaluator holds all 388 in the quick stage, and the engine's agreement with it is shown on this sample, as
+Files, the 4 paths the reader holds as one, and every third of the 420 @ids added again (each of the 69 terms is among them, on two
+entities at least; the evaluator holds all 424 in the quick stage, and the engine's agreement with it is shown on this sample, as
 on 4,350 crates the second verifier made):
   - on every crate the evaluator reads, the engine fails the must shapes the evaluator does;
   - on every crate, the engine fails no must shape where steps 1 to 3 accept the crate (A), and the refusal is claimed by one of
@@ -64,7 +64,7 @@ def judged(work):
 
 def test_the_engine_fails_the_must_shapes_the_evaluator_fails_on_every_crate_of_the_families_the_evaluator_reads(judged):
     read = {name: (must, engine) for name, (_, _, must, engine) in judged.items() if must is not None}
-    assert len(judged) == 128 + 4 + 13 + 68 and len(read) == len(judged) - 13
+    assert len(judged) == 140 + 4 + 13 + 68 and len(read) == len(judged) - 13
     assert {name: (list(must), list(engine)) for name, (must, engine) in read.items() if tuple(must) != engine} == {}
     assert sum(bool(engine) for _, engine in read.values()) >= 170                           # 186 of 200 when it was written
 

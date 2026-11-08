@@ -5,16 +5,18 @@ runner's negative control and its positive twin go through the command a user ru
     python -m controls.plant twin            # must exit 0: ACCEPTED
     python -m controls.plant shot-moved      # must exit 1, saying REFUSED raw-digest
 
-Stdlib only.
+A plant that returns a `Compared` goes through `python -m qro compare`; one that raises `Refused` itself (P5's
+`kit-dirty`) has that refusal written as the command line writes its own, exit 1 (P0.10). Stdlib only.
 """
 import sys
 import tempfile
 from pathlib import Path
 
-from controls.registry import plants, twin
+from controls.registry import Compared, plants, twin
 from qro import checker
-from qro.__main__ import escape
+from qro.__main__ import escape, write
 from qro.__main__ import main as qro
+from qro.refusal import Refused
 
 
 def main(argv):
@@ -23,7 +25,13 @@ def main(argv):
         print(f"usage: python -m controls.plant twin|{'|'.join(sorted(every))}", file=sys.stderr)
         return 2
     with tempfile.TemporaryDirectory() as d:
-        planted = twin(d) if argv[0] == "twin" else every[argv[0]](d)
+        try:
+            planted = twin(d) if argv[0] == "twin" else every[argv[0]](d)
+        except Refused as r:                              # the plant's own refusal is its outcome
+            write(1, f"REFUSED {r.name} at {r.where}: {r.detail}")
+            return 1
+        if isinstance(planted, Compared):                 # a tuple, so it is told first
+            return qro(["compare", str(planted.comparison_dir), *map(str, planted.crate_dirs)])
         if not isinstance(planted, tuple):
             return qro(["check", "--fixtures", str(planted)])
         log, rec = planted

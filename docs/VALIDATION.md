@@ -4985,3 +4985,104 @@ section 11 that is built comes out as that section says. The rest are P3's and P
   piece want the bound tighter in time; the count is right as it stands.
 - **For P4's next piece:** no test holds that a must shape does not fail on a refused crate plant, P2.2's two among
   them (P4.3's verifier, note 2; P2.2's first verifier measured none failing).
+
+## 2026-11-08 - P2.2 committed; P0.10 merged: the rows, the command, the stages and the controls' runner for P3 and P5
+
+**P2.2 is committed and pushed** as 118009a, with the entry above, on Logan's standing word. The runner on the
+committed tree, before the push: run `20261108-055851-33384-118009a`, 24 stages passed and none skipped, 6,221 tests.
+
+**What P0.10 is.** On 2026-11-08 Logan approved the designs of P3, the comparison of two runs, and P5, the contributor
+kit (lead.md 12:56:23Z). Each asks for what only P0 may hold, and P0.10 puts it in place before P3.1 and P5.1 build on
+main. A builder on Sonnet built it in its own worktree from 118009a, under the lead's rulings. It adds 3 files and
+changes 28:
+- **The rows** (qro/vocabulary.py), as the designs give them:
+  - the types `qro:Comparison` and `qro:Unit`;
+  - the terms `qro:comparisonKind`, `qro:recipe`, `qro:contributor`, `qro:kitTag`, `qro:unitJobs` and `qro:route`,
+    none CHECKED;
+  - the word sets `comparison-kind`, `means`, `status`, `granularity`, `factor`, `statement` (the eighteen sentences
+    of P3's design, item 5) and `route`, with `comparison` in `audit-stage`;
+  - the refusal `comparison-generated`, and P5's eleven kit refusals, whose meanings the builder wrote from P5's
+    design and the lead read.
+
+  docs/VOCABULARY.md and docs/REFUSALS.md are regenerated, and profile/ with them: 131 must and 8 should shapes
+  become 143 and 10.
+- **`python -m qro compare COMPARISON_DIR CRATE_DIR [CRATE_DIR ...]`** (FORMAT.md item 23):
+  - **misuse, exit 2:** `check`'s rules for every directory it names, fewer than two arguments, and a crate directory
+    named twice, however spelt;
+  - **the check is P3's:** `qro.p3_compare.check` returns a summary whose `str()` is the one ACCEPTED line (exit 0),
+    or raises `Refused` (exit 1) or the module's own `Misuse` (exit 2); anything else is the checker failing, exit 3;
+  - **while `qro.p3_compare` is not there,** the comparison is refused `step-unbuilt` at `comparison`, exit 1: the
+    command never accepts what no check has held.
+- **The stages** (verify/run.sh):
+  - `p3` and `p5` in the quick budget;
+  - `p3-crates` and `p5-crates` under `QRO_MOTH_ROOT`, and `p5-kit` under `QRO_KIT_PYTHON`, out of it;
+  - `lint-kit`, ruff over `qro_kit`, in the quick budget: ruff exits 1 on a directory that is not there, so the
+    package has its own stage rather than a place in the lint line;
+  - each skipped by name until its directory exists; the docs stage's walk of ruff's configuration takes `qro_kit`;
+    the runner's record of its environment gains `kit-env`.
+- **The controls' runner** (controls/registry.py, run.py and plant.py; FORMAT.md item 24):
+  - a plant's own `Refused` is the control's outcome, judged by its name;
+  - a plant may return `Compared(comparison_dir, crate_dirs)`, whose outcome is the comparison check's, `step-unbuilt`
+    while P3's module is missing;
+  - a plants module may export `STATEMENTS` and `TWINS` for a `states` row, met when its sentence is in its plant's
+    set and its twin is accepted without it; a row lacking either is pending, never WRONG;
+  - `joint-omission` is refused `comparison-generated`, its text the study's.
+- **NOTICE.md:** the 56 files of Quantum-Film's that P1's twin carries under tests/p1/data/moth/, and their MIT
+  licence.
+- **CLAUDE.md:** the start-here lists and item 7 name the new stages and `QRO_KIT_PYTHON`.
+- **P4's figures, by the lead's grant:** the counts the new rows move (12,591 single edits become 13,671; 124 alias
+  crates 136; 469 family crates 505; 388 become 424 and 128 become 140; 1,088 unreadable become 1,160); the codes that
+  clash with RO-Crate's context, now with `contributor` and `recipe`; and the fuzz's draws, 800 to 1,500 at seed 9,
+  since the rows moved the stream and its rarest kind first comes at draw 1,244.
+
+**The lead's decisions on the build** (lead.md 2026-11-08T15:38:14Z): `lint-kit` accepted; P3's contract confirmed, a
+summary whose `str()` begins `ACCEPTED comparison ` and a misuse class named `Misuse`; "the row's sentence" (the
+quoted sentence of the row's text cell, or its first backticked word) accepted; the fuzz's draws accepted.
+
+**The round** (docs/reviews/P0.10/): **READY,** on the full bar, with no defect. It measured:
+- the generated pages and profile/, each its tool's output byte for byte;
+- `compare`'s misuse over every spelling it tried of one directory given twice (case, a trailing separator, `.` and
+  `..`, forward slashes, an 8.3 short name, a junction), and `check`'s 18 argument shapes as on main;
+- the dispatch to a stand-in module, every outcome and exit, a closed stdout and a closed pipe exit 3, never 120;
+- each new stage with its directory made, skipping by name, running, and failing on a failing test or a lint fault;
+  a ruff configuration in `qro_kit` or below it, in every case of its name, failing the docs stage;
+- the controls' runner through a stand-in plants module, each outcome of a `states` row;
+- NOTICE.md's 56 files counted, and its full run.
+
+Its notes are below the bar (Left).
+
+**The lead's changes at the merge,** prose only, in the lead's words:
+- **`route-unsafe`'s meaning** read as if one clear spend rule were the condition. It is now "the real route asked for
+  while any of its five conditions fails: the flag given, the confirmation given, a pre-flight under a day old that
+  holds, a clean tree, every spend rule clear", and the two pages are regenerated.
+- **CLAUDE.md's bullet on ruff** said "the runner's one ruff line" and counted four directories: it names the two lines
+  and five directories.
+- **FORMAT.md item 23** said the command and a control "cannot answer differently". They answer alike on every
+  comparison the command takes, but the misuse rules are the command's alone (the verifier's first note): restated.
+- **tests/docs/test_stage_registry.py's prose** on the ruff lines, its docstring and the comment above the ruff pin,
+  said one line: they name both.
+
+**Outside the tree:** the kit's environment, which `QRO_KIT_PYTHON` names, carries the sandbox's audit hook as its
+sitecustomize.py (lead.md 2026-11-08T15:49:05Z). P5's kit tests start that interpreter as a child, which under the
+runner nothing else holds. It writes nowhere outside the agents' sandbox, so a real unit will need another environment.
+
+The runs:
+- the builder's, on its last freeze: run `20261108-074129-45886-d6b819b`, 24 stages passed and 6 skipped by name;
+- the verifier's, on the packet: run `20261108-084250-58607-f3aea8d`, 24 passed and 6 skipped by name;
+- the lead's, on the packet laid on main's clone with its whole history: run `20261108-083517-56923-118009a+dirty`, 24
+  passed and 6 skipped by name;
+- the lead's, on the merged tree, staged: run `20261108-092849-3855-118009a+dirty`, 24 stages passed and 6 skipped
+  by name, 6,343 tests; the controls' run: 18 of 18 built controls as section 11 says, 12 pending, P3's and P5's.
+
+**Left:**
+- **For P0's notes piece:**
+  - the controls' runner does not hold a `Compared` plant's directories to the command's misuse rules, so a plant
+    naming one crate directory twice reaches the check where the command would refuse it;
+  - the runner's `kit-env` fingerprint hashes the package list, and cannot see the hook; the SHACL engine's
+    environment holds no hook (it only reads);
+  - with the items listed before: CLAUDE.md's timings among them.
+- **For P3.1:** a comparison directory given again as a crate directory is not misuse at the command, and reaches P3's
+  module, which says what it does (the verifier's third note).
+- **For P4's notes piece:** figures the grant left in P4's comments and docstrings, in
+  tests/p4shacl/test_p4shacl_sweeps.py, tests/p4/p4_sweeps.py, qro/p4_shapes.py and tests/p4/test_p4_twin.py, and
+  docs/P4.md's historical figures; and the fuzz, which passes or fails by where the stream puts its rarest kind.

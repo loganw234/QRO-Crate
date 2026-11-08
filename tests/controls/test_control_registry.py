@@ -10,6 +10,7 @@ from pathlib import Path
 import pytest
 
 from controls import registry as R
+from controls import run as RUN
 from controls.run import outcome
 
 
@@ -34,11 +35,25 @@ def test_the_registry_check_can_fail():
     assert orphaned(R.CONTROLS, dict(R.plants(), **{"dummy-plant": None})) == ["dummy-plant"]
 
 
-@pytest.mark.parametrize("name", sorted(R.plants()))
+def pending_plants():
+    """The plants whose `states` row lacks its STATEMENTS or TWINS entry: built, and pending (P0.10), never WRONG."""
+    every, statements, twins = R.plants(), R.statements(), R.twins()
+    return sorted(n for n in every if RUN.pending_reason(R.CONTROL[n], every, statements, twins) is not None)
+
+
+@pytest.mark.parametrize("name", sorted(set(R.plants()) - set(pending_plants())))
 def test_each_built_control_comes_out_as_section_11_says(name):
     c = R.CONTROL[name]
     got, refusal, where = outcome(name)
     assert (got, refusal) == (c.expected, c.refusal), f"{got} {refusal} at {where}; section 11 says {c.text}"
+
+
+def test_a_pending_plant_is_a_states_row_missing_an_entry_and_no_other():
+    statements, twins = R.statements(), R.twins()
+    for name in pending_plants():
+        assert R.CONTROL[name].expected == "states" and (name not in statements or name not in twins), name
+    for name in set(R.plants()) - set(pending_plants()):
+        assert R.CONTROL[name].expected != "states" or (name in statements and name in twins), name
 
 
 STUDY = Path(__file__).resolve().parents[2] / "docs" / "studies" / "QRO-0.md"
@@ -141,9 +156,12 @@ def test_the_controls_run_as_a_process_says_each_control_and_each_pending_row():
     from qro.__main__ import escape
     assert r.returncode == 0, r.stdout[-800:]
     lines = r.stdout.splitlines()
-    every = R.plants()
+    every, statements, twins = R.plants(), R.statements(), R.twins()
     for c in R.CONTROLS:
-        if c.name in every:
+        if c.name in every and RUN.pending_reason(c, every, statements, twins) is not None:
+            label = escape(f"pending   {c.name:22} {c.owner}: {c.text} (")
+            assert any(line.startswith(label) for line in lines), (c.name, label)
+        elif c.name in every:
             label = escape(f"ok        {c.name:22} {c.expected}" + (f" {c.refusal} at " if c.refusal else ""))
             assert any(line.startswith(label) for line in lines), (c.name, label)
         else:
@@ -241,7 +259,8 @@ def test_the_controls_run_counts_what_it_ran(capsys):
     """P0.1's verifier, round 2, 4.1.4: the run's last line was unasserted."""
     from controls import run
     assert run.main() == 0
-    built = sum(c.name in R.plants() for c in R.CONTROLS)
+    every, statements, twins = R.plants(), R.statements(), R.twins()
+    built = sum(c.name in every and RUN.pending_reason(c, every, statements, twins) is None for c in R.CONTROLS)
     last = capsys.readouterr().out.rstrip().splitlines()[-1]
     assert last == (f"{built} of {built} built controls came out as section 11 says; "
                     f"{len(R.CONTROLS) - built} pending other parcels")

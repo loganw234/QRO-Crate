@@ -7,11 +7,12 @@ README says what this project is; this file says what will bite you.
 
 ```
 bash verify/run.sh --budget quick   # ~70 s idle (2026-10-16), ~170 s beside other work (2026-10-19): all
-                                    #   but study-plants, privacy-controls, instruments, p1-crates, p2-crates
-                                    #   and p4-shacl
+                                    #   but study-plants, privacy-controls, instruments, p1-crates, p2-crates,
+                                    #   p3-crates, p4-shacl, p5-kit and p5-crates
 bash verify/run.sh                  # ~125 s idle (2026-10-16), 150 to 365 s beside other work (2026-10-19):
-                                    #   every stage; instruments, p1-crates and p2-crates skip BY NAME without
-                                    #   QRO_MOTH_ROOT, p4-shacl without QRO_SHACL_PYTHON
+                                    #   every stage; instruments, p1-crates, p2-crates, p3-crates and
+                                    #   p5-crates skip BY NAME without QRO_MOTH_ROOT, p4-shacl without
+                                    #   QRO_SHACL_PYTHON, p5-kit without QRO_KIT_PYTHON
 bash verify/run.sh --list           # every stage, with * on what a budget selects
 ```
 
@@ -41,16 +42,17 @@ that reading cannot see.
 - **ruff reads pyproject.toml's `[tool.ruff]` and nothing else:** exactly
   its three options, and no ruff.toml, .ruff.toml or other pyproject.toml
   with a `[tool.ruff]` table where ruff reads for the lint: at the root, in
-  the directories the runner's one ruff line names (`qro controls tools
-  tests`) and in every directory below them. Any of them can drop a rule or
-  the whole lint, and ruff reads the nearest to each file. The docs stage
-  walks that as ruff does, and fails a tree that holds one: names compared
-  without case (`RUFF.TOML` masks), no directory exempt (a `pyvenv.cfg`, a
+  the directories the runner's two ruff lines name (`qro controls tools
+  tests` in the lint, and `qro_kit` in lint-kit once it exists) and in
+  every directory below them. Any of them can drop a rule or the whole
+  lint, and ruff reads the nearest to each file. The docs stage walks that
+  as ruff does, and fails a tree that holds one: names compared without
+  case (`RUFF.TOML` masks), no directory exempt (a `pyvenv.cfg`, a
   `conda-meta/history`, a `__pycache__` or a `.git` shields nothing), and
-  no link below the four followed (a link that is one of the four is
+  no link below the five followed (a link that is one of the five is
   entered, as ruff goes through the path it is given). A directory beside
-  the four, a root `.venv` or `docs/`, is not walked: no file the lint
-  reads sees it (P0.9).
+  the five, a root `.venv` or `docs/`, is not walked: no file the lint
+  reads sees it (P0.9; P0.10).
 - **The study has its own gate.** Before every freeze of
   docs/studies/QRO-0.md, run both
   `python -I docs/studies/qro0/check_study.py docs/studies/QRO-0.md` and
@@ -149,17 +151,21 @@ that reading cannot see.
 
    The lead's, which a parcel asks for:
    - a vocabulary row;
-   - a stage (P1's, P2's and P4's are already in verify/run.sh, with
-     p1-crates, p2-crates, profile and p4-shacl, each skipped by name until
-     its directory or tool exists), and with it a tool's, and a new
-     top-level directory's place in the lint line;
+   - a stage (P1's, P2's, P3's, P4's and P5's are already in verify/run.sh,
+     with p1-crates, p2-crates, p3-crates, profile, p4-shacl, p5-kit and
+     p5-crates, each skipped by name until its directory or tool exists, or
+     while its variable is unset: QRO_MOTH_ROOT, QRO_SHACL_PYTHON for
+     p4-shacl, QRO_KIT_PYTHON for p5-kit), and with it a tool's, and a new
+     top-level directory's place in the lint line (qro_kit has lint-kit,
+     its own stage, since ruff exits 1 on a directory that is not there);
    - a command of the command line;
    - any other document directly under docs/;
    - the names of its modules under qro/, given in its approved design, so
      that two parcels' never meet;
    - any other outcome for the controls' run than refused by a name or
-     accepted: P3's and P5's rows that state or keep, and `joint-omission`,
-     refused with no name.
+     accepted. P3's and P5's are in (P0.10; controls/registry.py's
+     docstring): a plant's own `Refused`, a `Compared`, and a plants
+     module's STATEMENTS and TWINS for a `states` row.
 
    The generated pages never say which controls are built, so a plant
    changes none of them.
