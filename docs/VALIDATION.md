@@ -5173,3 +5173,88 @@ The runs:
   go through it, as before the move.
 - **git's built-in FSMonitor daemon** (`core.fsmonitor=true`) is untried: it starts a detached process, which no agent
   may start.
+
+## 2026-11-08 - P1.3 committed; P3.1 merged: the comparison's first build
+
+**P1.3 is committed and pushed** as 09ea417, with the entry above, on Logan's standing word. The runner on the
+committed tree, before the push: run `20261108-113829-24031-09ea417`, 24 stages passed and 6 skipped by name, 6,401
+tests.
+
+**What P3.1 is.** P3 is the comparison of two runs (study QRO-0, sections 8 and 9.1), whose design Logan approved on
+2026-11-08 (lead.md 12:56:23Z). P3.1 is its first build: the design's items 1 to 5, 7 and 8, on IBM-shaped crates. A
+builder on Opus built it in its own worktree from 0813f8c. It was laid on main at 09ea417, touching none of P1.3's
+files; docs/README.md was merged three ways with P1.3's change to it. It adds 34 files and changes one:
+- **qro/p3_declaration.py:** the declaration, the plan and its digest, the selectors, and `selector-late`.
+- **qro/p3_runs.py:** each run's jobs and Pubs, each measure's members, and the held manifests, read by P2's
+  `manifest_of`.
+- **qro/p3_refusals.py:** the refusals before any value, in the study's order.
+- **qro/p3_readout.py:** readout coverage. It is UNMEASURED where uncovered; where covered, it is refused
+  `step-unbuilt`, as P3.2's.
+- **qro/p3_verdicts.py:** the family M, P2's intervals, the means, drifts, strong forms, causes, interleaving and
+  statements, with no float.
+- **The record and the check:**
+  - qro/p3_record.py: the comparison crate's layout, the record's form, and the generator `qro-p3-comparison`;
+  - qro/p3_compare.py: `compute`, the check P0's `python -m qro compare` calls, and `make`;
+  - qro/register_p3.py.
+- **controls/plants_p3.py:**
+  - `self-compare` and `resealed-compare` are refused `comparison-trivial`;
+  - `shared-control` is accepted;
+  - `joint-omission` is refused `comparison-generated`;
+  - `readout-unbounded` is planted and pending, its twin P3.2's.
+- **tests/p3/:** a builder of IBM-shaped crates, and nineteen test files.
+- **tests/p3crates/:** v0's two crates. Kingston against fez reproduces section 6.1 cell for cell; the three pairs'
+  figures are pinned; v0's four real cases are held.
+- **docs/P3.md,** and its line in docs/README.md's index.
+
+**The lead's rulings** (lead.md 2026-11-08T20:20:20Z and 21:54:57Z):
+- **The build's nine readings** of what the design left open are accepted. Each refuses, or says UNMEASURED, where
+  the design was silent.
+- **Limit 18.** Where what was submitted, or the compile, is `unexposed`, the design's table says `submitted-differs`
+  or `compile-unheld`, and those sentences say DIFFERS.
+  - **The record holds the truth:** its cause says `unexposed`, and the conclusion, not isolated from the pipeline,
+    holds either way.
+  - **It is a stated limit of P3.1.** P3.2 closes both with words of their own, the lead's rows.
+
+**The rounds** (docs/reviews/P3.1/):
+1. **NOT READY,** on the full bar, on one finding: `compile-unheld` said where the compile is `unexposed` (D1), limit
+   18's shape, unlisted.
+   - **Everything else held.** An oracle of the verifier's own, from P1's Index and P2's functions alone, matched P3
+     on every interval, difference, drift, strong form and mean. It ran on builder crates and on v0's three pairs (M
+     70, 70 and 76).
+   - **Ruled as limit 18.** Round 2 took D1's line and three notes.
+2. **READY,** on the full bar. It measured:
+   - limit 18 widened;
+   - the held manifests now P2's `manifest_of`, every record of round 1's packet the same on three specifications and
+     four of v0's comparisons;
+   - the pins, each rename or re-signing of P1's or P2's failing P3's stage;
+   - round 1's six survivors and 15 more mutants killed;
+   - the builder at its defaults writing round 1's bytes.
+
+The runs:
+- the builder's, on round 2's freeze: run `20261108-152146-53377-8973b56`, 26 stages passed and 4 skipped by name
+  (P5's), 6,776 tests;
+- the verifiers': round 1's `20261108-132548-37948-e7e209b` and round 2's own, each 26 passed and 4 skipped by name;
+- the lead's, on round 2 laid on 09ea417 with main's history, staged: run `20261108-162026-989-09ea417+dirty`, 26
+  passed and 4 skipped by name, 6,834 tests; the controls' run 22 of 22, 8 pending;
+- the lead's, on the merged tree, staged: run `20261108-172031-9909-09ea417+dirty`, 26 stages passed and 4 skipped
+  by name (P5's), 6,834 tests, p3's 414 and p3-crates' 15 among them; the controls' run: 22 of 22 built controls as
+  section 11 says, 8 pending, P3.2's and P5's.
+
+**M1's stage 4** asks two units pooled in a rehearsal, made and re-derived. That is P3.2's, after P5.1. P3.1 makes,
+checks and re-derives a comparison of two runs on v0's crates, with certified intervals.
+
+**Left:**
+- **For P3.2:**
+  - the words `submitted-unexposed` and `compile-unexposed`, the lead's rows at its start, closing limit 18;
+  - units, granularity `crate`, rho and "isolated as quantum";
+  - `readout-unbounded`'s twin.
+- **Round 1's notes,** below the bar:
+  - mixed commits say only `commit-unknown`; the precedence is for P3.2's design;
+  - an out that is a dangling junction gives exit 3, not misuse;
+  - with stdout closed, `make` has written a valid crate before its exit 3;
+  - `question` is EQUAL where both runs' circuits are `unexposed`, though no statement overclaims;
+  - p3_runs' structure test poisons only two count readers;
+  - the junction and 8.3 spellings of the comparison's own directory are measured, but not in the in-process test.
+- **Round 2's notes:**
+  - `Index.refs_of_type` is pinned though P3 no longer calls it;
+  - the method walk is by name, so a call named `get` on a P1 object would go unpinned.
