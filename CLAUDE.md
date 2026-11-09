@@ -122,6 +122,8 @@ that reading cannot see.
    path, an address or a key committed and then deleted is still pushed, so
    the gate fails on it until that history is rewritten, before a push; once
    pushed and judged no secret, its blob is named in the gate's KNOWN (P0.6).
+   A vendored file's exact bytes, judged no secret, are named in the gate's
+   KNOWN_FILES with the alternative they hold (P5.1).
    So a test's fixture shaped like a key, a CRN, an address or a home path is
    built at run time, in pieces, as the gate's own plants are
    (`"QISKIT_IBM_" + "TOKEN="`), never written whole in a file (P0.1's

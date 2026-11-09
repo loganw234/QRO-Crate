@@ -140,8 +140,35 @@ Machines Corporation, registered in many jurisdictions worldwide.
   documents and raw result text, which are IBM's data (above): no licence is
   claimed over IBM's part, and the MIT licence is Quantum-Film's over its own
   records and code.
-- **Not here yet.** The vendored runner code the contributor kit (P5) is to
-  carry, with its MIT notice, is named when it is added.
+- **The vendored runner code.** The contributor kit (P5) carries 22 modules of
+  Quantum-Film's runner, with its MIT notice; they are named in the next
+  section.
+
+## Quantum-Film's runner, vendored in the contributor kit
+
+- **What is kept, and where.** `qro_kit/_vendor/` holds, byte for byte from the
+  moth-quantum repository at 3a73823 (commit 3a738230286385664cd83c9c0a04fe33a5e2348a),
+  the 22 modules of Quantum-Film's runner that the kit's driver needs, 194,424
+  bytes, and two more files:
+  - the modules, under `qro_kit/_vendor/quantum_film/`: `__init__.py`,
+    `atlas/__init__.py`, `atlas/decode.py`, `atlas/pauli_tile.py`,
+    `circuits/__init__.py`, `circuits/givens.py`, `circuits/givens_line.py`,
+    `fixer.py`, `golden/__init__.py`, `golden/binomial.py`, `golden/fermi.py`,
+    `golden/uniform.py`, `ibm/__init__.py`, `ibm/account.py`, `ibm/anchor.py`,
+    `ibm/bundle.py`, `ibm/decode.py`, `ibm/isa.py`, `ibm/keyleak.py`,
+    `ibm/raw.py`, `ibm/runner.py` and `stocks.py`;
+  - `qro_kit/_vendor/LICENSE-quantum-film`, Quantum-Film's licence;
+  - `qro_kit/_vendor/circuit-ed767c01bd4b851d.qasm`, the source circuit, a
+    copy of the one in tests/p1/data/moth (above), which the kit ships so that
+    a stranger needs no other file.
+
+  `qro_kit/_vendor/VENDORED.sha256` lists each file's SHA-256 and size, and a
+  changed byte fails tests/p5/test_p5_vendored.py.
+- **The licence.** All 24 files are MIT-licensed, Copyright (c) 2026 Logan W.
+  The notice is `qro_kit/_vendor/LICENSE-quantum-film` and is to stay with
+  every copy. A crate the kit builds carries it as `LICENSE-quantum-film`.
+- **What is not Quantum-Film's in them.** Nothing of IBM's or Moth's data is in
+  these files: they are code, and the source circuit.
 
 ## Others
 

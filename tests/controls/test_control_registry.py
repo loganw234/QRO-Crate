@@ -175,8 +175,8 @@ def test_the_controls_run_writes_each_line_as_printable_ascii(monkeypatch, capsy
     from controls import run
     real = run.outcome
     hostile = "data/raw.counts.json: two" + chr(10) + "lines and " + chr(0x2265)
-    monkeypatch.setattr(run, "outcome", lambda name, every=None: ("refused", "raw-digest", hostile)
-                        if name == "shot-moved" else real(name, every))
+    monkeypatch.setattr(run, "outcome", lambda name, every=None, **kw: ("refused", "raw-digest", hostile)
+                        if name == "shot-moved" else real(name, every, **kw))
     assert run.main() == 0
     out = capsys.readouterr().out
     line = next(x for x in out.splitlines() if "shot-moved" in x)

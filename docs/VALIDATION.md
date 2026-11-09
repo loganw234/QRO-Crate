@@ -5258,3 +5258,133 @@ checks and re-derives a comparison of two runs on v0's crates, with certified in
 - **Round 2's notes:**
   - `Index.refs_of_type` is pinned though P3 no longer calls it;
   - the method walk is by name, so a call named `get` on a P1 object would go unpinned.
+
+## 2026-11-09 - P3.1 committed; P5.1 merged: the contributor kit's first build
+
+**P3.1 is committed and pushed** as 9e75622, with the entry above, on Logan's standing word. The runner on the
+committed tree, before the push: run `20261108-181923-17402-9e75622`, 26 stages passed and 4 skipped by name, 6,834
+tests.
+
+**What P5.1 is.** P5 is the contributor kit (study QRO-0, section 9.1): the tool anyone uses to run one free-tier unit,
+18 jobs on three devices, and get a crate for it that the checker holds as it holds v0's. Logan approved its design on
+2026-11-08 (lead.md 12:56:23Z).
+
+P5.1 is its first build: the local route and the crate, M1's stage 3. The real route is present and refusing, and no
+code of the kit connects to IBM. A builder on Sonnet built it in its own worktree from 09ea417. It was laid on main at
+9e75622; docs/README.md was merged three ways with P3.1's change to it. It adds 60 files and changes six:
+- **qro/p5_unit.py:** the recipe `qro-unit/1` and its digest, what a unit costs, in `Fraction`, how a unit crate is
+  read and what it states, and intake, `python -m qro.p5_unit intake`. Intake's first line names a scaled unit's
+  shots divisor.
+- **qro/p5_generate.py:** the generator `qro-p5-unit` and its guards GU1 to GU10.
+  - P1's guards are imported from `qro.p1_guards`, never copied, and a P1 guard's refusal carries P1's letter.
+  - GU9 refuses a read record of a job whose PUBs carry more than one role, until its hold is designed (the lead's
+    ruling, lead.md 2026-11-08T20:00:40Z).
+- **qro/p5_tree.py:** `kit-dirty`, which refuses a dirty or untagged tree.
+- **qro/register_p5.py:** the generator's registration and nothing else.
+- **qro_kit/:** the kit's commands `freeze`, `drive` and `crate`, the spend rules S1 to S7, and the real route,
+  present and refusing.
+  - **The vendored runner:** 22 modules of Quantum-Film's runner under `_vendor/`, byte for byte from moth-quantum at
+    3a73823, with its MIT licence and the source circuit.
+  - **The hash list:** `VENDORED.sha256` names every vendored file, and the loader refuses any file it does not list.
+  - **The environment:** environment.lock, from the lead's freeze of the kit's environment.
+- **controls/plants_p5.py:** the unit twin, a synthetic unit crate, and P5's four controls: `unit-known-answer`,
+  `unit-incomplete`, `not-interleaved` and `kit-dirty`.
+- **tests/p5/, tests/p5kit/ and tests/p5crates/:**
+  - the stages p5 and p5-kit, the latter a local unit end to end on IBM's fake backends at a shots divisor;
+  - p5-crates, the vendored bytes against moth-quantum's and the cost constants from v0's metrics.
+- **docs/P5.md,** and its line in docs/README.md's index.
+- **Six changed, each by a grant:**
+  - **NOTICE.md:** Quantum-Film's notice for the vendored code;
+  - **CLAUDE.md:** item 3's one sentence;
+  - **tests/controls/test_control_registry.py:** the stub `run.outcome` passes on the keywords P0.10 gave it;
+  - **tools/check_privacy.py and tests/tools/test_tools.py:** `KNOWN_FILES`, P0's, to the lead's specification
+    (lead.md 2026-11-09T00:05:09Z). It excepts one finding: a CRN's shape in the exact bytes of the vendored
+    account.py, a pattern and a message, neither a CRN. A byte changed, another path, another alternative or a staged
+    version that differs each fails.
+
+**The lead's, during the build:**
+- **The renames:** eight files of tests/p5kit and tests/p5crates, renamed to their directories' names, which the
+  builder's tools could not do.
+- **The kit's environment** carries the sandbox's hook (lead.md 2026-11-08T15:49:05Z).
+- **The mutants:** no mutant of code that writes or removes files runs under sbx-mid.sh (20:24:04Z).
+
+**The rounds** (docs/reviews/P5.1/):
+1. **NOT READY,** on the full bar, on one code defect. `preflight_ok` (S7(c)) took a pre-flight record dated ahead of
+   now, which held forever and could hide an older failing record (D1).
+   - **Everything else held:**
+     - the vendored bytes;
+     - `KNOWN_FILES` on 14 repositories;
+     - `kit-dirty` in 30 scenarios;
+     - the real route always refused;
+     - the removals and the commands' exits;
+     - a divisor-128 unit end to end;
+     - the controls, 22 of 22.
+   - Round 2 took D1 and six notes:
+     - GU7's test;
+     - the loader refusing every unlisted vendored file;
+     - a failed git in `freeze` exit 3;
+     - GU1's cap an integer;
+     - intake naming a scaled unit;
+     - the page's three passages.
+2. **NOT READY,** on the full bar, on prose alone: docs/P5.md promised round 2's mutant tally and did not give it.
+   - **Every code ruling held,** measured:
+     - D1's window on 30 scenarios and 10 mutants;
+     - GU7 in every combination;
+     - the loader against 22 planted names;
+     - freeze's failed git, exit 3 with nothing left;
+     - GU1's cap on six spellings;
+     - intake's line on seven units;
+     - of its 24 mutants, all killed but two, each equivalent.
+   - Round 3 took the passage alone.
+3. **READY,** with no defect, on the ruled passage and anything round 3 moved. It measured:
+   - the tree changed against round 2's in docs/P5.md alone;
+   - the passage's counts, against the builder's list of 20;
+   - each mutant's target tests passing on the unmutated copy first, then all 20 mutants killed by them;
+   - the D1 mutant left out surviving the spend tests, as its equivalence predicts.
+
+The mutants: 132 hand mutants in round 1, the privacy gate's 11 among them, all killed but one equivalent; 20 more in
+round 2, all killed.
+
+The runs:
+- **The builder's:**
+  - round 2's full runner on its freeze, `20261108-221433-49130-0de6285`: 28 passed, p3 and p3-crates skipped by name,
+    its base lacking P3.1;
+  - round 3's quick budget on its freeze, `20261109-004857-8074-0730e77`: 20 passed, p3 skipped by name;
+- **The verifiers':**
+  - round 1's was stopped at the lead's asking, before p5-kit;
+  - round 2's `20261108-233732-63535-c589aab`: 28 passed, 2 skipped by name;
+  - round 3's quick budget, `20261109-012829-14835-b09b465`: 20 passed, p3 skipped by name;
+- **The lead's,** each on main's history:
+  - round 1 laid on 9e75622: `20261108-203847-33431-9e75622+dirty`, the first tree on which every stage of the runner
+    ran, 30 passed and none skipped, 7,311 tests;
+  - round 2 laid on 9e75622: `20261108-233427-61963-9e75622+dirty`, 30 passed and none skipped, 7,329 tests. The
+    controls' run: 26 of 26 built controls as section 11 says, 4 pending;
+  - the merged tree, staged, on 9e75622: `20261109-023242-27870-9e75622+dirty`, 30 passed and none skipped, 7,329
+    tests. The controls' run: 26 of 26 built controls as section 11 says, 4 pending. A first run on it,
+    `20261109-023001-26985-9e75622+dirty`, was stopped: it had started a minute before the lead mended a date in the
+    reviews' README.
+
+**M1's stage 3** asks a local unit built and accepted by the checker. P5.1 builds one on every p5-kit run, at a shots
+divisor, and intake accepts it.
+- **One unit at full shots** ran once, through the command line: 7,982.9 s beside other work, its crate 197 files,
+  accepted by the checker and by intake. It ran on an earlier tree of the build.
+- **The lead runs another** on the kit as merged.
+
+**Left:**
+- **For P5.2, before the real route runs:**
+  - the key and `account.connect`;
+  - the scrub and the output scan;
+  - the pre-flight and its writer: its file names without colons, and a failing record winning a same-second tie;
+  - the re-fetch, the dry-run probe and the `--chain-file` pin.
+- **Recorded from the rounds for P5.2:**
+  - **The `__pycache__` skip in `kit-dirty`:** a planted `.pyc` whose stamp matches its source would run. The loader
+    already refuses a `__pycache__` file among the vendored ones.
+  - **`check_usage`:** a non-finite or non-number usage value is a `spend-usage` refusal, not exit 3.
+  - **Read records of mixed roles** under GU9: a record per role, or a new version of P1's record.
+  - **The intake record** names its tool and the unit's commit.
+- **Round 1's other notes,** below the bar:
+  - the sampler's `ast` test exempts receivers by name;
+  - `crate` on an undriven unit is refused, by a misleading message;
+  - a film job before its pass's control is accepted, as the design has it;
+  - UNIT.json's free text is REPORTED.
+- **For Logan:** the records repository `qro-records`, when M2 nears.

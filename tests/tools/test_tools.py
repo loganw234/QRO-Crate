@@ -1643,3 +1643,105 @@ def test_the_vocabularys_write_renders_what_its_check_holds(tmp_path):
     assert gen.drift(tmp_path) == []
     for rel in gen.OUTPUTS:
         assert (tmp_path / rel).read_bytes() == (ROOT / rel).read_bytes(), rel
+
+
+# -- KNOWN_FILES (P5.1, granted by the lead): a third party's file held byte for byte, known by path, hash and alternative
+
+VENDORED_ACCOUNT = "qro_kit/_vendor/quantum_film/ibm/account.py"
+
+
+def known_lines(summary):
+    return [ln for ln in summary.splitlines() if ln.startswith("  known, a file's exact bytes: ")]
+
+
+def test_each_known_file_entry_is_live():
+    """Each entry claims what it holds: a reason, an alternative the gate has, the file at its path with that SHA-256,
+    and its alternative finds something there. An entry whose file changed would otherwise be inert and pass unseen."""
+    import hashlib
+    names = {n for _, n, _ in privacy.ALTERNATIVES}
+    assert privacy.KNOWN_FILES and (VENDORED_ACCOUNT, "dc0cfdd739e91f234db16ba481ebdc9006442b61fc50b9bc4bef3fec77225275",
+                                    "crn") in privacy.KNOWN_FILES
+    for (path, sha, name), why in privacy.KNOWN_FILES.items():
+        assert re.fullmatch(r"[0-9a-f]{64}", sha) and name in names and why, (path, name)
+        data = (ROOT / path).read_bytes()
+        assert hashlib.sha256(data).hexdigest() == sha, path
+        assert privacy.findings(data.decode("utf-8"), {name}), path
+
+
+def test_the_vendored_account_is_known_and_listed_and_fails_nothing(tmp_path):
+    data = (ROOT / VENDORED_ACCOUNT).read_bytes()
+    r = git_tree(tmp_path, {VENDORED_ACCOUNT: data})
+    bad, summary = privacy.check(r)
+    assert bad == []
+    assert len(known_lines(summary)) == len(privacy.findings(data.decode("utf-8"), {"crn"})) >= 2
+    assert all(VENDORED_ACCOUNT in ln and "neither is a CRN" in ln for ln in known_lines(summary))
+    assert privacy.run(r) == 0
+
+
+def test_the_vendored_account_with_one_byte_changed_fails(tmp_path):
+    data = (ROOT / VENDORED_ACCOUNT).read_bytes()
+    for i, changed in enumerate((data + b"#", data[:-1], data.replace(b"CRN", b"CRM", 1), b" " + data)):
+        assert changed != data
+        r = git_tree(tmp_path / str(i), {VENDORED_ACCOUNT: changed})
+        bad, summary = privacy.check(r)
+        assert [b for b in bad if b.startswith(VENDORED_ACCOUNT + ": a key (crn)")] and known_lines(summary) == []
+        assert privacy.run(r) == 1
+
+
+def test_the_vendored_account_at_another_path_fails(tmp_path):
+    data = (ROOT / VENDORED_ACCOUNT).read_bytes()
+    for other in ("account.py", "qro_kit/_vendor/quantum_film/ibm/Account.py", "qro_kit/_vendor/quantum_film/ibm/account.txt",
+                  "x/" + VENDORED_ACCOUNT):
+        r = git_tree(tmp_path / other.replace("/", "_"), {other: data})
+        bad, summary = privacy.check(r)
+        assert [b for b in bad if b.startswith(other + ": a key (crn)")] and known_lines(summary) == [], other
+
+
+def test_an_excepted_files_other_alternative_still_fails(tmp_path, monkeypatch):
+    """A stand-in entry for a file that holds a crn shape and a home path: only the entry's alternative is excepted."""
+    import hashlib
+    data = (privacy.PLANTS["crn"] + chr(10) + privacy.PLANTS["posix-home"] + chr(10)).encode("utf-8")
+    sha = hashlib.sha256(data).hexdigest()
+    r = git_tree(tmp_path / "a", {"notes.md": data})
+    assert [b for b in privacy.check(r)[0] if "(crn)" in b] and [b for b in privacy.check(r)[0] if "(posix-home)" in b]
+    monkeypatch.setattr(privacy, "KNOWN_FILES", {("notes.md", sha, "crn"): "a test's own"})
+    bad, summary = privacy.check(r)
+    assert [b for b in bad if "(posix-home)" in b] and not [b for b in bad if "(crn)" in b]
+    assert len(known_lines(summary)) == 1 and "a test's own" in summary
+    monkeypatch.setattr(privacy, "KNOWN_FILES", {("notes.md", sha, "posix-home"): "a test's own"})
+    bad, summary = privacy.check(r)
+    assert [b for b in bad if "(crn)" in b] and not [b for b in bad if "(posix-home)" in b]
+    monkeypatch.setattr(privacy, "KNOWN_FILES", {("notes.md", sha, "var-home"): "a test's own"})
+    assert len(privacy.check(r)[0]) == 2 and known_lines(privacy.check(r)[1]) == []
+
+
+def test_a_staged_version_that_differs_from_the_known_bytes_fails(tmp_path, monkeypatch):
+    """The staged loop hashes the staged bytes: staged bytes that are not the known ones fail whatever the disk holds;
+    staged bytes that are the known ones are known whatever the disk holds (the disk is read on its own)."""
+    import hashlib
+    known = (privacy.PLANTS["crn"] + chr(10)).encode("utf-8")
+    monkeypatch.setattr(privacy, "KNOWN_FILES", {("notes.md", hashlib.sha256(known).hexdigest(), "crn"): "a test's own"})
+    env = hermetic_git(tmp_path)
+
+    def stage(r, data):
+        (r / "notes.md").write_bytes(data)
+        subprocess.run(["git", "-C", str(r), "add", "notes.md"], check=True, env=env)
+    # the disk holds the known bytes and the staged version differs and holds a crn shape too
+    r = git_tree(tmp_path / "a", {"notes.md": b"nothing to see" + bytes([10])})
+    stage(r, known + b"more" + bytes([10]))
+    (r / "notes.md").write_bytes(known)
+    bad, summary = privacy.check(r)
+    assert [b for b in bad if b.startswith("notes.md (staged): a key (crn)")]
+    assert [ln for ln in known_lines(summary) if "notes.md: " in ln and "(staged)" not in ln]
+    # the staged version is the known bytes and the disk holds none
+    r = git_tree(tmp_path / "b", {"notes.md": b"nothing to see" + bytes([10])})
+    stage(r, known)
+    (r / "notes.md").write_bytes(b"nothing else" + bytes([10]))
+    bad, summary = privacy.check(r)
+    assert bad == [] and [ln for ln in known_lines(summary) if "notes.md (staged): " in ln]
+    # the staged version has another path's name: the same bytes staged at a path the table does not name
+    r = git_tree(tmp_path / "c", {"other.md": b"nothing to see" + bytes([10])})
+    (r / "other.md").write_bytes(known)
+    subprocess.run(["git", "-C", str(r), "add", "other.md"], check=True, env=env)
+    (r / "other.md").write_bytes(b"nothing else" + bytes([10]))
+    assert [b for b in privacy.check(r)[0] if b.startswith("other.md (staged): a key (crn)")]

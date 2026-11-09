@@ -14,7 +14,11 @@ version of each tracked file whose index differs from the file on disk, which a 
 verifier, round 4); every commit message on HEAD's history; and every blob that history holds and the index does
 not, which a push sends with the commits that hold it: a key committed and deleted in a later commit is pushed
 (P0.4's verifier, round 4, note 1). A finding in a blob already pushed, which no commit can take back, is listed as
-known where KNOWN names its blob and its alternative, each read and judged no secret. Every git it runs on a
+known where KNOWN names its blob and its alternative, each read and judged no secret. A third party's file the tree
+must hold byte for byte is known in one way only: KNOWN_FILES names its path, the SHA-256 of its bytes and the
+alternative, and a finding of that alternative in those bytes at that path (read from disk, or staged) is listed as
+known, with its reason, in the summary; another alternative in the same bytes, the same bytes at another path, one
+byte changed and a staged version that differs are all failures (P5.1; the vendored account.py's `crn`). Every git it runs on a
 repository runs without the variables git lists as pointing it at a repository, GIT_DIR among them, with git's
 configuration (P0.2's verifier, rounds 1 and 2), and with replace refs ignored, as a push ignores them (P0.4's
 verifier, round 4, note 2). git log failing is a finding unless git says the branch has no commit yet: a commit
@@ -85,6 +89,7 @@ key a commit could hold is never passed over, and a false finding costs a look:
     python tools/check_privacy.py              # 0 = nothing found; 1 = each finding, masked
     python tools/check_privacy.py --control    # 0 = every planted fault caught by its own alternative
 """
+import hashlib
 import os
 import re
 import subprocess
@@ -290,11 +295,19 @@ def committed(p):
 
 def read(p):
     """(text, None), or (None, why it was not read)."""
+    text, why, _ = read_with_bytes(p)
+    return text, why
+
+
+def read_with_bytes(p):
+    """(text, None, the bytes it was decoded from), or (None, why it was not read, None): the bytes the text came from
+    are the ones KNOWN_FILES hashes, so that a file changed between two reads is no file the table names."""
     try:
         data = committed(p)
     except OSError as e:
-        return None, f"unreadable: {type(e).__name__}"
-    return decode(data)
+        return None, f"unreadable: {type(e).__name__}", None
+    text, why = decode(data)
+    return text, why, data
 
 
 def decode(data):
@@ -359,6 +372,25 @@ KNOWN = {
         "P0.7's third verifier's example, in docs/reviews/P0.7/round3.md as pushed in 83503b0, of a spelling the gate "
         "then missed: the name in it is the placeholder `x`",
 }
+
+
+# Third parties' bytes the tree must hold exactly as they are, each judged no secret: a finding is known only when
+# its alternative finds it in the file the gate reads at that path, whose bytes hash to that SHA-256. The key is
+# (the path as the gate names it, the SHA-256 of the file's bytes as hex, the alternative); the value is why.
+# Every other finding stays a failure: another alternative in the same bytes, the same bytes at another path, the
+# file with one byte changed, a staged version whose bytes differ (the staged loop hashes the staged bytes). tests/tools
+# holds that each entry's file has its hash and its alternative finds something there.
+KNOWN_FILES = {
+    ("qro_kit/_vendor/quantum_film/ibm/account.py",
+     "dc0cfdd739e91f234db16ba481ebdc9006442b61fc50b9bc4bef3fec77225275", "crn"):
+        "Quantum-Film's own account.py at 3a73823, vendored byte for byte (VENDORED.sha256): its line 24 is a pattern "
+        "and its line 55 a message that name a CRN's shape; neither is a CRN",
+}
+
+
+def known_file(path, data, name):
+    """The reason KNOWN_FILES gives for a finding of alternative `name` in the bytes `data` read at `path`, or None."""
+    return KNOWN_FILES.get((path, hashlib.sha256(data).hexdigest(), name))
 
 
 def history(root):
@@ -430,7 +462,7 @@ def findings(text, alternatives=None):
 
 
 def check(root):
-    bad, unread, known, n, staged_read, history_read = [], [], [], 0, 0, 0
+    bad, unread, known, known_files, n, staged_read, history_read = [], [], [], [], 0, 0, 0
     listed, repositories = files(root)
     gone = absent(root) if in_git(root) else set()
     # a nested repository, which git commits as a gitlink (P0.2's verifier, round 4)
@@ -440,13 +472,17 @@ def check(root):
         rel = p.relative_to(root).as_posix()
         if passed_over(root, rel, gone):
             continue        # gone, as git says, and from disk: the staged reader reads its index version
-        text, why = read(p)
+        text, why, data = read_with_bytes(p)
         if text is None:
             (unread if why == "binary" else bad).append(f"{rel}: {why}")
             continue
         n += 1
         for kind, name, s in findings(text):
-            bad.append(f"{rel}: a {kind} ({name}), {mask(s)}")
+            reason = known_file(rel, data, name)
+            if reason is not None:
+                known_files.append(f"{rel}: a {kind} ({name}), {mask(s)}: {reason}")
+            else:
+                bad.append(f"{rel}: a {kind} ({name}), {mask(s)}")
     if in_git(root):
         versions = staged(root)
         if versions is None:
@@ -458,7 +494,11 @@ def check(root):
                 continue
             staged_read += 1
             for kind, name, s in findings(text):
-                bad.append(f"{path} (staged): a {kind} ({name}), {mask(s)}")
+                reason = known_file(path, data, name)
+                if reason is not None:
+                    known_files.append(f"{path} (staged): a {kind} ({name}), {mask(s)}: {reason}")
+                else:
+                    bad.append(f"{path} (staged): a {kind} ({name}), {mask(s)}")
     msgs = 0
     if in_git(root):
         r = git(["-C", str(root), "log", "-z", "--encoding=UTF-8", "--format=%H%n%B"],
@@ -496,7 +536,8 @@ def check(root):
     if history_read:
         summary += f"; {history_read} versions in earlier commits read"
     return bad, summary + "".join(f"\n  not read: {u}" for u in unread + nested) + "".join(
-        f"\n  known, in a pushed commit: {k}" for k in known)
+        f"\n  known, in a pushed commit: {k}" for k in known) + "".join(
+        f"\n  known, a file's exact bytes: {k}" for k in known_files)
 
 
 # -- controls: each alternative, and each way of finding a file, watched to fail ---------------------------------

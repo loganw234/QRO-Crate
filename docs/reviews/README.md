@@ -23,3 +23,4 @@ Every report a verifier returned on this repository's work, kept so that the doc
 - [P4/](P4/README.md): P4's verifier, the profile.
 - [P4.2/](P4.2/README.md): P4.2's verifier, what P4's merge left.
 - [P4.3/](P4.3/README.md): P4.3's verifier, P1's twin as the profile's second example, and P4.2's notes.
+- [P5.1/](P5.1/README.md): P5.1's verifiers, the contributor kit's first build.

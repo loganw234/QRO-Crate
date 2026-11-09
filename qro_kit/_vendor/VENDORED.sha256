@@ -1,0 +1,32 @@
+# VENDORED.sha256: what qro_kit/_vendor holds, byte for byte, from Quantum-Film (moth-quantum).
+# The 22 modules of quantum_film/ are the transitive closure of fixer, ibm.bundle, ibm.runner, ibm.account, ibm.keyleak,
+# ibm.anchor, ibm.decode, ibm.raw and ibm.isa (194,424 bytes); with them Quantum-Film's licence (moth-quantum's LICENSE)
+# and the source circuit (moth-quantum's docs/records/2026-09-25/p3/circuit-ed767c01bd4b851d.qasm).
+# Each line: SHA-256, size in bytes, path under qro_kit/_vendor/. A changed byte fails tests/p5/test_p5_vendored.py.
+# tests/p5crates/test_p5crates_vendored_bytes.py holds the same files to a moth-quantum checkout at the commit below, when
+# QRO_MOTH_ROOT names one; the licence is moth-quantum's LICENSE and the circuit is the docs/records path above.
+commit 3a738230286385664cd83c9c0a04fe33a5e2348a
+2a3c6d6484f4bfd6062c3b83c81de907998a0e797f70c05ee5ca9f8609db46ce  367  quantum_film/__init__.py
+902525f27ecd35d11ea216e241231a87e6c2408fa9497dc69b9f8c7611728ada  263  quantum_film/atlas/__init__.py
+c154e8554443b3cbb8004ba67ea030ba5cdfc78529f24908b62f5373a95ea109  2580  quantum_film/atlas/decode.py
+0822a8af902b8a9faa2933e62838d70ac0655bd467b3580e62392fd548cf4f2e  28470  quantum_film/atlas/pauli_tile.py
+45e8d5f8cc1054528940d81237ad1b8185bae3ff8eac5f2ae8f14a9ee2b2b574  428  quantum_film/circuits/__init__.py
+7b5e2f7d8f164b0d75943e86219304f4adce6576e4a2826a81941b37ca695cda  5548  quantum_film/circuits/givens.py
+11d922562c3cfdcd67a7812a59cba43fee5767692aef31f5324c8b3c04380ad7  14015  quantum_film/circuits/givens_line.py
+2f55f54e91cfff718137e7e9c4424d66d377033a3d32dd1611446845af700d61  35792  quantum_film/fixer.py
+617065d0a6df63ae799740646292690070cd90ccae33137ca022a4a5506991ee  589  quantum_film/golden/__init__.py
+d22c997f0cf6b1ceb00f7f69ebcd805c78e55a0faeda4b94822900f56c20ce7f  685  quantum_film/golden/binomial.py
+94b089d451afa26f6668f349ad15e5bce3122002469d2fed9de44a8484d7a8b5  9170  quantum_film/golden/fermi.py
+ea3ae82808f37c11041049eb7d5825051c45c07764d2791c4116d69dd712c7dc  1750  quantum_film/golden/uniform.py
+7c5e5662a2aefde802573d6f74ca35ba3bd82b9c74c0b061466065469d179a1e  296  quantum_film/ibm/__init__.py
+dc0cfdd739e91f234db16ba481ebdc9006442b61fc50b9bc4bef3fec77225275  3877  quantum_film/ibm/account.py
+85342dfbcf06b4451622d5706ed58e3a2560b7abb607257e681d54e290ce921e  4754  quantum_film/ibm/anchor.py
+2ec4adfb653e292152f08719195cdab9d620d7c706f1d4a396b9ea05fdc6a559  28783  quantum_film/ibm/bundle.py
+f51543cdff078b540939e5ca8587f13547a26b304b471517a0aed0777c2cba83  3811  quantum_film/ibm/decode.py
+4922c0a540199df272fa5cc3164c41ddf00a36901f7063d52229dff7a4a5010d  17407  quantum_film/ibm/isa.py
+94fc76595890322d5f87084ec492146b5c81337fa9c917dc489ee876540fbb6f  6286  quantum_film/ibm/keyleak.py
+bcbebe81786cd22cf04b8e72b92f5d71ee03504f879bf98550e7e4f117b42810  4266  quantum_film/ibm/raw.py
+d8c137fe9b9a7ca963d7a2d4487f8679591f327a476e4b93e69baa8dfe99a625  18938  quantum_film/ibm/runner.py
+bc43db61275981a5326c59734e29a8ad3a3ab8b478d87a9f880fa0a128bc8492  6349  quantum_film/stocks.py
+c28b530f214c15299aef5fcee793bf24a26b97b2da39c92fafc08baeb9f2f7ce  1065  LICENSE-quantum-film
+ed767c01bd4b851d08993da80f715676e345fc95a10f3bda05400f738e400b36  5394  circuit-ed767c01bd4b851d.qasm
